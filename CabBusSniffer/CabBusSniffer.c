@@ -1,9 +1,6 @@
 #include <stdio.h>
-#include <termios.h>
-#include <fcntl.h>
 #include <inttypes.h>
-
-#include <errno.h>
+#include <cserial/c_serial.h>
 
 #define ENTER 0x40
 #define PROGRAM 0x41
@@ -15,7 +12,6 @@
 //
 // Local Variables
 //
-int cabbus_fd;
 
 //
 // Local Functions
@@ -49,50 +45,77 @@ static const char* getKeyCode( uint8_t byte ){
 	return "UKN";
 }
 
+static void cserial_log_function( enum CSerial_Log_Level logLevel,
+	const char* logMessage,
+	const char* fileName,
+	int lineNumber,
+	const char* functionName,
+	c_serial_port_t* port ){
+	fprintf( stderr, "%s\n", logMessage );
+}
+
+static void print_error( c_serial_errnum_t errnum ){
+#ifdef _WIN32
+	LPVOID lpMsgBuf;
+	DWORD dw = errnum;
+
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dw,
+		MAKELANGID( LANG_NEUTRAL, SUBLANG_DEFAULT ),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL );
+	fprintf( stderr, "ERROR: %s\n", lpMsgBuf );
+#else
+	fprintf( stderr, strerror( errnum ) );
+#endif
+}
+
 int main( int argc, char** argv ){
 	uint8_t bytes[ 16 ];
 	int got;
-	struct termios termio;
 	int flags;
 	uint8_t addr;
+	c_serial_port_t* port;
+	int status;
 
 	if( argc < 2 ){
-		fprintf( stderr, "ERROR: need cabbus TTY\n" );
+		fprintf( stderr, "ERROR: need cabbus COM port\n" );
 		return 1;
 	}
 
-	cabbus_fd = open( argv[ 1 ], O_RDWR );
-	if( cabbus_fd < 0 ){
-		fprintf( stderr, "ERROR: Can't open.  Reason: %s\n", strerror( errno ) );
+	c_serial_set_global_log_function( cserial_log_function );
+
+	if( c_serial_new( &port, NULL ) != CSERIAL_OK ){
+		fprintf( stderr, "ERROR: Unable to open serial port\n" );
 		return 1;
 	}
 
-	//set up the cab bus port
-	if( tcgetattr( cabbus_fd, &termio ) < 0 ){
-		perror( "tcgetattr" );
-	}
-	cfsetospeed( &termio, B9600 );
-	cfsetispeed( &termio, B9600 );
-	termio.c_iflag |= IGNBRK;
-	termio.c_iflag &= ~BRKINT;
-	termio.c_iflag &= ~ICRNL;
-	termio.c_oflag = 0;
-	termio.c_lflag = 0;
-	termio.c_cc[VTIME] = 0;
-	termio.c_cc[VMIN] = 1;
-	termio.c_cflag |= CS8;
-	termio.c_cflag |= CSTOPB;
-	termio.c_iflag &= ~( PARODD | PARENB );
-	termio.c_iflag |= IGNPAR;
-	termio.c_iflag &= ~( IXON | IXOFF | IXANY );
-	termio.c_cflag &= ~CRTSCTS;
-	if( tcsetattr( cabbus_fd, TCSANOW, &termio ) < 0 ){
-		perror( "tcsetattr" );
+	c_serial_set_port_name( port, argv[ 1 ] );
+	c_serial_set_stop_bits( port, CSERIAL_STOP_BITS_2 );
+	status = c_serial_open( port );
+
+	if( status != CSERIAL_OK ){
+		fprintf( stderr, "CSerial error: %s\n", c_serial_get_error_string( status ) );
+		print_error( c_serial_get_last_native_errnum( port ) );
+		return 1;
 	}
 
 	flags = 0;
 	while( 1 ){
-		got = read( cabbus_fd, bytes, 1 );
+		int errnum;
+		c_serial_errnum_t native_errnum;
+
+		got = 1;
+		errnum = c_serial_read_data( port, bytes, &got, NULL );
+		if( errnum != CSERIAL_OK ){
+			fprintf( stderr, "Did not read data properly: %s\n", c_serial_get_error_string( errnum ) );
+			print_error( c_serial_get_last_native_errnum( port ) );
+			break;
+		}
 		if( got < 0 ){
 			fprintf( stderr, "ERROR: Unable to read: %s\n", strerror( errno ) );
 			return 1;
