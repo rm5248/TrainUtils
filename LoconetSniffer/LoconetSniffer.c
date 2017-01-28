@@ -1,12 +1,4 @@
 #include <stdio.h>
-#include <unistd.h>
-#include <popt.h>
-#include <fcntl.h>
-#include <popt.h>
-#include <pthread.h>
-#include <string.h>
-#include <time.h>
-#include <signal.h>
 
 #include "loconet_buffer.h"
 #include "loconet_print.h"
@@ -14,13 +6,12 @@
 //
 // Local variables
 //
-static int loconet_fd;
-static timer_t loconet_timer;
 
 //
 // Method Implementations
 //
 
+/*
 static void timerStart( uint32_t time ){
 	static struct itimerspec timespec;
 
@@ -63,6 +54,7 @@ static void* loconet_read( void* ign ){
 
 //stub, don't do anything
 static void loconet_write( uint8_t ign ){}
+*/
 
 int main( int argc, const char** argv ){
 	FILE* textOutput;

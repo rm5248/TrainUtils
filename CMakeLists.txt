@@ -7,25 +7,32 @@ option (BUILD_LOCONET_SNIFFER
         "Build the LocoNet sniffer project"
 		OFF)
 		
-SET(CSERIAL_INCLUDE_DIR         "${CMAKE_INSTALL_PREFIX}/include"           CACHE STRING "Directory with CSerial include files")
-SET(CSERIAL_LIBRARIES           "${CMAKE_INSTALL_PREFIX}/lib/cserial.lib"   CACHE STRING "CSerial library to link with")
+IF( NOT UNIX )
+    SET(CSERIAL_INCLUDE_DIR         "${CMAKE_INSTALL_PREFIX}/include"           CACHE STRING "Directory with CSerial include files")
+    SET(CSERIAL_LIBRARIES           "${CMAKE_INSTALL_PREFIX}/lib/cserial.lib"   CACHE STRING "CSerial library to link with")
+ENDIF( NOT UNIX )
+
+IF( UNIX )
+    find_package(PkgConfig)
+    pkg_search_module( CSERIAL REQUIRED cserial )
+ENDIF( UNIX )
 
 INCLUDE_DIRECTORIES(${CSERIAL_INCLUDE_DIR})
 
 IF( BUILD_CABBUS_SNIFFER )
     project (CabBusSniffer)
-	include_directories ("${PROJECT_SOURCE_DIR}/CabBusCommunications")
+    include_directories ("${PROJECT_SOURCE_DIR}/CabBusCommunications")
     add_subdirectory (CabBusCommunications)
 	
-	# add the executable
-	add_executable(CabBusSniffer CabBusSniffer/CabBusSniffer.c ${CABBUS_SOURCES})
+    # add the executable
+    add_executable(CabBusSniffer CabBusSniffer/CabBusSniffer.c ${CABBUS_SOURCES})
     target_link_libraries (CabBusSniffer ${CSERIAL_LIBRARIES})
 ENDIF( BUILD_CABBUS_SNIFFER )
 
 IF( BUILD_LOCONET_SNIFFER )
-	project (LoconetSniffer)
-	include_directories(LocoNetCommunications)
-	add_subdirectory(LocoNetCommunications)
+    project (LoconetSniffer)
+    include_directories(LocoNetCommunications)
+    add_subdirectory(LocoNetCommunications)
 	
-	add_executable(LoconetSniffer LoconetSniffer/LoconetSniffer.c ${LOCONET_SOURCES})
+    add_executable(LoconetSniffer LoconetSniffer/LoconetSniffer.c ${LOCONET_SOURCES})
 ENDIF( BUILD_LOCONET_SNIFFER )

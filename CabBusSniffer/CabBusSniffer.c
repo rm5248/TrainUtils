@@ -2,6 +2,10 @@
 #include <inttypes.h>
 #include <cserial/c_serial.h>
 
+#ifndef _WIN32
+#include <errno.h>
+#endif
+
 #define ENTER 0x40
 #define PROGRAM 0x41
 #define RECALL 0x42
@@ -70,7 +74,7 @@ static void print_error( c_serial_errnum_t errnum ){
 		0, NULL );
 	fprintf( stderr, "ERROR: %s\n", lpMsgBuf );
 #else
-	fprintf( stderr, strerror( errnum ) );
+	fprintf( stderr, "%s\n", strerror( errnum ) );
 #endif
 }
 
