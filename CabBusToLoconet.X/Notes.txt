@@ -1,0 +1,10 @@
+1. PowerCab sends out a ping every ~5 MS
+2. 900ms does not seem to be a hard and fast rule.
+3. DelayUs seems to be ~double the time specified.  Don't use it.
+4. The PowerCab looks like it draws .06A on boot, and .09A when being used as a PowerCab.
+   Not sure which is more representative.
+5. Voltage Regulator = MC7805CT
+6. For the voltage regulator, 9v in will give us 5v out
+7. The cab bus spec states that the first byte is the key press information,
+   and that the second byte is the speed - this is wrong.  It is actually reversed.
+   (probably an endianess thing)
