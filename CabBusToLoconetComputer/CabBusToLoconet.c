@@ -80,6 +80,16 @@ static void loconet_write( uint8_t byte ){
 static void cabbus_write( void* data, uint8_t len ){
 	int length = len;
 	c_serial_write_data( cabbus_port, data, &length );
+	c_serial_flush( cabbus_port );
+}
+
+static void cserial_log_function( enum CSerial_Log_Level logLevel,
+	const char* logMessage,
+	const char* fileName,
+	int lineNumber,
+	const char* functionName,
+	c_serial_port_t* port ){
+	fprintf( stderr, "%s\n", logMessage );
 }
 
 //
@@ -99,6 +109,11 @@ int main( int argc, char** argv ){
 	int good;
 	int status;
 	struct pollfd pollfds[ 3 ];
+	c_serial_errnum_t errnum = 0;
+	c_serial_port_t* tmpPort;
+	int available;
+
+	c_serial_set_global_log_function( cserial_log_function );
 
 	//quick parse of cmdline
 	if( argc < 3 ){
@@ -115,21 +130,29 @@ int main( int argc, char** argv ){
 
 	//open the TTY ports
 	printf( "About to open %s for loconet use\n", argv[ 1 ] );
-	c_serial_new( &loconet_port, NULL );
+	status = c_serial_new( &tmpPort, &errnum );
+	loconet_port = tmpPort;
 	c_serial_set_port_name( loconet_port, argv[ 1 ] );
-        status = c_serial_open( loconet_port );
+    status = c_serial_open_keep_settings( loconet_port, 1 );
 	if( status != CSERIAL_OK ){
-		fprintf( stderr, "ERROR: Can't open loconet port\n" );
+		fprintf( stderr, "ERROR: Can't open loconet port: %s\n",
+			c_serial_get_error_string( status ) );
 		return 1;
 	}
 	
 	printf( "About to open %s for cabbus use\n", argv[ 2 ] );
-	c_serial_new( &cabbus_port, NULL );
+	status = c_serial_new( &cabbus_port, NULL );
+	if( status < 0 ){
+		fprintf( stderr, "ERROR: Can't allocate new serial port for cabbus\n" );
+		return 1;
+	}
 	c_serial_set_port_name( cabbus_port, argv[ 2 ] );
 	c_serial_set_stop_bits( cabbus_port, CSERIAL_STOP_BITS_2 );
 	status = c_serial_open( cabbus_port );
 	if( status != CSERIAL_OK ){
-		fprintf( stderr, "ERROR: Can't open cabbus port\n" );
+		fprintf( stderr, "ERROR: Can't open cabbus port: %s (%s)\n",
+			c_serial_get_error_string( status ),
+			strerror( c_serial_get_last_native_errnum( cabbus_port ) )  );
 		return 1;
 	}
 
@@ -146,7 +169,13 @@ int main( int argc, char** argv ){
 	//we also have to parse loconet information that we get back to make sure
 	//that we tell the user about stupid stuff that they are doing
 	while( 1 ){
-		cab = cabbus_ping_next();
+		cabbus_ping_step1();
+		c_serial_get_available( cabbus_port, &available );
+		if( available ){
+			cabbus_read();
+		}
+		cab = cabbus_ping_step2();
+
 		if( cab != NULL ){
 			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
 			

@@ -6,6 +6,9 @@ option (BUILD_CABBUS_SNIFFER
 option (BUILD_LOCONET_SNIFFER
         "Build the LocoNet sniffer project"
 		OFF)
+option (BUILD_CAB2LOCONET_COMPUTER
+        "Build the Cab2Loconet program for use with a computer"
+		OFF)
 		
 IF( NOT UNIX )
     SET(CSERIAL_INCLUDE_DIR         "${CMAKE_INSTALL_PREFIX}/include"           CACHE STRING "Directory with CSerial include files")

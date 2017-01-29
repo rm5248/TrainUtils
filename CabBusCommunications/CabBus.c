@@ -160,7 +160,7 @@ static char simp_atoi(int number) {
     return '-';
 }
 
-void cab_reset(struct Cab* cab) {
+static void cab_reset(struct Cab* cab) {
     int x;
 
     char tempBuffer[ 9 ];
@@ -421,6 +421,70 @@ struct Cab* cabbus_ping_next() {
     } while (rePing);
 
     return NULL; //unable to ping this cab
+}
+
+void cabbus_ping_step1(){
+    currentCabAddr++;
+    if (currentCabAddr == 1) currentCabAddr++; //don't ping address 1
+    if (currentCabAddr == 2) currentCabAddr++; //don't ping address 2 either
+
+    if (currentCabAddr == 64) {
+        currentCabAddr = 0; //only up to 63 cab
+        pingNum++;
+    }
+
+    //Go and ping the next address
+    outputBuffer[ 0 ] = 0x80 | currentCabAddr;
+
+    writeFunction(outputBuffer, 1);
+
+    //Delay to make sure that we get a response back
+    delayFunction(1);
+}
+
+struct Cab* cabbus_ping_step2(){
+	struct Cab* current = NULL;
+	int rePing = 0;
+
+    if (pingNum - allCabs[ currentCabAddr ].last_ping > 1) {
+        //we haven't seen this guy, set all screens to dirty
+        allCabs[ currentCabAddr ].dirty_screens |= 0x0F;
+    }
+
+    if (byteStatus & 0x01) {
+        //we have a response back from a cab
+        unsigned char knobByte;
+        unsigned char keyByte;
+        unsigned int loopTimes = 0;
+
+        current = &allCabs[ currentCabAddr ];
+        current->command.command = CAB_CMD_NONE;
+
+        loopTimes = 0;
+        while (!(byteStatus & 0x02)) {
+            ++loopTimes;
+            if (loopTimes > 1000) {
+                byteStatus = 0x00;
+                return NULL;
+            }
+        }
+        knobByte = secondByte;
+        keyByte = firstByte;
+        byteStatus = 0x00;
+
+        current->last_ping = pingNum;
+
+        if (keyByte != NO_KEY) {
+            rePing = cabbus_process_button_press(current, keyByte);
+			if( rePing ){
+    			currentCabAddr--;
+			}
+        }
+
+        cabbus_output_screents(current);
+    }
+
+    return current;
 }
 
 void cabbus_set_loco_number(struct Cab* cab, int number) {

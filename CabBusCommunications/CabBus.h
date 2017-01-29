@@ -60,6 +60,18 @@ extern "C" {
      */
     struct Cab* cabbus_ping_next();
 
+	/**
+	 * Send a ping to the next cab.  Step 1 of the ping process.
+	 */
+	void cabbus_ping_step1();
+
+	/**
+	 * Return the cab, if we were able to ping it.
+	 * Any data from the serial port must have been put into our buffer with
+	 * cabbus_incoming_byte before calling this function.
+	 */
+	struct Cab* cabbus_ping_step2();
+
     /**
      * Set the cab locomotive number
      * @param number
