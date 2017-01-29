@@ -1,4 +1,13 @@
 #include <stdio.h>
+#include <cserial/c_serial.h>
+#include <string.h>
+#include <time.h>
+
+//linux includes here
+#include <popt.h>
+#include <signal.h>
+#include <sys/timerfd.h>
+#include <poll.h>
 
 #include "loconet_buffer.h"
 #include "loconet_print.h"
@@ -6,55 +15,43 @@
 //
 // Local variables
 //
+static int loconet_timer_fd;
 
 //
 // Method Implementations
 //
 
-/*
 static void timerStart( uint32_t time ){
 	static struct itimerspec timespec;
 
 	memset( &timespec, 0, sizeof( struct itimerspec ) );
 	timespec.it_value.tv_nsec = time * 1000;
 	timespec.it_interval.tv_nsec = timespec.it_value.tv_nsec;
-	if( timer_settime( loconet_timer, 0, &timespec, NULL ) < 0 ){
+	if( timerfd_settime( loconet_timer_fd, 0, &timespec, NULL ) < 0 ){
 		perror( "timer_settime" );
 	}
 }
 
-static void timerFired( int sig, siginfo_t* si, void* uc ){
-	static struct itimerspec timespec;
-
-	memset( &timespec, 0, sizeof( struct itimerspec ) );
-	timer_settime( loconet_timer, 0, &timespec, NULL );
-
-	ln_timer_fired();
-}
-
-static void* loconet_read( void* ign ){
+static int loconet_read( c_serial_port_t* loconet_port ){
 	uint8_t buffer[ 20 ];
-	ssize_t got;
+	int buffer_size = 20;
 	ssize_t x;
+	int status;
 
-	while( 1 ){
-		got = read( loconet_fd, buffer, 20 );
-		if( got < 0 ){
-			perror( "read - loconet" );
-			return NULL;
-		}
-
-		for( x = 0; x < got; x++ ){
-			ln_incoming_byte( buffer[ x ] );
-		}
+	status = c_serial_read_data( loconet_port, buffer, &buffer_size, NULL );
+	if( status != CSERIAL_OK ){
+		return -1;
 	}
 
-	return NULL;
+	for( x = 0; x < buffer_size; x++ ){
+		ln_incoming_byte( buffer[ x ] );
+	}
+
+	return 0;
 }
 
 //stub, don't do anything
 static void loconet_write( uint8_t ign ){}
-*/
 
 int main( int argc, const char** argv ){
 	FILE* textOutput;
@@ -69,6 +66,9 @@ int main( int argc, const char** argv ){
 	pthread_t readThread;
 	struct sigaction sa;
 	struct sigevent evt;
+	c_serial_port_t* loconet_port;
+	int status;
+	struct pollfd pollfds[ 2 ];
 
 	struct poptOption options[] = {
 		{ "serial-port", 's', POPT_ARG_STRING, &serialPort, 0, "The serial port that is connected to Loconet" },
@@ -118,59 +118,64 @@ int main( int argc, const char** argv ){
 
 		//error check, make sure that the files opened fine
 		if( textOutput == NULL || binaryOutput == NULL ){
-			perror( "fopen" );
+			fprintf( stderr, "ERROR: Unable to open up either text file or binary file\n" );
 			return 1;
 		}
 	}else if( textFile != NULL ){
 		textOutput = fopen( textFile, "w" );
 		if( textOutput == NULL ){
-			perror( "fopen" );
+			fprintf( stderr, "ERROR: Unable to open up text file\n" );
 			return 1;
 		}
 	}else if( binaryFile != NULL ){
 		binaryOutput = fopen( binaryFile, "w" );
 		if( binaryOutput == NULL ){
-			perror( "fopen" );
+			fprintf( stderr, "ERROR: Unable to open up binary file\n" );
 			return 1;
 		}
 	}
 
-	loconet_fd = open( serialPort, O_RDWR );
-	if( loconet_fd < 0 ){
-		perror( "open" );
-		return 2;
+	c_serial_new( &loconet_port, NULL );
+	c_serial_set_port_name( loconet_port, serialPort );
+	status = c_serial_open( loconet_port );
+	if( status != CSERIAL_OK ){
+		fprintf( stderr, "ERROR: Unable to open serial port: %s\n",
+			c_serial_get_error_string( status ) );
+		return 1;
 	}
 
 	//loconet timer setup
-	memset( &sa, 0, sizeof( struct sigaction ) );
-	sa.sa_flags = SA_SIGINFO;
-	sa.sa_sigaction = timerFired,
-	sigemptyset( &sa.sa_mask );
-	if( sigaction( SIGRTMIN, &sa, NULL ) < 0 ){
-		perror( "sigaction" );
-		return 2;
-	}
-
-	memset( &evt, 0, sizeof( struct sigevent ) );
-	evt.sigev_notify = SIGEV_SIGNAL;
-	evt.sigev_signo = SIGRTMIN;
-	evt.sigev_value.sival_ptr = &loconet_timer;
-	if( timer_create( CLOCK_REALTIME, &evt, &loconet_timer ) < 0 ){
-		perror( "timer_create" );
-		return 2;
-	}
+	loconet_timer_fd = timerfd_create( CLOCK_REALTIME, 0 );
 
 	//initialize loconet
 	ln_init( timerStart, loconet_write, 200 );
 
-	//Create a read thread to read the data from loconet
-	if( pthread_create( &readThread, NULL, loconet_read, NULL ) < 0 ){
-		perror( "pthread_create" );
-		return 4;
-	}
+	//setup the FDs to poll
+	pollfds[ 0 ].fd = loconet_timer_fd;
+	pollfds[ 1 ].fd = c_serial_get_poll_handle( loconet_port );
 
-	
 	while( 1 ){
+		int x;
+		for( x = 0; x < 2; x++ ){
+			pollfds[ x ].events = POLLIN;
+			pollfds[ x ].revents = 0;
+		}
+
+		status = poll( pollfds, 2, -1 );
+		if( status < 0 ){
+			break;
+		}
+
+		if( pollfds[ 0 ].revents & POLLIN ){
+			//the timer has expired
+			ln_timer_fired();
+		}
+
+		if( pollfds[ 1 ].revents & POLLIN ){
+			//we have data on the serial port
+			loconet_read( loconet_port );
+		}
+
 		if( ln_read_message( &incomingMessage ) == 1 ){
 			if( doBinaryOutput ){
 				loconet_print_message_hex( binaryOutput, &incomingMessage );

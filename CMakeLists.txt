@@ -21,8 +21,8 @@ INCLUDE_DIRECTORIES(${CSERIAL_INCLUDE_DIR})
 
 IF( BUILD_CABBUS_SNIFFER )
     project (CabBusSniffer)
-    include_directories ("${PROJECT_SOURCE_DIR}/CabBusCommunications")
-    add_subdirectory (CabBusCommunications)
+    #include_directories ("${PROJECT_SOURCE_DIR}/CabBusCommunications")
+    #add_subdirectory (CabBusCommunications)
 	
     # add the executable
     add_executable(CabBusSniffer CabBusSniffer/CabBusSniffer.c ${CABBUS_SOURCES})
@@ -32,7 +32,17 @@ ENDIF( BUILD_CABBUS_SNIFFER )
 IF( BUILD_LOCONET_SNIFFER )
     project (LoconetSniffer)
     include_directories(LocoNetCommunications)
-    add_subdirectory(LocoNetCommunications)
+    set( LOCONET_SNIFFER 
+         LoconetSniffer/LoconetSniffer.c 
+         LocoNetCommunications/loconet_buffer.c
+         LocoNetCommunications/loconet_print.c
+    )
+
+    IF( UNIX )
+        find_package(PkgConfig)
+        pkg_search_module( POPT REQUIRED popt )
+    ENDIF( UNIX )
 	
-    add_executable(LoconetSniffer LoconetSniffer/LoconetSniffer.c ${LOCONET_SOURCES})
+    add_executable(LoconetSniffer ${LOCONET_SNIFFER})
+    target_link_libraries (LoconetSniffer ${CSERIAL_LIBRARIES} ${POPT_LIBRARIES})
 ENDIF( BUILD_LOCONET_SNIFFER )
