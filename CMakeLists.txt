@@ -46,3 +46,17 @@ IF( BUILD_LOCONET_SNIFFER )
     add_executable(LoconetSniffer ${LOCONET_SNIFFER})
     target_link_libraries (LoconetSniffer ${CSERIAL_LIBRARIES} ${POPT_LIBRARIES})
 ENDIF( BUILD_LOCONET_SNIFFER )
+
+IF( BUILD_CAB2LOCONET_COMPUTER )
+    project( Cab2Loconet )
+    include_directories( LocoNetCommunications CabBusCommunications )
+    set( CAB2LOCONET
+        CabBusToLoconetComputer/CabBusToLoconet.c
+        LocoNetCommunications/loconet_buffer.c
+        LocoNetCommunications/loconet_print.c
+        CabBusCommunications/CabBus.c
+        )
+    
+    add_executable( Cab2Loconet ${CAB2LOCONET} )
+    target_link_libraries( Cab2Loconet ${CSERIAL_LIBRARIES} )
+ENDIF( BUILD_CAB2LOCONET_COMPUTER )
