@@ -17,6 +17,7 @@
 #define CLEAR_DISPLAY_HOME_CURSOR 0x0D
 #define CURSOR_OFF 0x0E
 #define CURSOR_ON 0x0F
+#define CURRENT_CONTROL_LOCOMOTIVE_INFO 0x5B
 
 //key definitions
 #define NO_KEY  0x7D
@@ -234,6 +235,32 @@ static void cab_reset(struct Cab* cab) {
 
     CAB_SET_BOTTOMLEFT_DIRTY(cab);
     CAB_SET_BOTTOMRIGHT_DIRTY(cab);
+}
+
+static void cabbus_send_current_control_info(struct Cab* cab){
+    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | 
+        CURRENT_CONTROL_LOCOMOTIVE_INFO;
+    outputBuffer[ 1 ] = 0;
+    outputBuffer[ 2 ] = 0;
+    outputBuffer[ 3 ] = 0;
+    outputBuffer[ 4 ] = 0;
+
+    if( cab->speed & 0x80 ){
+        // Going forward
+        outputBuffer[ 1 ] |= (0x01 << 5);
+    }
+    // Upper 5 bits of speed in the first byte
+    outputBuffer[ 1 ] |= (cab->speed & 0x7C);
+
+    // Lower 2 bits of speed in bits 4,5 of second byte
+    outputBuffer[ 2 ] |= ((cab->speed & 0x03) << 4);
+    // Upper 4 bits of loco number come next
+    outputBuffer[ 2 ] |= ((cab->loco_number & 0xF000) >> 12 );
+    outputBuffer[ 3 ] |= ((cab->loco_number & 0x0F00) << 2);
+    outputBuffer[ 3 ] |= ((cab->loco_number & 0x00C0) >> 6);
+    outputBuffer[ 4 ] = (cab->loco_number & 0x003F);
+
+    writeFunction( outputBuffer, 5 );
 }
 
 //
