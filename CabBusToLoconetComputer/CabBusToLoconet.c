@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/timerfd.h>
 #include <poll.h>
+#include <unistd.h>
 
 #define LOCONET_INTERLOCK
 
@@ -83,12 +84,10 @@ static void cabbus_write( void* data, uint8_t len ){
 	c_serial_flush( cabbus_port );
 }
 
-static void cserial_log_function( enum CSerial_Log_Level logLevel,
-	const char* logMessage,
-	const char* fileName,
-	int lineNumber,
-	const char* functionName,
-	c_serial_port_t* port ){
+static void cserial_log_function( const char* logger_name,
+        const struct SL_LogLocation* location,
+	const enum SL_LogLevel level,
+        const char* logMessage ){
 	fprintf( stderr, "%s\n", logMessage );
 }
 
@@ -181,7 +180,14 @@ int main( int argc, char** argv ){
 			
 			cmd = cabbus_get_command( cab );
 			if( cmd->command != CAB_CMD_NONE ){
-				printf( "Got command %d\n", cmd->command );
+				printf( "Got command %d[%s]\n", 
+					cmd->command, 
+					cabbus_command_to_string(cmd->command) );
+			}
+			if( cmd->command == CAB_CMD_SEL_LOCO ){
+				printf( "Select loco %d(long? %d)\n",
+					cmd->sel_loco.address,
+					cmd->sel_loco.flags );
 			}
 		}
 
@@ -225,6 +231,7 @@ int main( int argc, char** argv ){
 */
 
 
+/*
 		if( ln_read_message( &incomingMessage ) == 1 ){
 			loconet_print_message( stdout, &incomingMessage );
 			if( incomingMessage.opcode == LN_OPC_SLOT_READ_DATA ){
@@ -248,5 +255,6 @@ int main( int argc, char** argv ){
 		}
 
 		usleep( 1000 );
+*/
 	}
 }

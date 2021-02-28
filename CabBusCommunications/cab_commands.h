@@ -1,3 +1,8 @@
+#ifndef CAB_COMMANDS_H
+#define CAB_COMMANDS_H
+
+#include <stdint.h>
+
 /**
  * Commands that are sent by the cab bus.
  */
@@ -48,3 +53,7 @@ struct cab_command{
         struct loco_direction direction;
     };
 };
+
+const char* cabbus_command_to_string( int command );
+
+#endif /* CAB_COMMANDS_H */

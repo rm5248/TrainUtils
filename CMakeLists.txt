@@ -56,6 +56,7 @@ IF( BUILD_CAB2LOCONET_COMPUTER )
         LocoNetCommunications/loconet_buffer.c
         LocoNetCommunications/loconet_print.c
         CabBusCommunications/CabBus.c
+        CabBusCommunications/command_to_string.c
         )
     
     add_executable( Cab2Loconet ${CAB2LOCONET} )
