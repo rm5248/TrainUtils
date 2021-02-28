@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 #include <cserial/c_serial.h>
 
 #ifndef _WIN32
@@ -49,12 +50,10 @@ static const char* getKeyCode( uint8_t byte ){
 	return "UKN";
 }
 
-static void cserial_log_function( enum CSerial_Log_Level logLevel,
-	const char* logMessage,
-	const char* fileName,
-	int lineNumber,
-	const char* functionName,
-	c_serial_port_t* port ){
+static void cserial_log_function( const char* logger_name,
+        const struct SL_LogLocation* location,
+	const enum SL_LogLevel level,
+        const char* logMessage ){
 	fprintf( stderr, "%s\n", logMessage );
 }
 
