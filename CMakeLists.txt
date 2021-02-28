@@ -1,4 +1,5 @@
-cmake_minimum_required (VERSION 2.6)
+project( TrainUtils )
+cmake_minimum_required (VERSION 3.8)
 
 option (BUILD_CABBUS_SNIFFER
         "Build the CabBus sniffer project"
@@ -16,11 +17,9 @@ IF( NOT UNIX )
 ENDIF( NOT UNIX )
 
 IF( UNIX )
-    find_package(PkgConfig)
-    pkg_search_module( CSERIAL REQUIRED cserial )
+    include( FindPkgConfig )
+    pkg_check_modules( CSERIAL REQUIRED cserial )
 ENDIF( UNIX )
-
-INCLUDE_DIRECTORIES(${CSERIAL_INCLUDE_DIR})
 
 IF( BUILD_CABBUS_SNIFFER )
     project (CabBusSniffer)
@@ -42,8 +41,7 @@ IF( BUILD_LOCONET_SNIFFER )
     )
 
     IF( UNIX )
-        find_package(PkgConfig)
-        pkg_search_module( POPT REQUIRED popt )
+        pkg_check_modules( POPT REQUIRED popt )
     ENDIF( UNIX )
 	
     add_executable(LoconetSniffer ${LOCONET_SNIFFER})
