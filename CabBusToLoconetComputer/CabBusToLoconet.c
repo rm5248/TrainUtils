@@ -262,7 +262,7 @@ int main( int argc, char** argv ){
                 message.opcode = LN_OPC_LOCO_DIR_FUNC;
                 message.dirFunc.slot = info->slot_number;
                 message.dirFunc.dir_funcs = 0;
-                if( cmd->direction.direction == REVERSE ){
+                if( cmd->direction.direction == CAB_DIR_REVERSE ){
                     LOCONET_SET_DIRECTION_REV(message);
                 }else{
                     LOCONET_SET_DIRECTION_FWD(message);
@@ -399,9 +399,9 @@ int main( int argc, char** argv ){
 
                     if( info->slot_number == incomingMessage.dirFunc.slot ){
                         if( LOCONET_GET_DIRECTION_REV(incomingMessage) ){
-                            cabbus_set_direction( cab, REVERSE );
+                            cabbus_set_direction( cab, CAB_DIR_REVERSE );
                         }else{
-                            cabbus_set_direction( cab, FORWARD );
+                            cabbus_set_direction( cab, CAB_DIR_FORWARD );
                         }
                     }
                 }

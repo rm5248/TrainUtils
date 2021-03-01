@@ -284,7 +284,7 @@ void cabbus_init(cab_delay_fn inDelay, cab_write_fn inWrite, cab_incoming_data i
         cabbus_set_loco_speed(&allCabs[ x ], 0);
         cabbus_set_time(&allCabs[ x ], 5, 55, 1);
         cabbus_set_functions(&allCabs[ x ], 1, 1);
-        cabbus_set_direction(&allCabs[ x ], FORWARD);
+        cabbus_set_direction(&allCabs[ x ], CAB_DIR_FORWARD);
         allCabs[ x ].command.command = CAB_CMD_NONE;
         allCabs[ x ].dirty_screens = 0x0F; // All screens dirty
     }
@@ -419,9 +419,9 @@ static int cabbus_process_button_press(struct Cab* current, int keyByte) {
         current->command.command = CAB_CMD_DIRECTION;
         if (current->speed & 0x80) {
             //we are going forward, set to backwards
-            current->command.direction.direction = REVERSE;
+            current->command.direction.direction = CAB_DIR_REVERSE;
         } else {
-            current->command.direction.direction = FORWARD;
+            current->command.direction.direction = CAB_DIR_FORWARD;
         }
     } else if (keyByte == ESTOP_KEY) {
         current->command.command = CAB_CMD_ESTOP;
@@ -675,9 +675,9 @@ void cabbus_set_functions(struct Cab* cab, char functionNum, char on) {
     CAB_SET_BOTTOMLEFT_DIRTY(cab);
 }
 
-void cabbus_set_direction(struct Cab* cab, enum Direction direction) {
+void cabbus_set_direction(struct Cab* cab, enum CabDirection direction) {
     if (cab == NULL) return;
-    if (direction == FORWARD) {
+    if (direction == CAB_DIR_FORWARD) {
         cab->speed |= 0x80;
     } else {
         cab->speed &= ~(0x80);

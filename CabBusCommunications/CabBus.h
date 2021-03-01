@@ -43,9 +43,9 @@ extern "C" {
     // Forward declaration of private cab type
     struct Cab;
 
-    enum Direction {
-        FORWARD,
-        REVERSE
+    enum CabDirection {
+        CAB_DIR_FORWARD,
+        CAB_DIR_REVERSE
     };
 
     /**
@@ -100,7 +100,7 @@ extern "C" {
     /**
      * Set the direction on this cab.
      */
-    void cabbus_set_direction( struct Cab*, enum Direction direction );
+    void cabbus_set_direction( struct Cab*, enum CabDirection direction );
 
     /**
      * Call this when a byte comes in on the bus
