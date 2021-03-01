@@ -18,9 +18,9 @@
 		writeFunc( byte ); \
 		while( !got_byte ){}
 #else
-  #define LN_WRITE_BYTE( byte )\
-        lnLastTransmit = byte; \
-		writeFunc( byte ); 
+  #define LN_WRITE_BYTE( ctx, byte )\
+        ctx->lnLastTransmit = byte; \
+        ctx->writeFunc( byte );
 #endif
 
 #define CHECK_BIT(number,bit)   (number & (0x1 << bit))
@@ -194,6 +194,8 @@ typedef enum {
 	LN_WAIT_MASTER
 } Ln_State;
 
+typedef struct LoconetContext LoconetContext;
+
 //
 // Command defines
 //
@@ -243,13 +245,29 @@ typedef void (*writeFn)( uint8_t );
 //
 
 /**
- * Initialize internal memory and internal pointers.
+ * Initialize a new LoconetContext
  *
  * @param timerStartFn A function which will start a timer
  * @param writeFn The function to call to write a byte out to the bus
  * @param additionalDelay How many more uS to wait before attempting network access
  */
-void ln_init( timerStartFn, writeFn, uint8_t additinalDelay );
+LoconetContext* ln_context_new( timerStartFn start, writeFn write );
+
+void ln_context_free( LoconetContext* context );
+
+void ln_context_set_additional_delay( LoconetContext* ctx, uint8_t additionalDelay );
+
+/**
+ * Set if we should ignore the state or not.
+ *
+ * If you are running on a system where you are directly connected to the Loconet bus,
+ * don't set this.  Ignoring the state is fine if there is already a device which will
+ * handle the backoff stuff(e.g. a PR3)
+ *
+ * @param ctx
+ * @param ignore_state
+ */
+void ln_context_set_ignore_state( LoconetContext* ctx, int ignore_state );
 
 /**
  * Read the next available message from the bus.
@@ -258,7 +276,7 @@ void ln_init( timerStartFn, writeFn, uint8_t additinalDelay );
  * @return 1 if the message is valid, 0 if no message,
  * -1 if the checksum was bad(data will be discarded)
  */
-int ln_read_message( Ln_Message* );
+int ln_read_message( LoconetContext* ctx, Ln_Message* );
 
 /**
  * Write a message to the bus.  Will not return until the message
@@ -266,17 +284,17 @@ int ln_read_message( Ln_Message* );
  *
  * @return 1 on success, 0 otherwise
  */
-int ln_write_message( Ln_Message* );
+int ln_write_message( LoconetContext* ctx, Ln_Message* );
 
 /**
  * Get the state of loconet
  */
-Ln_State ln_get_state();
+Ln_State ln_get_state( LoconetContext* ctx );
 
 /**
  * Call this when the timer fires
  */
-void ln_timer_fired();
+void ln_timer_fired( LoconetContext* ctx );
 
 /**
  * Call this when a new byte comes in.
@@ -285,6 +303,6 @@ void ln_timer_fired();
  * you must properly mutex your calls to 
  * ln_incoming_byte and ln_read_message
  */
-void ln_incoming_byte( uint8_t byte );
+void ln_incoming_byte( LoconetContext* ctx, uint8_t byte );
 
 #endif

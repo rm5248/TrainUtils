@@ -82,6 +82,7 @@ void loconet_print_track_status( FILE* output, uint8_t trk ){
 
 void loconet_print_message( FILE* output, const Ln_Message* message ){
 	int x;
+    fprintf( output, "Loconet message[" );
 	switch( message->opcode ){
 		case LN_OPC_LOCO_SPEED:
 			fprintf( output, "Locomotive speed message \n ");
@@ -139,6 +140,7 @@ void loconet_print_message( FILE* output, const Ln_Message* message ){
 		default:
 			fprintf( output, "Unimplemented print for opcode 0x%X\n", message->opcode );
 	}
+    fprintf( output, "]\n" );
 }
 
 void loconet_print_message_hex( FILE* output, const Ln_Message* message ){

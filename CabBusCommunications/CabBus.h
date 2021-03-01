@@ -154,6 +154,7 @@ extern "C" {
      */
     int cabbus_get_function( struct Cab*, uint8_t function );
     
+struct Cab* cabbus_cab_by_id( int id );
 
 #ifdef	__cplusplus
 }

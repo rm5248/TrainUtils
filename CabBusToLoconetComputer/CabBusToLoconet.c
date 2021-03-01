@@ -14,10 +14,12 @@
 #include "loconet_buffer.h"
 #include "loconet_print.h"
 
-#define STATE_NONE 0
-#define STATE_REQUEST 1
-#define STATE_NULL_MOVE 2
-#define STATE_ACK 3
+enum LocoRequestState{
+    STATE_NONE,
+    STATE_REQUEST,
+    STATE_NULL_MOVE,
+    STATE_ACK,
+};
 
 //
 // Local Variables
@@ -28,6 +30,15 @@ static c_serial_port_t* cabbus_port;
 
 //internal table to keep track of which slot has which locomotive
 static uint16_t slot_table[ 128 ];
+
+struct LoconetInfoForCab {
+	uint8_t slot_number;
+    enum LocoRequestState request_state;
+    uint16_t request_loco_number;
+};
+
+struct LoconetInfoForCab cab_info[ 64 ];
+LoconetContext* lnContext;
 
 //
 // Local Functions
@@ -46,6 +57,26 @@ static void loconet_timer_start( uint32_t time ){
 	if( timerfd_settime( loconet_timer_fd, 0, &timespec, NULL ) < 0 ){
 		perror( "timer_settime" );
 	}
+}
+
+static int loconet_read(){
+    uint8_t buffer[ 20 ];
+    int buffer_size = 20;
+    ssize_t x;
+    int status;
+
+    status = c_serial_read_data( loconet_port, buffer, &buffer_size, NULL );
+    if( status != CSERIAL_OK ){
+        return -1;
+    }
+
+    printf( "LN read %d bytes\n", buffer_size );
+
+    for( x = 0; x < buffer_size; x++ ){
+        ln_incoming_byte( lnContext, buffer[ x ] );
+    }
+
+    return 0;
 }
 
 // Cabbus support functions
@@ -99,18 +130,12 @@ int main( int argc, char** argv ){
 	Ln_Message incomingMessage;
 	Ln_Message outgoingMessage;
 	struct Cab* cab;
-	struct cab_command* cmd;
-	char userCommand[ 100 ];
-	int got;
-	int selectingLoco;
-	int selectingState;
-	int selectingSlot;
-	int good;
+    struct cab_command* cmd;
 	int status;
 	struct pollfd pollfds[ 3 ];
 	c_serial_errnum_t errnum = 0;
 	c_serial_port_t* tmpPort;
-	int available;
+    int available;
 
 	c_serial_set_global_log_function( cserial_log_function );
 
@@ -121,8 +146,7 @@ int main( int argc, char** argv ){
 	}
 
 	//local variable setup
-	memset( slot_table, 0, sizeof( slot_table ) );
-	selectingState = STATE_NONE;
+    memset( slot_table, 0, sizeof( slot_table ) );
 
 	//set up the timer for loconet
 	loconet_timer_fd = timerfd_create( CLOCK_REALTIME, 0 );
@@ -156,11 +180,20 @@ int main( int argc, char** argv ){
 	}
 
 	//initialize loconet
-	ln_init( loconet_timer_start, loconet_write, 200 );
+    lnContext = ln_context_new( loconet_timer_start, loconet_write );
+    ln_context_set_ignore_state( lnContext, 1 );
+    ln_context_set_additional_delay( lnContext, 200 );
 
 	//initalize cabbus
 	cabbus_init( cabbus_delay, cabbus_write, NULL );
 
+	// Ensure that each cab has a pointer to user data
+	memset( cab_info, 0, sizeof( cab_info ) );
+	for( int x = 0; x < 64; x++ ){
+		struct Cab* cab = cabbus_cab_by_id( x );
+		if( !cab ) continue;
+		cabbus_set_user_data( cab, &cab_info[ x ] );
+	}
 
 	//go into our main loop.
 	//essentially what we do here, is we get information from the cabs on the bus,
@@ -188,6 +221,41 @@ int main( int argc, char** argv ){
 				printf( "Select loco %d(long? %d)\n",
 					cmd->sel_loco.address,
 					cmd->sel_loco.flags );
+				// Send this data to loconet.
+                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+				outgoingMessage.opcode = LN_OPC_LOCO_ADDR;
+                outgoingMessage.addr.locoAddrLo = cmd->sel_loco.address & 0x7F;
+                outgoingMessage.addr.locoAddrHi = (cmd->sel_loco.address & ~0x7F) >> 7;
+                info->request_state = STATE_REQUEST;
+                info->request_loco_number = cmd->sel_loco.address;
+                loconet_print_message( stdout, &outgoingMessage );
+                if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
+					fprintf( stderr, "ERROR writing outgoing message\n" );
+				}
+			}else if( cmd->command == CAB_CMD_SPEED ){
+				struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+				Ln_Message message;
+                message.opcode = LN_OPC_LOCO_SPEED;
+				message.speed.speed = cmd->speed.speed & 0x7F;
+				/*
+				 * Special logic for Digitrax : speed step 0 is stopped,
+				 * while speed step 1 is ESTOP.
+				 * So, add 1 to each speed we get from the cabbus.
+				 * if the speed is 1, that means we are now stopped
+				 */
+				message.speed.speed++;
+				if( message.speed.speed == 1 ){
+					message.speed.speed  = 0;
+				}
+				message.speed.slot = info->slot_number;
+				if( info->slot_number == 0 ){
+					printf( "ERROR no slot number\n" );
+				}
+                printf( "Going to write Loconet message:\n" );
+                loconet_print_message( stdout, &message );
+                if( ln_write_message( lnContext, &message ) < 0 ){
+					printf( "ERROR writing message\n" );
+				}
 			}
 		}
 
@@ -230,31 +298,84 @@ int main( int argc, char** argv ){
 		}
 */
 
+        c_serial_get_available( loconet_port, &available );
+        if( available ){
+            loconet_read();
+        }
 
-/*
-		if( ln_read_message( &incomingMessage ) == 1 ){
+        if( ln_read_message( lnContext, &incomingMessage ) == 1 ){
+            printf( "Incoming loconet message:\n" );
 			loconet_print_message( stdout, &incomingMessage );
 			if( incomingMessage.opcode == LN_OPC_SLOT_READ_DATA ){
 				//check to see if this loco addr is what we just requested
 				int addr = incomingMessage.rdSlotData.addr1 | (incomingMessage.rdSlotData.addr2 << 7);
-				if( addr == selectingLoco && selectingState == STATE_REQUEST ){
-					//perform a NULL MOVE
-					outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
-					outgoingMessage.moveSlot.source = incomingMessage.rdSlotData.slot;
-					outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
-					selectingState = STATE_NULL_MOVE;
-					if( ln_write_message( &outgoingMessage ) < 0 ){
-						fprintf( stderr, "ERROR writing outgoing message\n" );
-					}
-				}
+                struct LoconetInfoForCab* info;
+                struct Cab* cab;
+                for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
+                    cab = cabbus_cab_by_id( x );
+                    info = cabbus_get_user_data( cab );
+                    if( info == NULL ){
+                        continue;
+                    }
+                    if( info->request_state == STATE_REQUEST &&
+                            info->request_loco_number == addr ){
+                        //perform a NULL MOVE
+                        outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
+                        outgoingMessage.moveSlot.source = incomingMessage.rdSlotData.slot;
+                        outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
+                        info->request_state = STATE_NULL_MOVE;
+                        info->slot_number = incomingMessage.rdSlotData.slot;
+                        if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
+                            fprintf( stderr, "ERROR writing outgoing message\n" );
+                        }
+                        break;
+                    }
+
+                    if( info->request_state == STATE_NULL_MOVE &&
+                            info->request_loco_number == addr ){
+                        // We have successfully done the NULL MOVE! :D
+                        // Now tell the cabbus that we have done so.
+                        cabbus_set_loco_number( cab, info->request_loco_number );
+                    }
+                }
 			}else if( incomingMessage.opcode == LN_OPC_LONG_ACK ){
-				if( incomingMessage.ack.lopc & 0x7F == LN_OPC_MOVE_SLOT ){
-					printf( "Ack? %d\n", incomingMessage.ack.ack );
-				}
-			}
+                if( incomingMessage.ack.lopc & 0x7F == LN_OPC_MOVE_SLOT ){
+                    printf( "Ack? %d\n", incomingMessage.ack.ack );
+                }
+
+                struct LoconetInfoForCab* info;
+                for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
+                    info = cabbus_get_user_data( cabbus_cab_by_id( x ) );
+                    if( info == NULL ){
+                        continue;
+                    }
+                    if( info->request_state == STATE_NULL_MOVE ){
+                        info->request_state = STATE_NONE;
+                    }
+                }
+            }else if( incomingMessage.opcode == LN_OPC_LOCO_SPEED ){
+                struct LoconetInfoForCab* info;
+                struct Cab* cab;
+                for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
+                    cab = cabbus_cab_by_id( x );
+                    info = cabbus_get_user_data( cab );
+                    if( info == NULL ){
+                        continue;
+                    }
+
+                    if( info->slot_number == incomingMessage.speed.slot ){
+                        int realSpeed = incomingMessage.speed.speed - 1;
+                        if( realSpeed < 0 ){
+                            realSpeed = 0;
+                        }
+                        cabbus_set_loco_speed( cab, realSpeed & 0xFF );
+                    }
+                }
+            }
 		}
 
+        fflush( stdout );
+        fflush( stderr );
 		usleep( 1000 );
-*/
 	}
 }

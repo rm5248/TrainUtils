@@ -387,30 +387,14 @@ static int cabbus_process_button_press(struct Cab* current, int keyByte) {
     if (keyByte == REPEAT_SCREEN) {
         // set all screens to be dirty
         allCabs[ currentCabAddr ].dirty_screens = 0x0F;
-    } else if (keyByte == SELECT_LOCO_KEY) {
-        //send the message 'enter loco:' to the cab
-        //loco number prints on LCD screen starting at 0xCC
-
-        memcpy(current->bottomRow, "ENTER LOCO:     ", 16);
-        CAB_SET_BOTTOMLEFT_DIRTY(current);
-        CAB_SET_BOTTOMRIGHT_DIRTY(current);
-        CAB_SET_SELECTING_LOCO(current);
-        return 1;
     } else if (keyByte == ENTER) {
         //reset all screens
         cab_reset(current);
-        if (CAB_GET_SELECTING_LOCO(current)) {
-            current->command.command = CAB_CMD_SEL_LOCO;
-            CAB_CLEAR_SELECTING_LOCO(current);
-        }
     } else if (keyByte == KEY_0) {
         if (CAB_GET_ASK_QUESTION(current)) {
             cab_reset(current);
             current->command.command = CAB_CMD_RESPONSE;
             current->command.response.response = 0;
-        }else if(CAB_GET_SELECTING_LOCO(current)){
-            current->bottomRow[ 12 ] = '0';
-            CAB_SET_BOTTOMRIGHT_DIRTY(current);
 	}
 
     } else if (keyByte == KEY_1) {
@@ -778,4 +762,12 @@ int cabbus_get_function(struct Cab* cab, uint8_t function) {
     }
 
     return 0;
+}
+
+struct Cab* cabbus_cab_by_id( int id ){
+	if( id < 0 || id > (sizeof(allCabs) / sizeof(allCabs[0])) ){
+		return NULL;
+	}
+
+	return &allCabs[ id ];
 }
