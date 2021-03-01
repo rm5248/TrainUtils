@@ -210,7 +210,7 @@ int main( int argc, char** argv ){
         cab = cabbus_ping_step2( cabContext );
 
 		if( cab != NULL ){
-			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
+//			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
 			
 			cmd = cabbus_get_command( cab );
 			if( cmd->command != CAB_CMD_NONE ){
@@ -257,7 +257,8 @@ int main( int argc, char** argv ){
                 if( ln_write_message( lnContext, &message ) < 0 ){
 					printf( "ERROR writing message\n" );
 				}
-            }else if( cmd->command == CAB_CMD_DIRECTION ){
+            }else if( cmd->command == CAB_CMD_DIRECTION ||
+                      cmd->command == CAB_CMD_FUNCTION ){
                 struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
                 Ln_Message message;
                 message.opcode = LN_OPC_LOCO_DIR_FUNC;
@@ -268,6 +269,47 @@ int main( int argc, char** argv ){
                 }else{
                     LOCONET_SET_DIRECTION_FWD(message);
                 }
+
+                // First set all of the known values that we have for our functions
+                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 0 ) << 4);
+                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 1 ) << 0);
+                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 2 ) << 1);
+                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 3 ) << 2);
+                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 4 ) << 3);
+
+                // Now set any functions that may have changed
+                if( cmd->command == CAB_CMD_FUNCTION ){
+                    if( cmd->function.function_number == 0 && cmd->function.onoff ){
+                        SET_BIT(message.dirFunc.dir_funcs, 4);
+                    }else{
+                        CLEAR_BIT(message.dirFunc.dir_funcs, 4);
+                    }
+
+                    if( cmd->function.function_number == 1 && cmd->function.onoff ){
+                        SET_BIT(message.dirFunc.dir_funcs, 0);
+                    }else{
+                        CLEAR_BIT(message.dirFunc.dir_funcs, 0);
+                    }
+
+                    if( cmd->function.function_number == 2 && cmd->function.onoff ){
+                        SET_BIT(message.dirFunc.dir_funcs, 1);
+                    }else{
+                        CLEAR_BIT(message.dirFunc.dir_funcs, 1);
+                    }
+
+                    if( cmd->function.function_number == 3 && cmd->function.onoff ){
+                        SET_BIT(message.dirFunc.dir_funcs, 2);
+                    }else{
+                        CLEAR_BIT(message.dirFunc.dir_funcs, 2);
+                    }
+
+                    if( cmd->function.function_number == 4 && cmd->function.onoff ){
+                        SET_BIT(message.dirFunc.dir_funcs, 3);
+                    }else{
+                        CLEAR_BIT(message.dirFunc.dir_funcs, 3);
+                    }
+                }
+
                 printf( "Going to write Loconet message:\n" );
                 loconet_print_message( stdout, &message );
                 if( ln_write_message( lnContext, &message ) < 0 ){
@@ -404,6 +446,18 @@ int main( int argc, char** argv ){
                         }else{
                             cabbus_set_direction( cab, CAB_DIR_FORWARD );
                         }
+
+                        char lights = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 4));
+                        char f1 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 0));
+                        char f2 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 1));
+                        char f3 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 2));
+                        char f4 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 3));
+                        cabbus_set_functions( cab, 0, lights );
+                        cabbus_set_functions( cab, 1, f1 );
+                        cabbus_set_functions( cab, 2, f2 );
+                        cabbus_set_functions( cab, 3, f3 );
+                        cabbus_set_functions( cab, 4, f4 );
+
                     }
                 }
             }

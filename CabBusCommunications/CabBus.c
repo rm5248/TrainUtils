@@ -6,6 +6,8 @@
 #include "CabBus.h"
 #include "Bitset.h"
 
+#define CABBUS_NO_PING_TIMES 30
+
 #define COMMAND_STATION_START_BYTE  0xC0
 #define REPEAT_SCREEN  0x7E
 #define TOP_LEFT_LCD  0x00
@@ -269,6 +271,7 @@ struct CabBusContext* cabbus_new(cab_delay_fn inDelay, cab_write_fn inWrite) {
 
     ctx->delayFunction = inDelay;
     ctx->writeFunction = inWrite;
+    ctx->ping_num = CABBUS_NO_PING_TIMES;
 
     for (x = 0; x < 64; x++) {
         ctx->allCabs[ x ].number = x;
@@ -388,8 +391,11 @@ static int cabbus_process_button_press(struct CabBusContext* ctx, struct Cab* cu
             cab_reset(current);
             current->command.command = CAB_CMD_RESPONSE;
             current->command.response.response = 0;
-	}
-
+        }else{
+            current->command.command = CAB_CMD_FUNCTION;
+            current->command.function.onoff = !cabbus_get_function( current, 0 );
+            current->command.function.function_number = 0;
+        }
     } else if (keyByte == KEY_1) {
         if (CAB_GET_ASK_QUESTION(current)) {
             cab_reset(current);
@@ -485,15 +491,15 @@ static uint8_t cabbus_next_ping_address( struct CabBusContext* ctx ){
 
         cab = &ctx->allCabs[ nextAddr ];
 
-        if( (ctx->ping_num - cab->last_ping) > 30 ){
-            // This cab has not been seen in at least 30 pings.
+        if( (ctx->ping_num - cab->last_ping) > CABBUS_NO_PING_TIMES ){
+            // This cab has not been seen in at least CABBUS_NO_PING_TIMES pings.
             // Should we ping this guy, or wait just a bit?
             switch( (ctx->ping_num + cab->number) % 4 ){
             case 0:
                 haveNextAddr = 1;
                 break;
             }
-        }else if( (ctx->ping_num - cab->last_ping) < 30 ){
+        }else if( (ctx->ping_num - cab->last_ping) < CABBUS_NO_PING_TIMES ){
             // We have recently seen this guy - ping him again
             haveNextAddr = 1;
         }
@@ -632,7 +638,7 @@ void cabbus_set_functions(struct Cab* cab, char functionNum, char on) {
         }
     }
 
-    CAB_SET_BOTTOMLEFT_DIRTY(cab);
+    CAB_SET_BOTTOMRIGHT_DIRTY(cab);
 }
 
 void cabbus_set_direction(struct Cab* cab, enum CabDirection direction) {
