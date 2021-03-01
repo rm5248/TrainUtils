@@ -16,6 +16,7 @@
 // Local variables
 //
 static int loconet_timer_fd;
+static LoconetContext* lnContext;
 
 //
 // Method Implementations
@@ -44,7 +45,7 @@ static int loconet_read( c_serial_port_t* loconet_port ){
 	}
 
 	for( x = 0; x < buffer_size; x++ ){
-		ln_incoming_byte( buffer[ x ] );
+        ln_incoming_byte( lnContext, buffer[ x ] );
 	}
 
 	return 0;
@@ -148,7 +149,9 @@ int main( int argc, const char** argv ){
 	loconet_timer_fd = timerfd_create( CLOCK_REALTIME, 0 );
 
 	//initialize loconet
-	ln_init( timerStart, loconet_write, 200 );
+    lnContext = ln_context_new( timerStart, loconet_write );
+    ln_context_set_ignore_state( lnContext, 1 );
+    ln_context_set_additional_delay( lnContext, 200 );
 
 	//setup the FDs to poll
 	pollfds[ 0 ].fd = loconet_timer_fd;
@@ -168,7 +171,7 @@ int main( int argc, const char** argv ){
 
 		if( pollfds[ 0 ].revents & POLLIN ){
 			//the timer has expired
-			ln_timer_fired();
+            ln_timer_fired( lnContext );
 		}
 
 		if( pollfds[ 1 ].revents & POLLIN ){
@@ -176,7 +179,7 @@ int main( int argc, const char** argv ){
 			loconet_read( loconet_port );
 		}
 
-		if( ln_read_message( &incomingMessage ) == 1 ){
+        if( ln_read_message( lnContext, &incomingMessage ) == 1 ){
 			if( doBinaryOutput ){
 				loconet_print_message_hex( binaryOutput, &incomingMessage );
 			}
