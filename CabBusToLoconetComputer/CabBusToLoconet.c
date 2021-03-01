@@ -256,7 +256,23 @@ int main( int argc, char** argv ){
                 if( ln_write_message( lnContext, &message ) < 0 ){
 					printf( "ERROR writing message\n" );
 				}
-			}
+            }else if( cmd->command == CAB_CMD_DIRECTION ){
+                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                Ln_Message message;
+                message.opcode = LN_OPC_LOCO_DIR_FUNC;
+                message.dirFunc.slot = info->slot_number;
+                message.dirFunc.dir_funcs = 0;
+                if( cmd->direction.direction == REVERSE ){
+                    LOCONET_SET_DIRECTION_REV(message);
+                }else{
+                    LOCONET_SET_DIRECTION_FWD(message);
+                }
+                printf( "Going to write Loconet message:\n" );
+                loconet_print_message( stdout, &message );
+                if( ln_write_message( lnContext, &message ) < 0 ){
+                    printf( "ERROR writing message\n" );
+                }
+            }
 		}
 
 /*
@@ -369,6 +385,24 @@ int main( int argc, char** argv ){
                             realSpeed = 0;
                         }
                         cabbus_set_loco_speed( cab, realSpeed & 0xFF );
+                    }
+                }
+            }else if( incomingMessage.opcode == LN_OPC_LOCO_DIR_FUNC ){
+                struct LoconetInfoForCab* info;
+                struct Cab* cab;
+                for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
+                    cab = cabbus_cab_by_id( x );
+                    info = cabbus_get_user_data( cab );
+                    if( info == NULL ){
+                        continue;
+                    }
+
+                    if( info->slot_number == incomingMessage.dirFunc.slot ){
+                        if( LOCONET_GET_DIRECTION_REV(incomingMessage) ){
+                            cabbus_set_direction( cab, REVERSE );
+                        }else{
+                            cabbus_set_direction( cab, FORWARD );
+                        }
                     }
                 }
             }
