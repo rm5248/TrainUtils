@@ -8,6 +8,10 @@
 
 #define CABBUS_NO_PING_TIMES 30
 
+#define CURSOR_POSITION_NONE -1
+#define CURSOR_POSITION_ENABLE -2
+#define CURSOR_POSITION_DISABLE -3
+
 #define COMMAND_STATION_START_BYTE  0xC0
 #define REPEAT_SCREEN  0x7E
 #define TOP_LEFT_LCD  0x00
@@ -365,6 +369,7 @@ static int cabbus_handle_select_loco(struct CabBusContext* ctx, struct Cab* curr
         }
         CAB_CLEAR_SELECTING_LOCO(current);
         cab_reset(current);
+        current->new_cursor_position = CURSOR_POSITION_DISABLE;
     }
 
     return 1;
@@ -471,9 +476,14 @@ static void cabbus_output_screens(struct CabBusContext* ctx, struct Cab* current
         return;
     }
 
-    if( current->new_cursor_position == -2 ){
+    if( current->new_cursor_position == CURSOR_POSITION_ENABLE ){
         cabbus_cursor_on( ctx );
-        current->new_cursor_position = -1;
+        current->new_cursor_position = CURSOR_POSITION_NONE;
+    }
+
+    if( current->new_cursor_position == CURSOR_POSITION_DISABLE ){
+        cabbus_cursor_off( ctx );
+        current->new_cursor_position = CURSOR_POSITION_NONE;
     }
 }
 
