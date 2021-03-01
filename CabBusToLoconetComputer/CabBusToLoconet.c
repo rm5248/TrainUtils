@@ -17,6 +17,7 @@
 enum LocoRequestState{
     STATE_NONE,
     STATE_REQUEST,
+    STATE_STEAL,
     STATE_NULL_MOVE,
     STATE_ACK,
 };
@@ -35,6 +36,7 @@ struct LoconetInfoForCab {
 	uint8_t slot_number;
     enum LocoRequestState request_state;
     uint16_t request_loco_number;
+    uint8_t request_slot_number;
 };
 
 static struct LoconetInfoForCab cab_info[ 64 ];
@@ -193,6 +195,7 @@ int main( int argc, char** argv ){
 	for( int x = 0; x < 64; x++ ){
         struct Cab* cab = cabbus_cab_by_id( cabContext, x );
 		if( !cab ) continue;
+        cab_info[ x ].slot_number = 255;
 		cabbus_set_user_data( cab, &cab_info[ x ] );
 	}
 
@@ -246,17 +249,18 @@ int main( int argc, char** argv ){
 				 */
 				message.speed.speed++;
 				if( message.speed.speed == 1 ){
-					message.speed.speed  = 0;
+                    message.speed.speed = 0;
 				}
 				message.speed.slot = info->slot_number;
-				if( info->slot_number == 0 ){
+                if( info->slot_number == 255 ){
 					printf( "ERROR no slot number\n" );
-				}
-                printf( "Going to write Loconet message:\n" );
-                loconet_print_message( stdout, &message );
-                if( ln_write_message( lnContext, &message ) < 0 ){
-					printf( "ERROR writing message\n" );
-				}
+                }else{
+                    printf( "Going to write Loconet message:\n" );
+                    loconet_print_message( stdout, &message );
+                    if( ln_write_message( lnContext, &message ) < 0 ){
+                        printf( "ERROR writing message\n" );
+                    }
+                }
             }else if( cmd->command == CAB_CMD_DIRECTION ||
                       cmd->command == CAB_CMD_FUNCTION ){
                 struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
@@ -265,9 +269,9 @@ int main( int argc, char** argv ){
                 message.dirFunc.slot = info->slot_number;
                 message.dirFunc.dir_funcs = 0;
                 if( cmd->direction.direction == CAB_DIR_REVERSE ){
-                    LOCONET_SET_DIRECTION_REV(message);
+                    LOCONET_SET_DIRECTION_REV(message.dirFunc.dir_funcs);
                 }else{
-                    LOCONET_SET_DIRECTION_FWD(message);
+                    LOCONET_SET_DIRECTION_FWD(message.dirFunc.dir_funcs);
                 }
 
                 // First set all of the known values that we have for our functions
@@ -315,6 +319,22 @@ int main( int argc, char** argv ){
                 if( ln_write_message( lnContext, &message ) < 0 ){
                     printf( "ERROR writing message\n" );
                 }
+            }else if( cmd->command == CAB_CMD_RESPONSE ){
+                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                if( info->request_state == STATE_STEAL &&
+                        cmd->response.response ){
+                    // Requested to steal OK
+                    info->slot_number = info->request_slot_number;
+                    // Request the slot data so that we update our status
+                    Ln_Message msg;
+                    msg.opcode = LN_OPC_REQUEST_SLOT_DATA;
+                    msg.reqSlotData.slot = info->slot_number;
+                    msg.reqSlotData.nul = 0;
+                    if( ln_write_message( lnContext, &msg ) < 0 ){
+                        printf( "ERROR writing message\n" );
+                    }
+                }
+                info->request_state = STATE_NONE;
             }
 		}
 
@@ -366,7 +386,7 @@ int main( int argc, char** argv ){
             printf( "Incoming loconet message:\n" );
 			loconet_print_message( stdout, &incomingMessage );
 			if( incomingMessage.opcode == LN_OPC_SLOT_READ_DATA ){
-				//check to see if this loco addr is what we just requested
+                //check to see if this slot is one that we are controlling
 				int addr = incomingMessage.rdSlotData.addr1 | (incomingMessage.rdSlotData.addr2 << 7);
                 struct LoconetInfoForCab* info;
                 struct Cab* cab;
@@ -378,14 +398,21 @@ int main( int argc, char** argv ){
                     }
                     if( info->request_state == STATE_REQUEST &&
                             info->request_loco_number == addr ){
-                        //perform a NULL MOVE
-                        outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
-                        outgoingMessage.moveSlot.source = incomingMessage.rdSlotData.slot;
-                        outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
-                        info->request_state = STATE_NULL_MOVE;
-                        info->slot_number = incomingMessage.rdSlotData.slot;
-                        if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
-                            fprintf( stderr, "ERROR writing outgoing message\n" );
+                        if( LN_SLOT_STATUS(incomingMessage) == LN_SLOT_STATUS_IN_USE ){
+                            // Ask to steal
+                            info->request_state = STATE_STEAL;
+                            info->request_slot_number = incomingMessage.rdSlotData.slot;
+                            cabbus_ask_question( cab, "STEAL? (Y)" );
+                        }else{
+                            //perform a NULL MOVE
+                            outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
+                            outgoingMessage.moveSlot.source = incomingMessage.rdSlotData.slot;
+                            outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
+                            info->request_state = STATE_NULL_MOVE;
+                            info->slot_number = incomingMessage.rdSlotData.slot;
+                            if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
+                                fprintf( stderr, "ERROR writing outgoing message\n" );
+                            }
                         }
                         break;
                     }
@@ -395,6 +422,28 @@ int main( int argc, char** argv ){
                         // We have successfully done the NULL MOVE! :D
                         // Now tell the cabbus that we have done so.
                         cabbus_set_loco_number( cab, info->request_loco_number );
+                    }
+
+                    if( info->request_state == STATE_NONE &&
+                            info->slot_number == incomingMessage.rdSlotData.slot ){
+                        // Update everything about this guy on the cab
+                        cabbus_set_loco_number( cab, addr );
+                        if( LOCONET_GET_DIRECTION_REV(incomingMessage.rdSlotData.dir_funcs) ){
+                            cabbus_set_direction( cab, CAB_DIR_REVERSE );
+                        }else{
+                            cabbus_set_direction( cab, CAB_DIR_FORWARD );
+                        }
+
+                        char lights = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 4));
+                        char f1 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 0));
+                        char f2 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 1));
+                        char f3 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 2));
+                        char f4 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 3));
+                        cabbus_set_functions( cab, 0, lights );
+                        cabbus_set_functions( cab, 1, f1 );
+                        cabbus_set_functions( cab, 2, f2 );
+                        cabbus_set_functions( cab, 3, f3 );
+                        cabbus_set_functions( cab, 4, f4 );
                     }
                 }
 			}else if( incomingMessage.opcode == LN_OPC_LONG_ACK ){
@@ -441,7 +490,7 @@ int main( int argc, char** argv ){
                     }
 
                     if( info->slot_number == incomingMessage.dirFunc.slot ){
-                        if( LOCONET_GET_DIRECTION_REV(incomingMessage) ){
+                        if( LOCONET_GET_DIRECTION_REV(incomingMessage.dirFunc.dir_funcs) ){
                             cabbus_set_direction( cab, CAB_DIR_REVERSE );
                         }else{
                             cabbus_set_direction( cab, CAB_DIR_FORWARD );

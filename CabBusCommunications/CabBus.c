@@ -359,8 +359,10 @@ static int cabbus_handle_select_loco(struct CabBusContext* ctx, struct Cab* curr
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 9;
     }else if( keyByte == ENTER ){
-        current->command.command = CAB_CMD_SEL_LOCO;
-        current->command.sel_loco.address = current->current_selecting_loco;
+        if( current->current_selecting_loco != 0 ){
+            current->command.command = CAB_CMD_SEL_LOCO;
+            current->command.sel_loco.address = current->current_selecting_loco;
+        }
         CAB_CLEAR_SELECTING_LOCO(current);
         cab_reset(current);
     }
@@ -388,6 +390,7 @@ static int cabbus_process_button_press(struct CabBusContext* ctx, struct Cab* cu
         cab_reset(current);
     } else if (keyByte == KEY_0) {
         if (CAB_GET_ASK_QUESTION(current)) {
+            CAB_CLEAR_ASK_QUESTION(current);
             cab_reset(current);
             current->command.command = CAB_CMD_RESPONSE;
             current->command.response.response = 0;
@@ -398,6 +401,7 @@ static int cabbus_process_button_press(struct CabBusContext* ctx, struct Cab* cu
         }
     } else if (keyByte == KEY_1) {
         if (CAB_GET_ASK_QUESTION(current)) {
+            CAB_CLEAR_ASK_QUESTION(current);
             cab_reset(current);
             current->command.command = CAB_CMD_RESPONSE;
             current->command.response.response = 1;

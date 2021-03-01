@@ -35,9 +35,9 @@
 //NOTE NOTE NOTE: the following two macros are REVERSED from what the
 //loconet spec says that they should be.  The spec says that bit 5 set
 //is forward, however the DT400 sends bit 5 set = reversed.
-#define LOCONET_SET_DIRECTION_REV(ln) SET_BIT(ln.dirFunc.dir_funcs,5)
-#define LOCONET_SET_DIRECTION_FWD(ln) CLEAR_BIT(ln.dirFunc.dir_funcs,5)
-#define LOCONET_GET_DIRECTION_REV(ln) CHECK_BIT(ln.dirFunc.dir_funcs,5)
+#define LOCONET_SET_DIRECTION_REV(byte) SET_BIT(byte,5)
+#define LOCONET_SET_DIRECTION_FWD(byte) CLEAR_BIT(byte,5)
+#define LOCONET_GET_DIRECTION_REV(byte) CHECK_BIT(byte,5)
 
 //
 // Struct Definitions
@@ -194,6 +194,13 @@ typedef enum {
 	LN_WAIT_MASTER
 } Ln_State;
 
+enum Ln_SlotStatus{
+    LN_SLOT_STATUS_FREE,
+    LN_SLOT_STATUS_COMMON,
+    LN_SLOT_STATUS_IDLE,
+    LN_SLOT_STATUS_IN_USE,
+};
+
 typedef struct LoconetContext LoconetContext;
 
 //
@@ -221,6 +228,8 @@ typedef struct LoconetContext LoconetContext;
 #define LN_OPC_LOCO_SPEED 0xA0
 #define LN_OPC_SLOT_WRITE_DATA 0xEF
 #define LN_OPC_SLOT_READ_DATA 0xE7
+
+#define LN_SLOT_STATUS(LnMessage) (LnMessage.rdSlotData.stat & ( 0x03 << 4 ) >> 4)
 
 //
 // Function typedefs
