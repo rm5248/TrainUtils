@@ -20,6 +20,7 @@ enum LocoRequestState{
     STATE_STEAL,
     STATE_NULL_MOVE,
     STATE_ACK,
+    STATE_SET_COMMON,
 };
 
 //
@@ -335,6 +336,26 @@ int main( int argc, char** argv ){
                     }
                 }
                 info->request_state = STATE_NONE;
+            }else if( cmd->command == CAB_CMD_UNSELECT_LOCO ){
+                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                if( info->slot_number != 255 ){
+                    // Two step process:
+                    // 1. set slot to COMMON
+                    // 2. Move to slot 0(DISPATCH)
+                    // Dispatch the slot
+                    info->request_state = STATE_SET_COMMON;
+
+                    Ln_Message msg;
+                    msg.opcode = LN_OPC_SLOT_STAT1;
+                    msg.stat1.slot = info->slot_number;
+                    msg.stat1.stat1 = (LN_SLOT_STATUS_COMMON << 4) | 0x7;
+                    if( ln_write_message( lnContext, &msg ) < 0 ){
+                        printf( "ERROR writing message\n" );
+                    }
+
+                    cabbus_set_loco_number( cab, 0 );
+                    cabbus_set_loco_speed( cab, 0 );
+                }
             }
 		}
 
@@ -507,6 +528,34 @@ int main( int argc, char** argv ){
                         cabbus_set_functions( cab, 3, f3 );
                         cabbus_set_functions( cab, 4, f4 );
 
+                    }
+                }
+            }else if( incomingMessage.opcode == LN_OPC_SLOT_STAT1 ){
+                struct LoconetInfoForCab* info;
+                struct Cab* cab;
+                for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
+                    cab = cabbus_cab_by_id( cabContext, x );
+                    info = cabbus_get_user_data( cab );
+                    if( info == NULL ){
+                        continue;
+                    }
+
+                    if( info->slot_number == incomingMessage.dirFunc.slot &&
+                            info->request_state == STATE_SET_COMMON ){
+                        // Dispatch the LOCO
+                        Ln_Message msg;
+                        msg.opcode = LN_OPC_MOVE_SLOT;
+                        msg.moveSlot.source = info->slot_number;
+                        msg.moveSlot.slot = 0;
+                        if( ln_write_message( lnContext, &msg ) < 0 ){
+                            printf( "ERROR writing message\n" );
+                        }
+
+                        info->slot_number = 255;
+                        info->request_state = STATE_NONE;
+
+                        cabbus_set_loco_number( cab, 0 );
+                        cabbus_set_loco_speed( cab, 0 );
                     }
                 }
             }

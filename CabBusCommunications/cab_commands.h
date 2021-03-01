@@ -26,6 +26,8 @@ enum CabCommands {
     CAB_CMD_ESTOP,
     /* Set a function on/off */
     CAB_CMD_FUNCTION,
+    /* Unselect/release a locomotive(addr 0) */
+    CAB_CMD_UNSELECT_LOCO,
 };
 
 

@@ -366,6 +366,8 @@ static int cabbus_handle_select_loco(struct CabBusContext* ctx, struct Cab* curr
         if( current->current_selecting_loco != 0 ){
             current->command.command = CAB_CMD_SEL_LOCO;
             current->command.sel_loco.address = current->current_selecting_loco;
+        }else{
+            current->command.command = CAB_CMD_UNSELECT_LOCO;
         }
         CAB_CLEAR_SELECTING_LOCO(current);
         cab_reset(current);
