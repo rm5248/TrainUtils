@@ -229,7 +229,7 @@ typedef struct LoconetContext LoconetContext;
 #define LN_OPC_SLOT_WRITE_DATA 0xEF
 #define LN_OPC_SLOT_READ_DATA 0xE7
 
-#define LN_SLOT_STATUS(LnMessage) (LnMessage.rdSlotData.stat & ( 0x03 << 4 ) >> 4)
+#define LN_SLOT_STATUS(LnMessage) ((LnMessage.rdSlotData.stat & ( 0x03 << 4 )) >> 4)
 
 //
 // Function typedefs
