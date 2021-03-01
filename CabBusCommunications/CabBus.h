@@ -42,6 +42,7 @@ extern "C" {
 
     // Forward declaration of private cab type
     struct Cab;
+    struct CabBusContext;
 
     enum CabDirection {
         CAB_DIR_FORWARD,
@@ -50,27 +51,28 @@ extern "C" {
 
     /**
      * Called to initialize all the cabs.
-     */
-    void cabbus_init( cab_delay_fn inDelay, cab_write_fn inWrite, cab_incoming_data incoming );
-
-    /**
-     * Ping the next cab on the bus
      *
-     * @return The cab, if some data needs to be sent out
+     * @param delay Function pointer to a function that will
+     * delay for the specified number of ms
+     * @param write Function pointer to a function that will
+     * write data out to the cabbus.
      */
-    struct Cab* cabbus_ping_next();
+    struct CabBusContext* cabbus_new( cab_delay_fn delay,
+                                      cab_write_fn write);
+
+    void cabbus_free( struct CabBusContext* ctx );
 
 	/**
 	 * Send a ping to the next cab.  Step 1 of the ping process.
 	 */
-	void cabbus_ping_step1();
+    void cabbus_ping_step1( struct CabBusContext* ctx );
 
 	/**
 	 * Return the cab, if we were able to ping it.
 	 * Any data from the serial port must have been put into our buffer with
 	 * cabbus_incoming_byte before calling this function.
 	 */
-	struct Cab* cabbus_ping_step2();
+    struct Cab* cabbus_ping_step2( struct CabBusContext* ctx );
 
     /**
      * Set the cab locomotive number
@@ -105,7 +107,7 @@ extern "C" {
     /**
      * Call this when a byte comes in on the bus
      */
-    void cabbus_incoming_byte( uint8_t byte );
+    void cabbus_incoming_byte( struct CabBusContext* ctx, uint8_t byte );
 
     /**
      * Get the current locomotive number of this cab
@@ -154,7 +156,7 @@ extern "C" {
      */
     int cabbus_get_function( struct Cab*, uint8_t function );
     
-struct Cab* cabbus_cab_by_id( int id );
+struct Cab* cabbus_cab_by_id( struct CabBusContext* ctx, int id );
 
 #ifdef	__cplusplus
 }

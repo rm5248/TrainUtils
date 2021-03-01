@@ -37,8 +37,9 @@ struct LoconetInfoForCab {
     uint16_t request_loco_number;
 };
 
-struct LoconetInfoForCab cab_info[ 64 ];
-LoconetContext* lnContext;
+static struct LoconetInfoForCab cab_info[ 64 ];
+static LoconetContext* lnContext;
+static struct CabBusContext* cabContext;
 
 //
 // Local Functions
@@ -97,7 +98,7 @@ static int cabbus_read(){
 	}
 
 	for( x = 0; x < buffer_size; x++ ){
-		cabbus_incoming_byte( buffer[ x ] );
+        cabbus_incoming_byte( cabContext, buffer[ x ] );
 	}
 
 	return 0;
@@ -185,12 +186,12 @@ int main( int argc, char** argv ){
     ln_context_set_additional_delay( lnContext, 200 );
 
 	//initalize cabbus
-	cabbus_init( cabbus_delay, cabbus_write, NULL );
+    cabContext = cabbus_new( cabbus_delay, cabbus_write );
 
 	// Ensure that each cab has a pointer to user data
 	memset( cab_info, 0, sizeof( cab_info ) );
 	for( int x = 0; x < 64; x++ ){
-		struct Cab* cab = cabbus_cab_by_id( x );
+        struct Cab* cab = cabbus_cab_by_id( cabContext, x );
 		if( !cab ) continue;
 		cabbus_set_user_data( cab, &cab_info[ x ] );
 	}
@@ -201,12 +202,12 @@ int main( int argc, char** argv ){
 	//we also have to parse loconet information that we get back to make sure
 	//that we tell the user about stupid stuff that they are doing
 	while( 1 ){
-		cabbus_ping_step1();
+        cabbus_ping_step1( cabContext );
 		c_serial_get_available( cabbus_port, &available );
 		if( available ){
 			cabbus_read();
 		}
-		cab = cabbus_ping_step2();
+        cab = cabbus_ping_step2( cabContext );
 
 		if( cab != NULL ){
 			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
@@ -328,7 +329,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct Cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( x );
+                    cab = cabbus_cab_by_id( cabContext, x );
                     info = cabbus_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -361,7 +362,7 @@ int main( int argc, char** argv ){
 
                 struct LoconetInfoForCab* info;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    info = cabbus_get_user_data( cabbus_cab_by_id( x ) );
+                    info = cabbus_get_user_data( cabbus_cab_by_id( cabContext, x ) );
                     if( info == NULL ){
                         continue;
                     }
@@ -373,7 +374,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct Cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( x );
+                    cab = cabbus_cab_by_id( cabContext, x );
                     info = cabbus_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -391,7 +392,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct Cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( x );
+                    cab = cabbus_cab_by_id( cabContext, x );
                     info = cabbus_get_user_data( cab );
                     if( info == NULL ){
                         continue;

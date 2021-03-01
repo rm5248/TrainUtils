@@ -1,6 +1,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "CabBus.h"
 #include "Bitset.h"
@@ -108,28 +109,21 @@ struct Cab {
     void* user_data;
 };
 
+struct CabBusContext {
+    struct Cab allCabs[ 64 ];
+    uint8_t currentCabAddr;
+    uint8_t outputBuffer[ 10 ];
+    cab_delay_fn delayFunction;
+    cab_write_fn writeFunction;
+    int ping_num;
+    volatile uint8_t firstByte;
+    volatile uint8_t secondByte;
+    volatile uint8_t byteStatus;
+};
+
 //
 // Local variables
 //
-
-//Contains the data for all the cabs
-static struct Cab allCabs[ 64 ];
-static uint8_t currentCabAddr;
-static uint8_t outputBuffer[ 10 ];
-
-// functions to assist us in communications
-static cab_delay_fn delayFunction;
-static cab_write_fn writeFunction;
-static cab_incoming_data incomingFunction;
-
-// storage for incoming bytes
-volatile uint8_t firstByte;
-volatile uint8_t secondByte;
-volatile uint8_t byteStatus;
-
-// The current ping#, if we did not ping this cab the last time
-// around set the screens to be dirty
-static uint32_t pingNum;
 
 //
 // Local functions
@@ -139,52 +133,52 @@ static uint32_t pingNum;
  * Move the cursor to the location specified on the LCD screen.
  * @param location The location, 0-32
  */
-static void cabbus_move_cursor_to_location( uint8_t location ){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | MOVE_LCD_CURSOR;
+static void cabbus_move_cursor_to_location( struct CabBusContext* ctx, uint8_t location ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | MOVE_LCD_CURSOR;
     if( location < 16 ) {
-        outputBuffer[ 1 ] = 0x80 + location;
+        ctx->outputBuffer[ 1 ] = 0x80 + location;
     }else if( location >= 16 ){
-        outputBuffer[ 1 ] = 0xC0 + location - 16;
+        ctx->outputBuffer[ 1 ] = 0xC0 + location - 16;
     }
-    writeFunction( outputBuffer, 2 );
+    ctx->writeFunction( ctx->outputBuffer, 2 );
 }
 
 /**
  * Print the specified ASCII char, backup to the same location
  * @param character
  */
-static void cabbus_print_char_backup( char character ){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | PRINT_CHAR_BACKUP;
-    outputBuffer[ 1 ] = character;
-    writeFunction( outputBuffer, 2 );
+static void cabbus_print_char_backup( struct CabBusContext* ctx, char character ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | PRINT_CHAR_BACKUP;
+    ctx->outputBuffer[ 1 ] = character;
+    ctx->writeFunction( ctx->outputBuffer, 2 );
 }
 
 /**
  * Print the specified ASCII char, move the cursor forward
  * @param character
  */
-static void cabbus_print_char( char character ){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | PRINT_CHAR_FORWARD;
-    outputBuffer[ 1 ] = character;
-    writeFunction( outputBuffer, 2 );
+static void cabbus_print_char( struct CabBusContext* ctx, char character ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | PRINT_CHAR_FORWARD;
+    ctx->outputBuffer[ 1 ] = character;
+    ctx->writeFunction( ctx->outputBuffer, 2 );
 }
 
 /**
  * Clear the screen and home the cursor
  */
-static void cabbus_clear_screen_home_cursor(){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CLEAR_DISPLAY_HOME_CURSOR;
-    writeFunction( outputBuffer, 1 );
+static void cabbus_clear_screen_home_cursor( struct CabBusContext* ctx ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CLEAR_DISPLAY_HOME_CURSOR;
+    ctx->writeFunction( ctx->outputBuffer, 1 );
 }
 
-static void cabbus_cursor_on(){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CURSOR_ON;
-    writeFunction( outputBuffer, 1 );
+static void cabbus_cursor_on( struct CabBusContext* ctx ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CURSOR_ON;
+    ctx->writeFunction( ctx->outputBuffer, 1 );
 }
 
-static void cabbus_cursor_off(){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CURSOR_OFF;
-    writeFunction( outputBuffer, 1 );
+static void cabbus_cursor_off( struct CabBusContext* ctx ){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | CURSOR_OFF;
+    ctx->writeFunction( ctx->outputBuffer, 1 );
 }
 
 static char simp_atoi(int number) {
@@ -237,63 +231,62 @@ static void cab_reset(struct Cab* cab) {
     CAB_SET_BOTTOMRIGHT_DIRTY(cab);
 }
 
-static void cabbus_send_current_control_info(struct Cab* cab){
-    outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE | 
+static void cabbus_send_current_control_info(struct CabBusContext* ctx, struct Cab* cab){
+    ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE |
         CURRENT_CONTROL_LOCOMOTIVE_INFO;
-    outputBuffer[ 1 ] = 0;
-    outputBuffer[ 2 ] = 0;
-    outputBuffer[ 3 ] = 0;
-    outputBuffer[ 4 ] = 0;
+    ctx->outputBuffer[ 1 ] = 0;
+    ctx->outputBuffer[ 2 ] = 0;
+    ctx->outputBuffer[ 3 ] = 0;
+    ctx->outputBuffer[ 4 ] = 0;
 
     if( cab->speed & 0x80 ){
         // Going forward
-        outputBuffer[ 1 ] |= (0x01 << 5);
+        ctx->outputBuffer[ 1 ] |= (0x01 << 5);
     }
     // Upper 5 bits of speed in the first byte
-    outputBuffer[ 1 ] |= (cab->speed & 0x7C);
+    ctx->outputBuffer[ 1 ] |= (cab->speed & 0x7C);
 
     // Lower 2 bits of speed in bits 4,5 of second byte
-    outputBuffer[ 2 ] |= ((cab->speed & 0x03) << 4);
+    ctx->outputBuffer[ 2 ] |= ((cab->speed & 0x03) << 4);
     // Upper 4 bits of loco number come next
-    outputBuffer[ 2 ] |= ((cab->loco_number & 0xF000) >> 12 );
-    outputBuffer[ 3 ] |= ((cab->loco_number & 0x0F00) << 2);
-    outputBuffer[ 3 ] |= ((cab->loco_number & 0x00C0) >> 6);
-    outputBuffer[ 4 ] = (cab->loco_number & 0x003F);
+    ctx->outputBuffer[ 2 ] |= ((cab->loco_number & 0xF000) >> 12 );
+    ctx->outputBuffer[ 3 ] |= ((cab->loco_number & 0x0F00) << 2);
+    ctx->outputBuffer[ 3 ] |= ((cab->loco_number & 0x00C0) >> 6);
+    ctx->outputBuffer[ 4 ] = (cab->loco_number & 0x003F);
 
-    writeFunction( outputBuffer, 5 );
+    ctx->writeFunction( ctx->outputBuffer, 5 );
 }
 
 //
 // Cabbus functions
 //
 
-void cabbus_init(cab_delay_fn inDelay, cab_write_fn inWrite, cab_incoming_data inData) {
+struct CabBusContext* cabbus_new(cab_delay_fn inDelay, cab_write_fn inWrite) {
     unsigned char x;
+    struct CabBusContext* ctx = malloc( sizeof( struct CabBusContext ) );
 
-    delayFunction = inDelay;
-    writeFunction = inWrite;
-    incomingFunction = inData;
+    memset( ctx, 0, sizeof( struct CabBusContext ) );
 
-    memset( allCabs, 0, sizeof( allCabs ) );
+    ctx->delayFunction = inDelay;
+    ctx->writeFunction = inWrite;
 
     for (x = 0; x < 64; x++) {
-        allCabs[ x ].number = x;
-        allCabs[ x ].new_cursor_position = -1;
+        ctx->allCabs[ x ].number = x;
+        ctx->allCabs[ x ].new_cursor_position = -1;
         // Set defaults for our cabs; will also set the screens to be dirty
-        cabbus_set_loco_number(&allCabs[ x ], 44);
-        cabbus_set_loco_speed(&allCabs[ x ], 0);
-        cabbus_set_time(&allCabs[ x ], 5, 55, 1);
-        cabbus_set_functions(&allCabs[ x ], 1, 1);
-        cabbus_set_direction(&allCabs[ x ], CAB_DIR_FORWARD);
-        allCabs[ x ].command.command = CAB_CMD_NONE;
-        allCabs[ x ].dirty_screens = 0x0F; // All screens dirty
+        cabbus_set_loco_number(&ctx->allCabs[ x ], 44);
+        cabbus_set_loco_speed(&ctx->allCabs[ x ], 0);
+        cabbus_set_time(&ctx->allCabs[ x ], 5, 55, 1);
+        cabbus_set_functions(&ctx->allCabs[ x ], 1, 1);
+        cabbus_set_direction(&ctx->allCabs[ x ], CAB_DIR_FORWARD);
+        ctx->allCabs[ x ].command.command = CAB_CMD_NONE;
+        ctx->allCabs[ x ].dirty_screens = 0x0F; // All screens dirty
     }
 
-    currentCabAddr = 0;
-    pingNum = 0;
+    return ctx;
 }
 
-static int cabbus_handle_select_loco(struct Cab* current, int keyByte){
+static int cabbus_handle_select_loco(struct CabBusContext* ctx, struct Cab* current, int keyByte){
     if (keyByte == SELECT_LOCO_KEY) {
         //send the message 'enter loco:' to the cab
         //loco number prints on LCD screen starting at 0xCC
@@ -319,7 +312,7 @@ static int cabbus_handle_select_loco(struct Cab* current, int keyByte){
     }
 
     if( keyByte == KEY_0 ){
-        cabbus_print_char( '0' );
+        cabbus_print_char( ctx, '0' );
         if( current->current_selecting_loco == 0 ){
             // Select short address
             current->command.sel_loco.flags = 0;
@@ -327,39 +320,39 @@ static int cabbus_handle_select_loco(struct Cab* current, int keyByte){
             current->current_selecting_loco *= 10;
         }
     }else if( keyByte == KEY_1 ){
-        cabbus_print_char( '1' );
+        cabbus_print_char( ctx, '1' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 1;
     }else if( keyByte == KEY_2 ){
-        cabbus_print_char( '2' );
+        cabbus_print_char( ctx, '2' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 2;
     }else if( keyByte == KEY_3 ){
-        cabbus_print_char( '3' );
+        cabbus_print_char( ctx, '3' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 3;
     }else if( keyByte == KEY_4 ){
-        cabbus_print_char( '4' );
+        cabbus_print_char( ctx, '4' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 4;
     }else if( keyByte == KEY_5 ){
-        cabbus_print_char( '5' );
+        cabbus_print_char( ctx, '5' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 5;
     }else if( keyByte == KEY_6 ){
-        cabbus_print_char( '6' );
+        cabbus_print_char( ctx, '6' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 6;
     }else if( keyByte == KEY_7 ){
-        cabbus_print_char( '7' );
+        cabbus_print_char( ctx, '7' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 7;
     }else if( keyByte == KEY_8 ){
-        cabbus_print_char( '8' );
+        cabbus_print_char( ctx, '8' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 8;
     }else if( keyByte == KEY_9 ){
-        cabbus_print_char( '9' );
+        cabbus_print_char( ctx, '9' );
         current->current_selecting_loco *= 10;
 	current->current_selecting_loco += 9;
     }else if( keyByte == ENTER ){
@@ -379,14 +372,14 @@ static int cabbus_handle_select_loco(struct Cab* current, int keyByte){
  * @param keyByte
  * @return TRUE if we need to re-ping this cab
  */
-static int cabbus_process_button_press(struct Cab* current, int keyByte) {
-    if( cabbus_handle_select_loco( current, keyByte ) ){
+static int cabbus_process_button_press(struct CabBusContext* ctx, struct Cab* current, int keyByte) {
+    if( cabbus_handle_select_loco( ctx, current, keyByte ) ){
         return 0;
     }
 
     if (keyByte == REPEAT_SCREEN) {
         // set all screens to be dirty
-        allCabs[ currentCabAddr ].dirty_screens = 0x0F;
+        current->dirty_screens = 0x0F;
     } else if (keyByte == ENTER) {
         //reset all screens
         cab_reset(current);
@@ -434,174 +427,113 @@ static int cabbus_process_button_press(struct Cab* current, int keyByte) {
  * Output the current screens to the cab specified
  * @param current
  */
-static void cabbus_output_screens(struct Cab* current) {
+static void cabbus_output_screens(struct CabBusContext* ctx, struct Cab* current) {
     if (CAB_HAS_DIRTY_SCREENS(current)) {
-        outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE;
+        ctx->outputBuffer[ 0 ] = COMMAND_STATION_START_BYTE;
         // send out the first dirty screen!
         if (CAB_GET_TOPLEFT_DIRTY(current)) {
-            memcpy(&(outputBuffer[1]), current->topRow, 8);
-            outputBuffer[ 0 ] |= TOP_LEFT_LCD;
+            memcpy(&(ctx->outputBuffer[1]), current->topRow, 8);
+            ctx->outputBuffer[ 0 ] |= TOP_LEFT_LCD;
             CAB_SET_TOPLEFT_CLEAN(current);
         } else if (CAB_GET_BOTTOMLEFT_DIRTY(current)) {
-            memcpy(&(outputBuffer[1]), current->bottomRow, 8);
-            outputBuffer[ 0 ] |= BOTTOM_LEFT_LCD;
+            memcpy(&(ctx->outputBuffer[1]), current->bottomRow, 8);
+            ctx->outputBuffer[ 0 ] |= BOTTOM_LEFT_LCD;
             CAB_SET_BOTTOMLEFT_CLEAN(current);
         } else if (CAB_GET_TOPRIGHT_DIRTY(current)) {
-            memcpy(&(outputBuffer[1]), current->topRow + 8, 8);
-            outputBuffer[ 0 ] |= TOP_RIGHT_LCD;
+            memcpy(&(ctx->outputBuffer[1]), current->topRow + 8, 8);
+            ctx->outputBuffer[ 0 ] |= TOP_RIGHT_LCD;
             CAB_SET_TOPRIGHT_CLEAN(current);
         } else if (CAB_GET_BOTTOMRIGHT_DIRTY(current)) {
-            memcpy(&(outputBuffer[1]), current->bottomRow + 8, 8);
-            outputBuffer[ 0 ] |= BOTTOM_RIGHT_LCD;
+            memcpy(&(ctx->outputBuffer[1]), current->bottomRow + 8, 8);
+            ctx->outputBuffer[ 0 ] |= BOTTOM_RIGHT_LCD;
             CAB_SET_BOTTOMRIGHT_CLEAN(current);
         }
 
         //Delay, the Power Cab is pretty slow it seems
         //delayFunction(2);
-        writeFunction(outputBuffer, 9);
+        ctx->writeFunction(ctx->outputBuffer, 9);
         return;
     }
 
     if( current->new_cursor_position >= 0 ){
-        cabbus_move_cursor_to_location( current->new_cursor_position );
+        cabbus_move_cursor_to_location( ctx, current->new_cursor_position );
         current->new_cursor_position = -2;
         return;
     }
 
     if( current->new_cursor_position == -2 ){
-        cabbus_cursor_on();
+        cabbus_cursor_on( ctx );
         current->new_cursor_position = -1;
     }
 }
 
-
-struct Cab* cabbus_ping_next() {
-    static struct Cab* current;
-    //set this to true if we need to re-ping the current address
-    int rePing = 0;
-
-    currentCabAddr++;
-    if (currentCabAddr == 1) currentCabAddr++; //don't ping address 1
-    if (currentCabAddr == 2) currentCabAddr++; //don't ping address 2 either
-
-    if (currentCabAddr == 64) {
-        currentCabAddr = 0; //only up to 63 cab
-        pingNum++;
+void cabbus_ping_step1( struct CabBusContext* ctx ){
+    if( ctx == NULL ){
+        return;
     }
 
-    do {
-        //Go and ping the next address
-        outputBuffer[ 0 ] = 0x80 | currentCabAddr;
+    ctx->currentCabAddr++;
+    if (ctx->currentCabAddr == 1) ctx->currentCabAddr++; //don't ping address 1
+    if (ctx->currentCabAddr == 2) ctx->currentCabAddr++; //don't ping address 2 either
 
-        writeFunction(outputBuffer, 1);
-
-        //Delay to make sure that we get a response back
-        delayFunction(3);
-
-        if (pingNum - allCabs[ currentCabAddr ].last_ping > 1) {
-            //we haven't seen this guy, set all screens to dirty
-            allCabs[ currentCabAddr ].dirty_screens |= 0x0F;
-        }
-
-        if (byteStatus & 0x01) {
-            //we have a response back from a cab
-            unsigned char knobByte;
-            unsigned char keyByte;
-            unsigned int loopTimes = 0;
-
-            current = &allCabs[ currentCabAddr ];
-            current->command.command = CAB_CMD_NONE;
-
-            loopTimes = 0;
-            while (!(byteStatus & 0x02)) {
-                ++loopTimes;
-                if (loopTimes > 1000) {
-                    byteStatus = 0x00;
-                    return NULL;
-                }
-            }
-            knobByte = secondByte;
-            keyByte = firstByte;
-            byteStatus = 0x00;
-
-            current->last_ping = pingNum;
-
-            if (keyByte != NO_KEY) {
-                rePing = cabbus_process_button_press(current, keyByte);
-printf( "%d\n", rePing );
-if( rePing ) printf( "re-ping\n" );
-            }
-
-            cabbus_output_screens(current);
-
-            //we got a response, tell the master that this cab exists,
-            //but only if we don't have to re-ping
-            if( !rePing ) return current;
-        }
-    } while (rePing);
-
-    return NULL; //unable to ping this cab
-}
-
-void cabbus_ping_step1(){
-    currentCabAddr++;
-    if (currentCabAddr == 1) currentCabAddr++; //don't ping address 1
-    if (currentCabAddr == 2) currentCabAddr++; //don't ping address 2 either
-
-    if (currentCabAddr == 64) {
-        currentCabAddr = 0; //only up to 63 cab
-        pingNum++;
+    if (ctx->currentCabAddr == 64) {
+        ctx->currentCabAddr = 0; //only up to 63 cab
+        ctx->ping_num++;
     }
 
     //Go and ping the next address
-    outputBuffer[ 0 ] = 0x80 | currentCabAddr;
+    ctx->outputBuffer[ 0 ] = 0x80 | ctx->currentCabAddr;
 
-    writeFunction(outputBuffer, 1);
+    ctx->writeFunction(ctx->outputBuffer, 1);
 
     //Delay to make sure that we get a response back
-    delayFunction(1);
+    ctx->delayFunction(1);
 }
 
-struct Cab* cabbus_ping_step2(){
+struct Cab* cabbus_ping_step2( struct CabBusContext* ctx ){
 	struct Cab* current = NULL;
 	int rePing = 0;
 
-    if (pingNum - allCabs[ currentCabAddr ].last_ping > 1) {
-        //we haven't seen this guy, set all screens to dirty
-        allCabs[ currentCabAddr ].dirty_screens |= 0x0F;
+    if( ctx == NULL ){
+        return NULL;
     }
 
-    if (byteStatus & 0x01) {
+    if (ctx->ping_num - ctx->allCabs[ ctx->currentCabAddr ].last_ping > 1) {
+        //we haven't seen this guy, set all screens to dirty
+        ctx->allCabs[ ctx->currentCabAddr ].dirty_screens |= 0x0F;
+    }
+
+    if (ctx->byteStatus & 0x01) {
         //we have a response back from a cab
         unsigned char knobByte;
         unsigned char keyByte;
         unsigned int loopTimes = 0;
 
-        current = &allCabs[ currentCabAddr ];
+        current = &ctx->allCabs[ ctx->currentCabAddr ];
         current->command.command = CAB_CMD_NONE;
 
         loopTimes = 0;
-        while (!(byteStatus & 0x02)) {
+        while (!(ctx->byteStatus & 0x02)) {
             ++loopTimes;
             if (loopTimes > 1000) {
-                byteStatus = 0x00;
+                ctx->byteStatus = 0x00;
                 return NULL;
             }
         }
-        knobByte = secondByte;
-        keyByte = firstByte;
-        byteStatus = 0x00;
+        knobByte = ctx->secondByte;
+        keyByte = ctx->firstByte;
+        ctx->byteStatus = 0x00;
 
-        current->last_ping = pingNum;
+        current->last_ping = ctx->ping_num;
 
         if (keyByte != NO_KEY) {
-            rePing = cabbus_process_button_press(current, keyByte);
+            rePing = cabbus_process_button_press( ctx, current, keyByte);
 			if( rePing ){
     			//currentCabAddr--;
 			}
         }
 
-        cabbus_output_screens(current);
+        cabbus_output_screens(ctx, current);
     }
 
     return current;
@@ -687,16 +619,16 @@ void cabbus_set_direction(struct Cab* cab, enum CabDirection direction) {
     cabbus_set_loco_speed(cab, cab->speed);
 }
 
-void cabbus_incoming_byte(uint8_t byte) {
-    if (byteStatus == 0x00) {
+void cabbus_incoming_byte( struct CabBusContext* ctx, uint8_t byte) {
+    if (ctx->byteStatus == 0x00) {
         //no bytes, put in first byte
-        firstByte = byte;
-        byteStatus = 0x01;
-    } else if (byteStatus == 0x01) {
-        secondByte = byte;
-        byteStatus = 0x03;
+        ctx->firstByte = byte;
+        ctx->byteStatus = 0x01;
+    } else if (ctx->byteStatus == 0x01) {
+        ctx->secondByte = byte;
+        ctx->byteStatus = 0x03;
     } else {
-        byteStatus = 0x00;
+        ctx->byteStatus = 0x00;
     }
 }
 
@@ -764,10 +696,10 @@ int cabbus_get_function(struct Cab* cab, uint8_t function) {
     return 0;
 }
 
-struct Cab* cabbus_cab_by_id( int id ){
-	if( id < 0 || id > (sizeof(allCabs) / sizeof(allCabs[0])) ){
+struct Cab* cabbus_cab_by_id( struct CabBusContext* ctx, int id ){
+    if( id < 0 || id > (sizeof(ctx->allCabs) / sizeof(ctx->allCabs[0])) ){
 		return NULL;
 	}
 
-	return &allCabs[ id ];
+    return &ctx->allCabs[ id ];
 }
