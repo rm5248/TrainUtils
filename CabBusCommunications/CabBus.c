@@ -115,7 +115,7 @@ struct CabBusContext {
     uint8_t outputBuffer[ 10 ];
     cab_delay_fn delayFunction;
     cab_write_fn writeFunction;
-    int ping_num;
+    uint32_t ping_num;
     volatile uint8_t firstByte;
     volatile uint8_t secondByte;
     volatile uint8_t byteStatus;
@@ -467,19 +467,47 @@ static void cabbus_output_screens(struct CabBusContext* ctx, struct Cab* current
     }
 }
 
+static uint8_t cabbus_next_ping_address( struct CabBusContext* ctx ){
+    uint8_t nextAddr = ctx->currentCabAddr;
+    struct Cab* cab;
+    int haveNextAddr = 0;
+
+    do{
+        nextAddr++;
+        if( nextAddr == 1 || nextAddr == 2 ) nextAddr = 3;
+
+        if( nextAddr == 64 ){
+            // Always make sure to ping address 0 no matter what.
+            nextAddr = 0;
+            ctx->ping_num++;
+            break;
+        }
+
+        cab = &ctx->allCabs[ nextAddr ];
+
+        if( (ctx->ping_num - cab->last_ping) > 30 ){
+            // This cab has not been seen in at least 30 pings.
+            // Should we ping this guy, or wait just a bit?
+            switch( (ctx->ping_num + cab->number) % 4 ){
+            case 0:
+                haveNextAddr = 1;
+                break;
+            }
+        }else if( (ctx->ping_num - cab->last_ping) < 30 ){
+            // We have recently seen this guy - ping him again
+            haveNextAddr = 1;
+        }
+    }while( !haveNextAddr );
+
+    return nextAddr;
+}
+
 void cabbus_ping_step1( struct CabBusContext* ctx ){
     if( ctx == NULL ){
         return;
     }
 
-    ctx->currentCabAddr++;
-    if (ctx->currentCabAddr == 1) ctx->currentCabAddr++; //don't ping address 1
-    if (ctx->currentCabAddr == 2) ctx->currentCabAddr++; //don't ping address 2 either
-
-    if (ctx->currentCabAddr == 64) {
-        ctx->currentCabAddr = 0; //only up to 63 cab
-        ctx->ping_num++;
-    }
+    ctx->currentCabAddr = cabbus_next_ping_address( ctx );
 
     //Go and ping the next address
     ctx->outputBuffer[ 0 ] = 0x80 | ctx->currentCabAddr;
