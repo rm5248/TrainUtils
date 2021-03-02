@@ -1,3 +1,4 @@
-#add_library(cabbus CabBus.c)
-SET(CABBUS_SOURCES
-    CabBus.c)
+add_library(cabbus_utils STATIC
+  CabBus.c 
+  command_to_string.c
+)
