@@ -373,6 +373,42 @@ static int cabbus_cab_handle_select_loco(cab_write_fn write_fn, struct cabbus_ca
     return 1;
 }
 
+static int cabbus_cab_handle_speed( cab_write_fn write, struct cabbus_cab* current, int keyByte ){
+    int retval = 0;
+
+    if (keyByte == STEP_FASTER_KEY) {
+        if ((current->speed & 0x7F) != 127) {
+            current->command.command = CAB_CMD_SPEED;
+            current->command.speed.speed = (current->speed & 0x7F) + 1;
+        }
+    } else if (keyByte == STEP_SLOWER_KEY) {
+        if ((current->speed & 0x7F) != 0) {
+            current->command.command = CAB_CMD_SPEED;
+            current->command.speed.speed = (current->speed & 0x7F) - 1;
+        }
+    } else if( keyByte == SPEED_INC_FAST_KEY ){
+        if ((current->speed & 0x7F) != 127) {
+            current->command.command = CAB_CMD_SPEED;
+            int newSpeed = (current->speed & 0x7F) + 5;
+            if( newSpeed > 127 ){
+                newSpeed = 127;
+            }
+            current->command.speed.speed = newSpeed & 0x7F;
+        }
+    } else if( keyByte == SPEED_DEC_FAST_KEY ){
+        if ((current->speed & 0x7F) != 0) {
+            current->command.command = CAB_CMD_SPEED;
+            int newSpeed = (current->speed & 0x7F) - 5;
+            if( newSpeed < 0 ){
+                newSpeed = 0;
+            }
+            current->command.speed.speed = newSpeed & 0x7F;
+        }
+    }
+
+    return retval;
+}
+
 /**
  * Process the button press from the specified cab.
  *
@@ -381,6 +417,10 @@ static int cabbus_cab_handle_select_loco(cab_write_fn write_fn, struct cabbus_ca
  */
 void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* current, int keyByte) {
     if( cabbus_cab_handle_select_loco( write, current, keyByte ) ){
+        return;
+    }
+
+    if( cabbus_cab_handle_speed( write, current, keyByte ) ){
         return;
     }
 
@@ -407,18 +447,6 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
             cabbus_cab_reset(current);
             current->command.command = CAB_CMD_RESPONSE;
             current->command.response.response = 1;
-        }
-    } else if (keyByte == STEP_FASTER_KEY) {
-        if ((current->speed & 0x7F) != 127) {
-            current->command.command = CAB_CMD_SPEED;
-            //current->speed = current->speed + 1;
-            current->command.speed.speed = (current->speed & 0x7F) + 1;
-        }
-    } else if (keyByte == STEP_SLOWER_KEY) {
-        if ((current->speed & 0x7F) != 0) {
-            current->command.command = CAB_CMD_SPEED;
-            //current->speed = current->speed - 1;
-            current->command.speed.speed = (current->speed & 0x7F) - 1;
         }
     } else if (keyByte == DIRECTION_KEY) {
         current->command.command = CAB_CMD_DIRECTION;
