@@ -76,6 +76,10 @@ struct cabbus_cab* cabbus_cab_by_id( struct cabbus_context* ctx, int id );
  */
 void cabbus_incoming_byte( struct cabbus_context* ctx, uint8_t byte );
 
+void cabbus_set_user_data( struct cabbus_context* ctx, void* user_data );
+
+void* cabbus_get_user_data( struct cabbus_context* ctx );
+
 #ifdef	__cplusplus
 }
 #endif

@@ -435,7 +435,7 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
     return;
 }
 
-uint16_t cabbus_get_loco_number(struct cabbus_cab* cab) {
+uint16_t cabbus_cab_get_loco_number(struct cabbus_cab* cab) {
     if (cab == NULL) return 0;
     return cab->loco_number;
 }

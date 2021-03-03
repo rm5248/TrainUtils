@@ -24,6 +24,7 @@ struct cabbus_context {
     volatile uint8_t firstByte;
     volatile uint8_t secondByte;
     volatile uint8_t byteStatus;
+    void* user_data;
 };
 
 //
@@ -209,4 +210,19 @@ struct cabbus_cab* cabbus_cab_by_id( struct cabbus_context* ctx, int id ){
 	}
 
     return &ctx->allCabs[ id ];
+}
+
+void cabbus_set_user_data( struct cabbus_context* ctx, void* user_data ){
+    if( ctx == NULL ){
+        return;
+    }
+
+    ctx->user_data = user_data;
+}
+
+void* cabbus_get_user_data( struct cabbus_context* ctx ){
+    if( ctx == NULL ){
+        return NULL;
+    }
+    return ctx->user_data;
 }
