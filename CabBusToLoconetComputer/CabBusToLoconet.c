@@ -1,12 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <cserial/c_serial.h>
-
-//linux includes here
-#include <signal.h>
-#include <sys/timerfd.h>
-#include <poll.h>
-#include <unistd.h>
 
 #define LOCONET_INTERLOCK
 
