@@ -42,7 +42,7 @@ struct LoconetInfoForCab {
 
 static struct LoconetInfoForCab cab_info[ 64 ];
 static LoconetContext* lnContext;
-static struct CabBusContext* cabContext;
+static struct cabbus_context* cabContext;
 
 //
 // Local Functions
@@ -133,7 +133,7 @@ static void cserial_log_function( const char* logger_name,
 int main( int argc, char** argv ){
 	Ln_Message incomingMessage;
 	Ln_Message outgoingMessage;
-	struct Cab* cab;
+    struct cabbus_cab* cab;
     struct cab_command* cmd;
 	int status;
 	struct pollfd pollfds[ 3 ];
@@ -194,10 +194,10 @@ int main( int argc, char** argv ){
 	// Ensure that each cab has a pointer to user data
 	memset( cab_info, 0, sizeof( cab_info ) );
 	for( int x = 0; x < 64; x++ ){
-        struct Cab* cab = cabbus_cab_by_id( cabContext, x );
+        struct cabbus_cab* cab = cabbus_cab_by_id( cabContext, x );
 		if( !cab ) continue;
         cab_info[ x ].slot_number = 255;
-		cabbus_set_user_data( cab, &cab_info[ x ] );
+        cabbus_cab_set_user_data( cab, &cab_info[ x ] );
 	}
 
 	//go into our main loop.
@@ -216,7 +216,7 @@ int main( int argc, char** argv ){
 		if( cab != NULL ){
 //			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
 			
-			cmd = cabbus_get_command( cab );
+            cmd = cabbus_cab_get_command( cab );
 			if( cmd->command != CAB_CMD_NONE ){
 				printf( "Got command %d[%s]\n", 
 					cmd->command, 
@@ -227,7 +227,7 @@ int main( int argc, char** argv ){
 					cmd->sel_loco.address,
 					cmd->sel_loco.flags );
 				// Send this data to loconet.
-                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
 				outgoingMessage.opcode = LN_OPC_LOCO_ADDR;
                 outgoingMessage.addr.locoAddrLo = cmd->sel_loco.address & 0x7F;
                 outgoingMessage.addr.locoAddrHi = (cmd->sel_loco.address & ~0x7F) >> 7;
@@ -238,7 +238,7 @@ int main( int argc, char** argv ){
 					fprintf( stderr, "ERROR writing outgoing message\n" );
 				}
 			}else if( cmd->command == CAB_CMD_SPEED ){
-				struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
 				Ln_Message message;
                 message.opcode = LN_OPC_LOCO_SPEED;
 				message.speed.speed = cmd->speed.speed & 0x7F;
@@ -264,7 +264,7 @@ int main( int argc, char** argv ){
                 }
             }else if( cmd->command == CAB_CMD_DIRECTION ||
                       cmd->command == CAB_CMD_FUNCTION ){
-                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
                 Ln_Message message;
                 message.opcode = LN_OPC_LOCO_DIR_FUNC;
                 message.dirFunc.slot = info->slot_number;
@@ -276,11 +276,11 @@ int main( int argc, char** argv ){
                 }
 
                 // First set all of the known values that we have for our functions
-                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 0 ) << 4);
-                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 1 ) << 0);
-                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 2 ) << 1);
-                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 3 ) << 2);
-                message.dirFunc.dir_funcs |= (cabbus_get_function( cab, 4 ) << 3);
+                message.dirFunc.dir_funcs |= (cabbus_cab_get_function( cab, 0 ) << 4);
+                message.dirFunc.dir_funcs |= (cabbus_cab_get_function( cab, 1 ) << 0);
+                message.dirFunc.dir_funcs |= (cabbus_cab_get_function( cab, 2 ) << 1);
+                message.dirFunc.dir_funcs |= (cabbus_cab_get_function( cab, 3 ) << 2);
+                message.dirFunc.dir_funcs |= (cabbus_cab_get_function( cab, 4 ) << 3);
 
                 // Now set any functions that may have changed
                 if( cmd->command == CAB_CMD_FUNCTION ){
@@ -321,7 +321,7 @@ int main( int argc, char** argv ){
                     printf( "ERROR writing message\n" );
                 }
             }else if( cmd->command == CAB_CMD_RESPONSE ){
-                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
                 if( info->request_state == STATE_STEAL &&
                         cmd->response.response ){
                     // Requested to steal OK
@@ -337,7 +337,7 @@ int main( int argc, char** argv ){
                 }
                 info->request_state = STATE_NONE;
             }else if( cmd->command == CAB_CMD_UNSELECT_LOCO ){
-                struct LoconetInfoForCab* info = cabbus_get_user_data( cab );
+                struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
                 if( info->slot_number != 255 ){
                     // Two step process:
                     // 1. set slot to COMMON
@@ -353,8 +353,8 @@ int main( int argc, char** argv ){
                         printf( "ERROR writing message\n" );
                     }
 
-                    cabbus_set_loco_number( cab, 0 );
-                    cabbus_set_loco_speed( cab, 0 );
+                    cabbus_cab_set_loco_number( cab, 0 );
+                    cabbus_cab_set_loco_speed( cab, 0 );
                 }
             }
 		}
@@ -410,10 +410,10 @@ int main( int argc, char** argv ){
                 //check to see if this slot is one that we are controlling
 				int addr = incomingMessage.rdSlotData.addr1 | (incomingMessage.rdSlotData.addr2 << 7);
                 struct LoconetInfoForCab* info;
-                struct Cab* cab;
+                struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
                     cab = cabbus_cab_by_id( cabContext, x );
-                    info = cabbus_get_user_data( cab );
+                    info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
                     }
@@ -423,7 +423,7 @@ int main( int argc, char** argv ){
                             // Ask to steal
                             info->request_state = STATE_STEAL;
                             info->request_slot_number = incomingMessage.rdSlotData.slot;
-                            cabbus_ask_question( cab, "STEAL? (Y)" );
+                            cabbus_cab_ask_question( cab, "STEAL? (Y)" );
                         }else{
                             //perform a NULL MOVE
                             outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
@@ -442,17 +442,17 @@ int main( int argc, char** argv ){
                             info->request_loco_number == addr ){
                         // We have successfully done the NULL MOVE! :D
                         // Now tell the cabbus that we have done so.
-                        cabbus_set_loco_number( cab, info->request_loco_number );
+                        cabbus_cab_set_loco_number( cab, info->request_loco_number );
                     }
 
                     if( info->request_state == STATE_NONE &&
                             info->slot_number == incomingMessage.rdSlotData.slot ){
                         // Update everything about this guy on the cab
-                        cabbus_set_loco_number( cab, addr );
+                        cabbus_cab_set_loco_number( cab, addr );
                         if( LOCONET_GET_DIRECTION_REV(incomingMessage.rdSlotData.dir_funcs) ){
-                            cabbus_set_direction( cab, CAB_DIR_REVERSE );
+                            cabbus_cab_set_direction( cab, CAB_DIR_REVERSE );
                         }else{
-                            cabbus_set_direction( cab, CAB_DIR_FORWARD );
+                            cabbus_cab_set_direction( cab, CAB_DIR_FORWARD );
                         }
 
                         char lights = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 4));
@@ -460,21 +460,21 @@ int main( int argc, char** argv ){
                         char f2 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 1));
                         char f3 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 2));
                         char f4 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 3));
-                        cabbus_set_functions( cab, 0, lights );
-                        cabbus_set_functions( cab, 1, f1 );
-                        cabbus_set_functions( cab, 2, f2 );
-                        cabbus_set_functions( cab, 3, f3 );
-                        cabbus_set_functions( cab, 4, f4 );
+                        cabbus_cab_set_functions( cab, 0, lights );
+                        cabbus_cab_set_functions( cab, 1, f1 );
+                        cabbus_cab_set_functions( cab, 2, f2 );
+                        cabbus_cab_set_functions( cab, 3, f3 );
+                        cabbus_cab_set_functions( cab, 4, f4 );
                     }
                 }
 			}else if( incomingMessage.opcode == LN_OPC_LONG_ACK ){
-                if( incomingMessage.ack.lopc & 0x7F == LN_OPC_MOVE_SLOT ){
+                if( (incomingMessage.ack.lopc & 0x7F) == LN_OPC_MOVE_SLOT ){
                     printf( "Ack? %d\n", incomingMessage.ack.ack );
                 }
 
                 struct LoconetInfoForCab* info;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    info = cabbus_get_user_data( cabbus_cab_by_id( cabContext, x ) );
+                    info = cabbus_cab_get_user_data( cabbus_cab_by_id( cabContext, x ) );
                     if( info == NULL ){
                         continue;
                     }
@@ -484,10 +484,10 @@ int main( int argc, char** argv ){
                 }
             }else if( incomingMessage.opcode == LN_OPC_LOCO_SPEED ){
                 struct LoconetInfoForCab* info;
-                struct Cab* cab;
+                struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
                     cab = cabbus_cab_by_id( cabContext, x );
-                    info = cabbus_get_user_data( cab );
+                    info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
                     }
@@ -497,24 +497,24 @@ int main( int argc, char** argv ){
                         if( realSpeed < 0 ){
                             realSpeed = 0;
                         }
-                        cabbus_set_loco_speed( cab, realSpeed & 0xFF );
+                        cabbus_cab_set_loco_speed( cab, realSpeed & 0xFF );
                     }
                 }
             }else if( incomingMessage.opcode == LN_OPC_LOCO_DIR_FUNC ){
                 struct LoconetInfoForCab* info;
-                struct Cab* cab;
+                struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
                     cab = cabbus_cab_by_id( cabContext, x );
-                    info = cabbus_get_user_data( cab );
+                    info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
                     }
 
                     if( info->slot_number == incomingMessage.dirFunc.slot ){
                         if( LOCONET_GET_DIRECTION_REV(incomingMessage.dirFunc.dir_funcs) ){
-                            cabbus_set_direction( cab, CAB_DIR_REVERSE );
+                            cabbus_cab_set_direction( cab, CAB_DIR_REVERSE );
                         }else{
-                            cabbus_set_direction( cab, CAB_DIR_FORWARD );
+                            cabbus_cab_set_direction( cab, CAB_DIR_FORWARD );
                         }
 
                         char lights = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 4));
@@ -522,20 +522,20 @@ int main( int argc, char** argv ){
                         char f2 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 1));
                         char f3 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 2));
                         char f4 = !!(incomingMessage.dirFunc.dir_funcs & (0x01 << 3));
-                        cabbus_set_functions( cab, 0, lights );
-                        cabbus_set_functions( cab, 1, f1 );
-                        cabbus_set_functions( cab, 2, f2 );
-                        cabbus_set_functions( cab, 3, f3 );
-                        cabbus_set_functions( cab, 4, f4 );
+                        cabbus_cab_set_functions( cab, 0, lights );
+                        cabbus_cab_set_functions( cab, 1, f1 );
+                        cabbus_cab_set_functions( cab, 2, f2 );
+                        cabbus_cab_set_functions( cab, 3, f3 );
+                        cabbus_cab_set_functions( cab, 4, f4 );
 
                     }
                 }
             }else if( incomingMessage.opcode == LN_OPC_SLOT_STAT1 ){
                 struct LoconetInfoForCab* info;
-                struct Cab* cab;
+                struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
                     cab = cabbus_cab_by_id( cabContext, x );
-                    info = cabbus_get_user_data( cab );
+                    info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
                     }
@@ -554,8 +554,8 @@ int main( int argc, char** argv ){
                         info->slot_number = 255;
                         info->request_state = STATE_NONE;
 
-                        cabbus_set_loco_number( cab, 0 );
-                        cabbus_set_loco_speed( cab, 0 );
+                        cabbus_cab_set_loco_number( cab, 0 );
+                        cabbus_cab_set_loco_speed( cab, 0 );
                     }
                 }
             }

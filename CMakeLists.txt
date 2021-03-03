@@ -21,6 +21,8 @@ IF( UNIX )
     pkg_check_modules( CSERIAL REQUIRED cserial )
 ENDIF( UNIX )
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wmissing-prototypes")
+
 add_subdirectory(CabBusCommunications)
 add_subdirectory(CabBusSniffer)
 add_subdirectory(LocoNetCommunications)

@@ -11,6 +11,7 @@
 #include <inttypes.h>
 
 #include "cab_commands.h"
+#include "cabbus_cab.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -37,17 +38,11 @@ typedef void (*cab_write_fn)( void* data, uint8_t len );
  *
  * @return 1 if there is data incoming, 0 otherwise
  */
-typedef uint32_t (*cab_incoming_data)();
+typedef uint32_t (*cab_incoming_data)(void);
 
 
 // Forward declaration of private cab type
-struct Cab;
-struct CabBusContext;
-
-enum CabDirection {
-    CAB_DIR_FORWARD,
-    CAB_DIR_REVERSE
-};
+struct cabbus_context;
 
 /**
  * Called to initialize all the cabs.
@@ -57,106 +52,29 @@ enum CabDirection {
  * @param write Function pointer to a function that will
  * write data out to the cabbus.
  */
-struct CabBusContext* cabbus_new( cab_delay_fn delay,
+struct cabbus_context* cabbus_new( cab_delay_fn delay,
                                   cab_write_fn write);
 
-void cabbus_free( struct CabBusContext* ctx );
+void cabbus_free( struct cabbus_context* ctx );
 
 /**
  * Send a ping to the next cab.  Step 1 of the ping process.
  */
-void cabbus_ping_step1( struct CabBusContext* ctx );
+void cabbus_ping_step1( struct cabbus_context* ctx );
 
 /**
  * Return the cab, if we were able to ping it.
  * Any data from the serial port must have been put into our buffer with
  * cabbus_incoming_byte before calling this function.
  */
-struct Cab* cabbus_ping_step2( struct CabBusContext* ctx );
+struct cabbus_cab* cabbus_ping_step2( struct cabbus_context* ctx );
 
-/**
- * Set the cab locomotive number
- * @param number
- */
-void cabbus_set_loco_number( struct Cab*, int number );
-
-/**
- * Set the cab speed.
- */
-void cabbus_set_loco_speed( struct Cab*, uint8_t speed );
-
-/**
- * Set the time displayed on the cab
- * @param
- * @param hour
- * @param minute
- * @param am
- */
-void cabbus_set_time( struct Cab*, char hour, char minute, char am );
-
-/**
- * Set a function of the cab, it being either on or off.
- */
-void cabbus_set_functions( struct Cab*, char functionNum, char on );
-
-/**
- * Set the direction on this cab.
- */
-void cabbus_set_direction( struct Cab*, enum CabDirection direction );
+struct cabbus_cab* cabbus_cab_by_id( struct cabbus_context* ctx, int id );
 
 /**
  * Call this when a byte comes in on the bus
  */
-void cabbus_incoming_byte( struct CabBusContext* ctx, uint8_t byte );
-
-/**
- * Get the current locomotive number of this cab
- */
-uint16_t cabbus_get_loco_number( struct Cab* );
-
-/**
- * Get the latest command from this cab
- */
-struct cab_command* cabbus_get_command( struct Cab* );
-
-/**
- * Ask a yes/no question to the user.
- */
-void cabbus_ask_question( struct Cab*, const char* );
-
-/**
- * Get the network number of this cab
- */
-uint8_t cabbus_get_cab_number( struct Cab* );
-
-/**
- * Give a message to the user
- */
-void cabbus_user_message( struct Cab*, const char* );
-
-/**
- * Set user data for this cab
- */
-void cabbus_set_user_data( struct Cab*, void* );
-
-/**
- * Get user data for this cab
- *
- * @param
- * @return
- */
-void* cabbus_get_user_data( struct Cab* );
-
-/**
- * Get if the specified function is on or off.
- *
- * @param
- * @param function The function number to check
- * @return TRUE or FALSE depending on if the function is active.
- */
-int cabbus_get_function( struct Cab*, uint8_t function );
-
-struct Cab* cabbus_cab_by_id( struct CabBusContext* ctx, int id );
+void cabbus_incoming_byte( struct cabbus_context* ctx, uint8_t byte );
 
 #ifdef	__cplusplus
 }
