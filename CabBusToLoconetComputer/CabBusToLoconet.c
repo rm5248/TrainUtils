@@ -37,6 +37,40 @@ static struct LoconetInfoForCab cab_info[ 64 ];
 // Local Functions
 //
 
+static void handle_cabbus_speed( struct LoconetInfoForCab* info,
+                                 LoconetContext* loconet_context,
+                                 int speed,
+                                 int estop ){
+    Ln_Message message;
+    message.opcode = LN_OPC_LOCO_SPEED;
+    message.speed.speed = speed & 0x7F;
+    /*
+     * Special logic for Digitrax : speed step 0 is stopped,
+     * while speed step 1 is ESTOP.
+     * So, add 1 to each speed we get from the cabbus.
+     * if the speed is 1, that means we are now stopped
+     */
+    message.speed.speed++;
+    if( message.speed.speed == 1 ){
+        message.speed.speed = 0;
+    }
+
+    if( estop == 1 ){
+        message.speed.speed = 1;
+    }
+
+    message.speed.slot = info->slot_number;
+    if( info->slot_number == 255 ){
+        printf( "ERROR no slot number\n" );
+    }else{
+        printf( "Going to write Loconet message:\n" );
+        loconet_print_message( stdout, &message );
+        if( ln_write_message( loconet_context, &message ) < 0 ){
+            printf( "ERROR writing message\n" );
+        }
+    }
+}
+
 //
 // External Functions
 //
@@ -100,31 +134,13 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                 if( ln_write_message( loconet_context, &outgoingMessage ) < 0 ){
 					fprintf( stderr, "ERROR writing outgoing message\n" );
 				}
-			}else if( cmd->command == CAB_CMD_SPEED ){
+            }else if( cmd->command == CAB_CMD_SPEED ||
+                      cmd->command == CAB_CMD_ESTOP ){
                 struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
-				Ln_Message message;
-                message.opcode = LN_OPC_LOCO_SPEED;
-				message.speed.speed = cmd->speed.speed & 0x7F;
-				/*
-				 * Special logic for Digitrax : speed step 0 is stopped,
-				 * while speed step 1 is ESTOP.
-				 * So, add 1 to each speed we get from the cabbus.
-				 * if the speed is 1, that means we are now stopped
-				 */
-				message.speed.speed++;
-				if( message.speed.speed == 1 ){
-                    message.speed.speed = 0;
-				}
-				message.speed.slot = info->slot_number;
-                if( info->slot_number == 255 ){
-					printf( "ERROR no slot number\n" );
-                }else{
-                    printf( "Going to write Loconet message:\n" );
-                    loconet_print_message( stdout, &message );
-                    if( ln_write_message( loconet_context, &message ) < 0 ){
-                        printf( "ERROR writing message\n" );
-                    }
-                }
+                handle_cabbus_speed( info,
+                                     loconet_context,
+                                     cmd->speed.speed & 0x7F,
+                                     cmd->command == CAB_CMD_ESTOP );
             }else if( cmd->command == CAB_CMD_DIRECTION ||
                       cmd->command == CAB_CMD_FUNCTION ){
                 struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
