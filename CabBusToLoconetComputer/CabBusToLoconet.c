@@ -13,6 +13,7 @@
 #include "CabBus.h"
 #include "loconet_buffer.h"
 #include "loconet_print.h"
+#include "cabbus_to_loconet.h"
 
 enum LocoRequestState{
     STATE_NONE,
@@ -26,9 +27,6 @@ enum LocoRequestState{
 //
 // Local Variables
 //
-static int loconet_timer_fd;
-static c_serial_port_t* loconet_port;
-static c_serial_port_t* cabbus_port;
 
 //internal table to keep track of which slot has which locomotive
 static uint16_t slot_table[ 128 ];
@@ -41,177 +39,49 @@ struct LoconetInfoForCab {
 };
 
 static struct LoconetInfoForCab cab_info[ 64 ];
-static LoconetContext* lnContext;
-static struct cabbus_context* cabContext;
 
 //
 // Local Functions
 //
 
-//Loconet Functions
-
-
-static void loconet_timer_start( uint32_t time ){
-	static struct itimerspec timespec;
-
-	memset( &timespec, 0, sizeof( struct itimerspec ) );
-	timespec.it_value.tv_nsec = time * 1000; // microseconds to nanoseconds
-	timespec.it_interval.tv_nsec = timespec.it_value.tv_nsec;
-
-	if( timerfd_settime( loconet_timer_fd, 0, &timespec, NULL ) < 0 ){
-		perror( "timer_settime" );
-	}
-}
-
-static int loconet_read(){
-    uint8_t buffer[ 20 ];
-    int buffer_size = 20;
-    ssize_t x;
-    int status;
-
-    status = c_serial_read_data( loconet_port, buffer, &buffer_size, NULL );
-    if( status != CSERIAL_OK ){
-        return -1;
-    }
-
-    printf( "LN read %d bytes\n", buffer_size );
-
-    for( x = 0; x < buffer_size; x++ ){
-        ln_incoming_byte( lnContext, buffer[ x ] );
-    }
-
-    return 0;
-}
-
-// Cabbus support functions
-static void cabbus_delay( uint32_t delayms ){
-	usleep( delayms * 10000 );
-}
-
-
-static int cabbus_read(){
-	uint8_t buffer[ 20 ];
-	int buffer_size = 20;
-	ssize_t x;
-	int status;
-
-	status = c_serial_read_data( cabbus_port, buffer, &buffer_size, NULL );
-	if( status != CSERIAL_OK ){
-		return -1;
-	}
-
-	for( x = 0; x < buffer_size; x++ ){
-        cabbus_incoming_byte( cabContext, buffer[ x ] );
-	}
-
-	return 0;
-}
-
-// Writing functions
-static void loconet_write( uint8_t byte ){
-	int length = sizeof( uint8_t );
-	c_serial_write_data( loconet_port, &byte, &length );
-}
-
-static void cabbus_write( void* data, uint8_t len ){
-	int length = len;
-	c_serial_write_data( cabbus_port, data, &length );
-	c_serial_flush( cabbus_port );
-}
-
-static void cserial_log_function( const char* logger_name,
-        const struct SL_LogLocation* location,
-	const enum SL_LogLevel level,
-        const char* logMessage ){
-	fprintf( stderr, "%s\n", logMessage );
-}
-
 //
 // External Functions
 //
 
-int main( int argc, char** argv ){
-	Ln_Message incomingMessage;
-	Ln_Message outgoingMessage;
-    struct cabbus_cab* cab;
-    struct cab_command* cmd;
-	int status;
-	struct pollfd pollfds[ 3 ];
-	c_serial_errnum_t errnum = 0;
-	c_serial_port_t* tmpPort;
-    int available;
-
-	c_serial_set_global_log_function( cserial_log_function );
-
-	//quick parse of cmdline
-	if( argc < 3 ){
-		fprintf( stderr, "ERROR: Need at least 2 args: <loconet port> <cabbus port>\n" );
-		return 1;
-	}
+void cabbus_to_loconet_main( struct cabbus_context* cab_context,
+                             cab_write_fn cab_write,
+                             cabbus_read_fn cab_read,
+                             void* cab_read_fn_data,
+                             LoconetContext* loconet_context,
+                             loconet_read_fn loconet_read,
+                             void* loconet_read_fn_data){
 
 	//local variable setup
     memset( slot_table, 0, sizeof( slot_table ) );
 
-	//set up the timer for loconet
-	loconet_timer_fd = timerfd_create( CLOCK_REALTIME, 0 );
-
-	//open the TTY ports
-	printf( "About to open %s for loconet use\n", argv[ 1 ] );
-	status = c_serial_new( &tmpPort, &errnum );
-	loconet_port = tmpPort;
-	c_serial_set_port_name( loconet_port, argv[ 1 ] );
-    status = c_serial_open_keep_settings( loconet_port, 1 );
-	if( status != CSERIAL_OK ){
-		fprintf( stderr, "ERROR: Can't open loconet port: %s\n",
-			c_serial_get_error_string( status ) );
-		return 1;
-	}
-	
-	printf( "About to open %s for cabbus use\n", argv[ 2 ] );
-	status = c_serial_new( &cabbus_port, NULL );
-	if( status < 0 ){
-		fprintf( stderr, "ERROR: Can't allocate new serial port for cabbus\n" );
-		return 1;
-	}
-	c_serial_set_port_name( cabbus_port, argv[ 2 ] );
-	c_serial_set_stop_bits( cabbus_port, CSERIAL_STOP_BITS_2 );
-	status = c_serial_open( cabbus_port );
-	if( status != CSERIAL_OK ){
-		fprintf( stderr, "ERROR: Can't open cabbus port: %s (%s)\n",
-			c_serial_get_error_string( status ),
-			strerror( c_serial_get_last_native_errnum( cabbus_port ) )  );
-		return 1;
-	}
-
-	//initialize loconet
-    lnContext = ln_context_new( loconet_timer_start, loconet_write );
-    ln_context_set_ignore_state( lnContext, 1 );
-    ln_context_set_additional_delay( lnContext, 200 );
-
-	//initalize cabbus
-    cabContext = cabbus_new( cabbus_delay, cabbus_write );
 
 	// Ensure that each cab has a pointer to user data
 	memset( cab_info, 0, sizeof( cab_info ) );
 	for( int x = 0; x < 64; x++ ){
-        struct cabbus_cab* cab = cabbus_cab_by_id( cabContext, x );
+        struct cabbus_cab* cab = cabbus_cab_by_id( cab_context, x );
 		if( !cab ) continue;
         cab_info[ x ].slot_number = 255;
         cabbus_cab_set_user_data( cab, &cab_info[ x ] );
 	}
 
+    struct cabbus_cab* cab;
+    struct cab_command* cmd;
+    Ln_Message outgoingMessage;
+    Ln_Message incomingMessage;
 	//go into our main loop.
 	//essentially what we do here, is we get information from the cabs on the bus,
 	//and then echo that information back onto loconet.
 	//we also have to parse loconet information that we get back to make sure
 	//that we tell the user about stupid stuff that they are doing
 	while( 1 ){
-        cabbus_ping_step1( cabContext );
-		c_serial_get_available( cabbus_port, &available );
-		if( available ){
-			cabbus_read();
-		}
-        cab = cabbus_ping_step2( cabContext );
+        cabbus_ping_step1( cab_context );
+        cab_read( cab_read_fn_data );
+        cab = cabbus_ping_step2( cab_context );
 
 		if( cab != NULL ){
 //			printf( "got response from cab %d\n", cabbus_get_cab_number( cab ) );
@@ -234,7 +104,7 @@ int main( int argc, char** argv ){
                 info->request_state = STATE_REQUEST;
                 info->request_loco_number = cmd->sel_loco.address;
                 loconet_print_message( stdout, &outgoingMessage );
-                if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
+                if( ln_write_message( loconet_context, &outgoingMessage ) < 0 ){
 					fprintf( stderr, "ERROR writing outgoing message\n" );
 				}
 			}else if( cmd->command == CAB_CMD_SPEED ){
@@ -258,7 +128,7 @@ int main( int argc, char** argv ){
                 }else{
                     printf( "Going to write Loconet message:\n" );
                     loconet_print_message( stdout, &message );
-                    if( ln_write_message( lnContext, &message ) < 0 ){
+                    if( ln_write_message( loconet_context, &message ) < 0 ){
                         printf( "ERROR writing message\n" );
                     }
                 }
@@ -317,7 +187,7 @@ int main( int argc, char** argv ){
 
                 printf( "Going to write Loconet message:\n" );
                 loconet_print_message( stdout, &message );
-                if( ln_write_message( lnContext, &message ) < 0 ){
+                if( ln_write_message( loconet_context, &message ) < 0 ){
                     printf( "ERROR writing message\n" );
                 }
             }else if( cmd->command == CAB_CMD_RESPONSE ){
@@ -331,7 +201,7 @@ int main( int argc, char** argv ){
                     msg.opcode = LN_OPC_REQUEST_SLOT_DATA;
                     msg.reqSlotData.slot = info->slot_number;
                     msg.reqSlotData.nul = 0;
-                    if( ln_write_message( lnContext, &msg ) < 0 ){
+                    if( ln_write_message( loconet_context, &msg ) < 0 ){
                         printf( "ERROR writing message\n" );
                     }
                 }
@@ -349,7 +219,7 @@ int main( int argc, char** argv ){
                     msg.opcode = LN_OPC_SLOT_STAT1;
                     msg.stat1.slot = info->slot_number;
                     msg.stat1.stat1 = (LN_SLOT_STATUS_COMMON << 4) | 0x7;
-                    if( ln_write_message( lnContext, &msg ) < 0 ){
+                    if( ln_write_message( loconet_context, &msg ) < 0 ){
                         printf( "ERROR writing message\n" );
                     }
 
@@ -359,51 +229,9 @@ int main( int argc, char** argv ){
             }
 		}
 
-/*
-		FD_ZERO( &set );
-		FD_SET( STDIN_FILENO, &set );
-		good = 0;
-		do{
-			ts.tv_sec = 0;
-			ts.tv_usec = 10;
-			if( select( 1, &set, NULL, NULL, &ts ) < 0 ){
-				if( errno == EINTR ){
-					continue;
-				}
-				perror( "select" );
-			}
-			good = 1;
-		}while( !good );
+        loconet_read( loconet_read_fn_data );
 
-		if( FD_ISSET( STDIN_FILENO, &set ) ){
-			got = read( STDIN_FILENO, userCommand, 100 );
-			if( got < 0 ){
-				perror( "read - stdin" );
-				break;
-			}
-
-			userCommand[ got ] = 0;
-			printf( "User command: %s\n", userCommand );
-			//quick and ugly parse
-			if( memcmp( userCommand, "SEL", 3 ) == 0 ){
-				selectingLoco = atoi( userCommand + 3 );
-				outgoingMessage.opcode = LN_OPC_LOCO_ADDR;
-				outgoingMessage.addr.locoAddrLo = selectingLoco & 0x7F;
-				outgoingMessage.addr.locoAddrHi = (selectingLoco & ~0x7F) >> 7;
-				selectingState = STATE_REQUEST;
-				if( ln_write_message( &outgoingMessage ) < 0 ){
-					fprintf( stderr, "ERROR writing outgoing message\n" );
-				}
-			}
-		}
-*/
-
-        c_serial_get_available( loconet_port, &available );
-        if( available ){
-            loconet_read();
-        }
-
-        if( ln_read_message( lnContext, &incomingMessage ) == 1 ){
+        if( ln_read_message( loconet_context, &incomingMessage ) == 1 ){
             printf( "Incoming loconet message:\n" );
 			loconet_print_message( stdout, &incomingMessage );
 			if( incomingMessage.opcode == LN_OPC_SLOT_READ_DATA ){
@@ -412,7 +240,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( cabContext, x );
+                    cab = cabbus_cab_by_id( cab_context, x );
                     info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -431,7 +259,7 @@ int main( int argc, char** argv ){
                             outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
                             info->request_state = STATE_NULL_MOVE;
                             info->slot_number = incomingMessage.rdSlotData.slot;
-                            if( ln_write_message( lnContext, &outgoingMessage ) < 0 ){
+                            if( ln_write_message( loconet_context, &outgoingMessage ) < 0 ){
                                 fprintf( stderr, "ERROR writing outgoing message\n" );
                             }
                         }
@@ -474,7 +302,7 @@ int main( int argc, char** argv ){
 
                 struct LoconetInfoForCab* info;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    info = cabbus_cab_get_user_data( cabbus_cab_by_id( cabContext, x ) );
+                    info = cabbus_cab_get_user_data( cabbus_cab_by_id( cab_context, x ) );
                     if( info == NULL ){
                         continue;
                     }
@@ -486,7 +314,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( cabContext, x );
+                    cab = cabbus_cab_by_id( cab_context, x );
                     info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -504,7 +332,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( cabContext, x );
+                    cab = cabbus_cab_by_id( cab_context, x );
                     info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -534,7 +362,7 @@ int main( int argc, char** argv ){
                 struct LoconetInfoForCab* info;
                 struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
-                    cab = cabbus_cab_by_id( cabContext, x );
+                    cab = cabbus_cab_by_id( cab_context, x );
                     info = cabbus_cab_get_user_data( cab );
                     if( info == NULL ){
                         continue;
@@ -547,7 +375,7 @@ int main( int argc, char** argv ){
                         msg.opcode = LN_OPC_MOVE_SLOT;
                         msg.moveSlot.source = info->slot_number;
                         msg.moveSlot.slot = 0;
-                        if( ln_write_message( lnContext, &msg ) < 0 ){
+                        if( ln_write_message( loconet_context, &msg ) < 0 ){
                             printf( "ERROR writing message\n" );
                         }
 

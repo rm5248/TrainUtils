@@ -35,6 +35,6 @@ IF( BUILD_CAB2LOCONET_COMPUTER )
 
     include_directories( LocoNetCommunications CabBusCommunications )
     
-    add_executable( Cab2Loconet  CabBusToLoconetComputer/CabBusToLoconet.c )
+    add_executable( Cab2Loconet  CabBusToLoconetComputer/CabBusToLoconet.c CabBusToLoconetComputer/main_linux.c )
     target_link_libraries( Cab2Loconet PRIVATE cabbus_utils loconet_utils ${POPT_LIBRARIES} ${CSERIAL_LIBRARIES} )
 ENDIF( BUILD_CAB2LOCONET_COMPUTER )
