@@ -64,7 +64,7 @@ struct cabbus_cab {
     // Set this field if we need to put the cursor at a
     // specific location
     int8_t new_cursor_position;
-    uint16_t current_selecting_loco;
+    uint16_t current_selecting_number;
     //any other data that you want to associate with this cab.
     void* user_data;
 };

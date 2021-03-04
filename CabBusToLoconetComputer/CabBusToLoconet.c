@@ -204,6 +204,10 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
             cabbus_cab_set_loco_number( cab, 0 );
             cabbus_cab_set_loco_speed( cab, 0 );
         }
+    }else if( cmd->command == CAB_CMD_SWITCH ){
+        struct loconet_message msg;
+        msg.opcode = LN_OPC_SWITCH_REQUEST;
+
     }
 }
 

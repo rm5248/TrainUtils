@@ -31,6 +31,12 @@
 #define CAB_GET_SELECTING_LOCO(cab) BIT_CHECK(cab->dirty_screens, 6)
 #define CAB_SET_SELECTING_LOCO(cab) BIT_SET(cab->dirty_screens, 6)
 #define CAB_CLEAR_SELECTING_LOCO(cab) BIT_CLEAR(cab->dirty_screens, 6)
+#define CAB_GET_SELECTING_ACCY(cab) BIT_CHECK(cab->dirty_screens, 7)
+#define CAB_SET_SELECTING_ACCY(cab) BIT_SET(cab->dirty_screens, 7)
+#define CAB_CLEAR_SELECTING_ACCY(cab) BIT_CLEAR(cab->dirty_screens, 7)
+#define CAB_GET_SELECTING_ACCY_DIR(cab) BIT_CHECK(cab->dirty_screens, 4)
+#define CAB_SET_SELECTING_ACCY_DIR(cab) BIT_SET(cab->dirty_screens, 4)
+#define CAB_CLEAR_SELECTING_ACCY_DIR(cab) BIT_CLEAR(cab->dirty_screens, 4)
 //Macros for getting/setting dirty state of screens
 #define CAB_SET_TOPLEFT_DIRTY(cab) BIT_SET(cab->dirty_screens, 3)
 #define CAB_SET_BOTTOMLEFT_DIRTY(cab) BIT_SET(cab->dirty_screens, 2)
@@ -286,14 +292,18 @@ void cabbus_cab_reset(struct cabbus_cab* cab) {
 
     CAB_SET_BOTTOMLEFT_DIRTY(cab);
     CAB_SET_BOTTOMRIGHT_DIRTY(cab);
-}
 
+    snprintf(tempBuffer, 9, "LOC:%3d", cab->loco_number);
+    memcpy(cab->topRow, tempBuffer, 8);
+    cab->topRow[ 7 ] = ' ';
+    CAB_SET_TOPLEFT_DIRTY(cab);
+}
 
 static int cabbus_cab_handle_select_loco(cab_write_fn write_fn, struct cabbus_cab* current, int keyByte){
     if (keyByte == SELECT_LOCO_KEY) {
         //send the message 'enter loco:' to the cab
         //loco number prints on LCD screen starting at 0xCC
-        current->current_selecting_loco = 0;
+        current->current_selecting_number = 0;
         current->command.sel_loco.flags = 1;
 
         memcpy(current->bottomRow, "ENTER LOCO:     ", 16);
@@ -316,52 +326,52 @@ static int cabbus_cab_handle_select_loco(cab_write_fn write_fn, struct cabbus_ca
 
     if( keyByte == KEY_0 ){
         cabbus_cab_print_char( write_fn, '0' );
-        if( current->current_selecting_loco == 0 ){
+        if( current->current_selecting_number == 0 ){
             // Select short address
             current->command.sel_loco.flags = 0;
         }else{
-            current->current_selecting_loco *= 10;
+            current->current_selecting_number *= 10;
         }
     }else if( keyByte == KEY_1 ){
         cabbus_cab_print_char( write_fn, '1' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 1;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 1;
     }else if( keyByte == KEY_2 ){
         cabbus_cab_print_char( write_fn, '2' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 2;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 2;
     }else if( keyByte == KEY_3 ){
         cabbus_cab_print_char( write_fn, '3' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 3;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 3;
     }else if( keyByte == KEY_4 ){
         cabbus_cab_print_char( write_fn, '4' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 4;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 4;
     }else if( keyByte == KEY_5 ){
         cabbus_cab_print_char( write_fn, '5' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 5;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 5;
     }else if( keyByte == KEY_6 ){
         cabbus_cab_print_char( write_fn, '6' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 6;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 6;
     }else if( keyByte == KEY_7 ){
         cabbus_cab_print_char( write_fn, '7' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 7;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 7;
     }else if( keyByte == KEY_8 ){
         cabbus_cab_print_char( write_fn, '8' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 8;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 8;
     }else if( keyByte == KEY_9 ){
         cabbus_cab_print_char( write_fn, '9' );
-        current->current_selecting_loco *= 10;
-    current->current_selecting_loco += 9;
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 9;
     }else if( keyByte == ENTER ){
-        if( current->current_selecting_loco != 0 ){
+        if( current->current_selecting_number != 0 ){
             current->command.command = CAB_CMD_SEL_LOCO;
-            current->command.sel_loco.address = current->current_selecting_loco;
+            current->command.sel_loco.address = current->current_selecting_number;
         }else{
             current->command.command = CAB_CMD_UNSELECT_LOCO;
         }
@@ -409,6 +419,111 @@ static int cabbus_cab_handle_speed( cab_write_fn write, struct cabbus_cab* curre
     return retval;
 }
 
+static int cabbus_handle_select_accy( cab_write_fn write_fn, struct cabbus_cab* current, int keyByte ){
+    if (keyByte == SEL_ACCY_KEY &&
+            !CAB_GET_SELECTING_ACCY(current) ) {
+        // Send the message "CONTROL\nACC NUMBER: <num>" to the cab
+        char accNumber[17];
+        snprintf( accNumber, 17, "ACC NUMBER: %04d", 1 );
+
+        memcpy(current->topRow, "CONTROL ", 8);
+        memcpy(current->bottomRow, accNumber, 16 );
+
+        CAB_SET_SELECTING_ACCY(current);
+        CAB_SET_BOTTOMLEFT_DIRTY(current);
+        CAB_SET_TOPLEFT_DIRTY(current);
+        CAB_SET_BOTTOMRIGHT_DIRTY(current);
+        current->new_cursor_position = 16 + 12;
+        current->current_selecting_number = 0;
+        return 1;
+    }
+
+    if( !CAB_GET_SELECTING_ACCY(current) ){
+        return 0;
+    }
+
+    if( keyByte == KEY_0 ){
+        cabbus_cab_print_char( write_fn, '0' );
+        current->current_selecting_number *= 10;
+    }else if( keyByte == KEY_1 ){
+        cabbus_cab_print_char( write_fn, '1' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 1;
+    }else if( keyByte == KEY_2 ){
+        cabbus_cab_print_char( write_fn, '2' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 2;
+    }else if( keyByte == KEY_3 ){
+        cabbus_cab_print_char( write_fn, '3' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 3;
+    }else if( keyByte == KEY_4 ){
+        cabbus_cab_print_char( write_fn, '4' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 4;
+    }else if( keyByte == KEY_5 ){
+        cabbus_cab_print_char( write_fn, '5' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 5;
+    }else if( keyByte == KEY_6 ){
+        cabbus_cab_print_char( write_fn, '6' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 6;
+    }else if( keyByte == KEY_7 ){
+        cabbus_cab_print_char( write_fn, '7' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 7;
+    }else if( keyByte == KEY_8 ){
+        cabbus_cab_print_char( write_fn, '8' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 8;
+    }else if( keyByte == KEY_9 ){
+        cabbus_cab_print_char( write_fn, '9' );
+        current->current_selecting_number *= 10;
+        current->current_selecting_number += 9;
+    }else if( keyByte == ENTER ){
+        // Once the user has input the number, screen changes to:
+        // ACC: <number>
+        // 1=N(ON) 2=R(OFF)
+        char accNumber[17];
+        snprintf( accNumber, 17, "ACC:%04d", current->current_selecting_number );
+
+        memcpy(current->topRow, accNumber, 8);
+        memcpy(current->bottomRow, "1=N(ON) 2=R(OFF)", 16 );
+
+        CAB_CLEAR_SELECTING_ACCY(current);
+        CAB_SET_SELECTING_ACCY_DIR(current);
+        CAB_SET_BOTTOMLEFT_DIRTY(current);
+        CAB_SET_TOPLEFT_DIRTY(current);
+        CAB_SET_BOTTOMRIGHT_DIRTY(current);
+        current->new_cursor_position = CURSOR_POSITION_DISABLE;
+    }
+
+    return 1;
+}
+
+static int cabbus_handle_select_accy_dir( cab_write_fn write_fn, struct cabbus_cab* current, int keyByte ){
+    if( !CAB_GET_SELECTING_ACCY_DIR(current) ){
+        return 0;
+    }
+
+    if( keyByte == KEY_1 ){
+        CAB_CLEAR_SELECTING_ACCY_DIR(current);
+        current->command.command = CAB_CMD_SWITCH;
+        current->command.switch_state.switch_number = current->current_selecting_number;
+        current->command.switch_state.normal_rev = CAB_SWITCH_NORMAL;
+        cabbus_cab_reset(current);
+    }else if( keyByte == KEY_2 ){
+        CAB_CLEAR_SELECTING_ACCY_DIR(current);
+        current->command.command = CAB_CMD_SWITCH;
+        current->command.switch_state.switch_number = current->current_selecting_number;
+        current->command.switch_state.normal_rev = CAB_SWITCH_REVERSE;
+        cabbus_cab_reset(current);
+    }
+
+    return 1;
+}
+
 /**
  * Process the button press from the specified cab.
  *
@@ -421,6 +536,14 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
     }
 
     if( cabbus_cab_handle_speed( write, current, keyByte ) ){
+        return;
+    }
+
+    if( cabbus_handle_select_accy( write, current, keyByte ) ){
+        return;
+    }
+
+    if( cabbus_handle_select_accy_dir( write, current, keyByte ) ){
         return;
     }
 

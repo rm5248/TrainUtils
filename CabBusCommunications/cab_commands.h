@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define CAB_SWITCH_NORMAL 1
+#define CAB_SWITCH_REVERSE 2
+
 /**
  * Commands that are sent by the cab bus.
  */
@@ -57,6 +60,11 @@ struct loco_function{
     uint8_t onoff;
 };
 
+struct cab_command_switch {
+    uint16_t switch_number;
+    uint8_t normal_rev;
+};
+
 struct cab_command{
     uint8_t command; /* one of the CAB_CMD macros */
     union {
@@ -65,6 +73,7 @@ struct cab_command{
         struct user_response response;
         struct loco_direction direction;
         struct loco_function function;
+        struct cab_command_switch switch_state;
     };
 };
 
