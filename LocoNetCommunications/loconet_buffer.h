@@ -178,7 +178,7 @@ struct loconet_message {
         struct loconet_turnout			turnout;
         struct loconet_request_switch	req_switch;
         struct loconet_sound			sound;
-        struct loconet_direction		dirFunc;
+        struct loconet_direction		direction_functions;
         struct loconet_speed			speed;
         struct loconet_slot_data		slot_data;
 		uint8_t data[ 16 ];

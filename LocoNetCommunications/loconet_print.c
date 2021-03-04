@@ -91,8 +91,8 @@ void loconet_print_message( FILE* output, const struct loconet_message* message 
 			break;
 		case LN_OPC_LOCO_DIR_FUNC:
 			fprintf( output, "Locomotive direction/functions message: \n" );
-			fprintf( output, "  Slot: %d\n", message->dirFunc.slot );
-			loconet_print_directions_and_func( output, message->dirFunc.dir_funcs );
+            fprintf( output, "  Slot: %d\n", message->direction_functions.slot );
+            loconet_print_directions_and_func( output, message->direction_functions.dir_funcs );
 			fprintf( output, "\n" );
 			break;
 		case LN_OPC_LONG_ACK:
