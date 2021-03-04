@@ -16,7 +16,7 @@
 
 static c_serial_port_t* loconet_port;
 static c_serial_port_t* cabbus_port;
-static LoconetContext* loconet_context;
+static struct loconet_context* loconet_context;
 static struct cabbus_context* cab_context;
 
 //Loconet Functions

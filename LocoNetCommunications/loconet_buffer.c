@@ -9,11 +9,11 @@
 //
 // Private variables
 //
-struct LoconetContext {
+struct loconet_context {
     timerStartFn timerStart;
     writeFn writeFunc;
     uint8_t additionalDelay;
-    volatile Ln_State currentState;
+    volatile enum loconet_state currentState;
     uint8_t lnBufferStart;
     uint8_t lnBufferEnd;
     uint8_t lnBuffer[ LN_BUFFER_LEN ];
@@ -27,7 +27,7 @@ struct LoconetContext {
 //
 
 // get how long the buffer currently is
-static uint8_t get_ln_buffer_len( struct LoconetContext* ctx ){
+static uint8_t get_ln_buffer_len( struct loconet_context* ctx ){
     if( ctx->lnBufferStart == ctx->lnBufferEnd ){
 		return 0;
 	}
@@ -38,9 +38,9 @@ static uint8_t get_ln_buffer_len( struct LoconetContext* ctx ){
     return ( sizeof(ctx->lnBuffer) - ctx->lnBufferStart ) + ctx->lnBufferEnd;
 }
 
-LoconetContext* ln_context_new( timerStartFn timerStart, writeFn write ){
-    LoconetContext* newContext = malloc( sizeof( LoconetContext ) );
-    memset( newContext, 0, sizeof( LoconetContext ) );
+struct loconet_context* ln_context_new( timerStartFn timerStart, writeFn write ){
+    struct loconet_context* newContext = malloc( sizeof( struct loconet_context ) );
+    memset( newContext, 0, sizeof( struct loconet_context ) );
 
     newContext->timerStart = timerStart;
     newContext->writeFunc = write;
@@ -48,7 +48,7 @@ LoconetContext* ln_context_new( timerStartFn timerStart, writeFn write ){
     return newContext;
 }
 
-void ln_context_set_additional_delay( LoconetContext* context, uint8_t additionalDelay ){
+void ln_context_set_additional_delay( struct loconet_context* context, uint8_t additionalDelay ){
     if( context == NULL ){
         return;
     }
@@ -56,7 +56,7 @@ void ln_context_set_additional_delay( LoconetContext* context, uint8_t additiona
     context->additionalDelay = additionalDelay;
 }
 
-void ln_context_set_ignore_state( LoconetContext* ctx, int ignore_state ){
+void ln_context_set_ignore_state( struct loconet_context* ctx, int ignore_state ){
     if( ctx == NULL ){
         return;
     }
@@ -67,7 +67,7 @@ void ln_context_set_ignore_state( LoconetContext* ctx, int ignore_state ){
 // if we get a bad checksum, we discard bytes one at a time.
 // this is because we will assume that we may get spurious bytes,
 // and we should be able to sync up afterwards
-int ln_read_message( LoconetContext* ctx, Ln_Message* message ){
+int ln_read_message( struct loconet_context* ctx, struct loconet_message* message ){
 	uint8_t checksum;
 	uint8_t messageLen;
 	uint8_t workingByte;
@@ -258,7 +258,7 @@ printf( "got spurious data\n" );
 	}
 }
 
-int ln_write_message( LoconetContext* ctx, Ln_Message* message ){
+int ln_write_message( struct loconet_context* ctx, struct loconet_message* message ){
 	//first, let's calculate our checksum
 	uint8_t type = message->opcode & 0xE0;
 	uint8_t checksum = 0xFF;
@@ -299,11 +299,11 @@ int ln_write_message( LoconetContext* ctx, Ln_Message* message ){
 	return 1;
 }
 
-Ln_State ln_get_state( LoconetContext* ctx ){
+enum loconet_state ln_get_state( struct loconet_context* ctx ){
     return ctx->currentState;
 }
 
-void ln_timer_fired( LoconetContext* ctx ){
+void ln_timer_fired( struct loconet_context* ctx ){
     if( ctx->currentState == LN_CD_BACKOFF ){
 		//add in the aditional delay
         ctx->currentState = LN_CD_BACKOFF_ADDITIONAL;
@@ -317,7 +317,7 @@ void ln_timer_fired( LoconetContext* ctx ){
 	}
 }
 
-void ln_incoming_byte( LoconetContext* ctx, uint8_t byte ){
+void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte ){
     if( ctx->currentState == LN_IDLE ){
         ctx->currentState = LN_RX;
     }else if( ctx->currentState == LN_TX ){

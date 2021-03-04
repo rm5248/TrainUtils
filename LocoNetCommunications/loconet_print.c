@@ -80,7 +80,7 @@ void loconet_print_track_status( FILE* output, uint8_t trk ){
 	}
 }
 
-void loconet_print_message( FILE* output, const Ln_Message* message ){
+void loconet_print_message( FILE* output, const struct loconet_message* message ){
 	int x;
     fprintf( output, "Loconet message[" );
 	switch( message->opcode ){
@@ -108,24 +108,24 @@ void loconet_print_message( FILE* output, const Ln_Message* message ){
 		case LN_OPC_SLOT_READ_DATA:
 		case LN_OPC_SLOT_WRITE_DATA:
 			fprintf( output, "%s slot data\n", message->opcode == LN_OPC_SLOT_READ_DATA ? "Read" : "Write"  );
-			fprintf( output, "  Slot #: %d\n", message->rdSlotData.slot );
-			fprintf( output, "  Slot status: 0x%X\n", message->rdSlotData.stat );
-			loconet_print_slot_status( output, message->rdSlotData.stat );
-			fprintf( output, "  Speed: %d\n", message->rdSlotData.speed );
-			loconet_print_directions_and_func( output, message->rdSlotData.dir_funcs );
-			fprintf( output, "  TRK: 0x%X\n", message->rdSlotData.track );
-			loconet_print_track_status( output, message->rdSlotData.track );
-			fprintf( output, "  ADDR: %d(%s)\n", message->rdSlotData.addr1 | (message->rdSlotData.addr2 << 7), 
-				message->rdSlotData.addr2 ? "LONG" : "SHORT" );
+            fprintf( output, "  Slot #: %d\n", message->slot_data.slot );
+            fprintf( output, "  Slot status: 0x%X\n", message->slot_data.stat );
+            loconet_print_slot_status( output, message->slot_data.stat );
+            fprintf( output, "  Speed: %d\n", message->slot_data.speed );
+            loconet_print_directions_and_func( output, message->slot_data.dir_funcs );
+            fprintf( output, "  TRK: 0x%X\n", message->slot_data.track );
+            loconet_print_track_status( output, message->slot_data.track );
+            fprintf( output, "  ADDR: %d(%s)\n", message->slot_data.addr1 | (message->slot_data.addr2 << 7),
+                message->slot_data.addr2 ? "LONG" : "SHORT" );
 			break;
 		case LN_OPC_REQUEST_SLOT_DATA:
 			fprintf( output, "Request slot data\n" );
-			fprintf( output, "  Slot #: %d\n", message->reqSlotData.slot );
+            fprintf( output, "  Slot #: %d\n", message->req_slot_data.slot );
 			break;
 		case LN_OPC_MOVE_SLOT:
 			fprintf( output, "Move slot\n" );
-			fprintf( output, "  Source slot: %d\n", message->moveSlot.source );
-			fprintf( output, "  Slot: %d\n", message->moveSlot.slot );
+            fprintf( output, "  Source slot: %d\n", message->move_slot.source );
+            fprintf( output, "  Slot: %d\n", message->move_slot.slot );
 			break;
 		case LN_OPC_SLOT_STAT1:
 			fprintf( output, "Write stat 1\n" );
@@ -134,8 +134,8 @@ void loconet_print_message( FILE* output, const Ln_Message* message ){
 			break;
 		case LN_OPC_SWITCH_REQUEST:
 			fprintf( output, "Switch request\n" );
-			fprintf( output, "  Switch number: %d\n", message->reqSwitch.sw1 + 1 );
-			fprintf( output, "  Set to: %s\n", message->reqSwitch.sw2 & ( 0x01 << 5 ) ? "CLOSED" : "THROWN" );
+            fprintf( output, "  Switch number: %d\n", message->req_switch.sw1 + 1 );
+            fprintf( output, "  Set to: %s\n", message->req_switch.sw2 & ( 0x01 << 5 ) ? "CLOSED" : "THROWN" );
 			break;
 		default:
 			fprintf( output, "Unimplemented print for opcode 0x%X\n", message->opcode );
@@ -143,7 +143,7 @@ void loconet_print_message( FILE* output, const Ln_Message* message ){
     fprintf( output, "]\n" );
 }
 
-void loconet_print_message_hex( FILE* output, const Ln_Message* message ){
+void loconet_print_message_hex( FILE* output, const struct loconet_message* message ){
 	uint8_t msgLen = message->opcode & 0xE0;
 
 	if( msgLen == 0x80 ){

@@ -11,7 +11,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                              cab_write_fn cab_write,
                              cabbus_read_fn cab_read,
                              void* cab_read_fn_data,
-                             LoconetContext* loconet_context,
+                             struct loconet_context* loconet_context,
                              loconet_read_fn loconet_read,
                              void* loconet_read_fn_data);
 

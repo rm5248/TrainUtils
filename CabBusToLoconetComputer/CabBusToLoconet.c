@@ -38,10 +38,10 @@ static struct LoconetInfoForCab cab_info[ 64 ];
 //
 
 static void handle_cabbus_speed( struct LoconetInfoForCab* info,
-                                 LoconetContext* loconet_context,
+                                 struct loconet_context* loconet_context,
                                  int speed,
                                  int estop ){
-    Ln_Message message;
+    struct loconet_message message;
     message.opcode = LN_OPC_LOCO_SPEED;
     message.speed.speed = speed & 0x7F;
     /*
@@ -79,7 +79,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                              cab_write_fn cab_write,
                              cabbus_read_fn cab_read,
                              void* cab_read_fn_data,
-                             LoconetContext* loconet_context,
+                             struct loconet_context* loconet_context,
                              loconet_read_fn loconet_read,
                              void* loconet_read_fn_data){
 
@@ -98,8 +98,8 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
 
     struct cabbus_cab* cab;
     struct cab_command* cmd;
-    Ln_Message outgoingMessage;
-    Ln_Message incomingMessage;
+    struct loconet_message outgoingMessage;
+    struct loconet_message incomingMessage;
 	//go into our main loop.
 	//essentially what we do here, is we get information from the cabs on the bus,
 	//and then echo that information back onto loconet.
@@ -144,7 +144,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
             }else if( cmd->command == CAB_CMD_DIRECTION ||
                       cmd->command == CAB_CMD_FUNCTION ){
                 struct LoconetInfoForCab* info = cabbus_cab_get_user_data( cab );
-                Ln_Message message;
+                struct loconet_message message;
                 message.opcode = LN_OPC_LOCO_DIR_FUNC;
                 message.dirFunc.slot = info->slot_number;
                 message.dirFunc.dir_funcs = 0;
@@ -206,10 +206,10 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                     // Requested to steal OK
                     info->slot_number = info->request_slot_number;
                     // Request the slot data so that we update our status
-                    Ln_Message msg;
+                    struct loconet_message msg;
                     msg.opcode = LN_OPC_REQUEST_SLOT_DATA;
-                    msg.reqSlotData.slot = info->slot_number;
-                    msg.reqSlotData.nul = 0;
+                    msg.req_slot_data.slot = info->slot_number;
+                    msg.req_slot_data.nul = 0;
                     if( ln_write_message( loconet_context, &msg ) < 0 ){
                         printf( "ERROR writing message\n" );
                     }
@@ -224,7 +224,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                     // Dispatch the slot
                     info->request_state = STATE_SET_COMMON;
 
-                    Ln_Message msg;
+                    struct loconet_message msg;
                     msg.opcode = LN_OPC_SLOT_STAT1;
                     msg.stat1.slot = info->slot_number;
                     msg.stat1.stat1 = (LN_SLOT_STATUS_COMMON << 4) | 0x7;
@@ -245,7 +245,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
 			loconet_print_message( stdout, &incomingMessage );
 			if( incomingMessage.opcode == LN_OPC_SLOT_READ_DATA ){
                 //check to see if this slot is one that we are controlling
-				int addr = incomingMessage.rdSlotData.addr1 | (incomingMessage.rdSlotData.addr2 << 7);
+                int addr = incomingMessage.slot_data.addr1 | (incomingMessage.slot_data.addr2 << 7);
                 struct LoconetInfoForCab* info;
                 struct cabbus_cab* cab;
                 for( int x = 0; x < ( sizeof( cab_info ) / sizeof( cab_info[ 0 ] ) ); x++ ){
@@ -259,15 +259,15 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                         if( LN_SLOT_STATUS(incomingMessage) == LN_SLOT_STATUS_IN_USE ){
                             // Ask to steal
                             info->request_state = STATE_STEAL;
-                            info->request_slot_number = incomingMessage.rdSlotData.slot;
+                            info->request_slot_number = incomingMessage.slot_data.slot;
                             cabbus_cab_ask_question( cab, "STEAL? (Y)" );
                         }else{
                             //perform a NULL MOVE
                             outgoingMessage.opcode = LN_OPC_MOVE_SLOT;
-                            outgoingMessage.moveSlot.source = incomingMessage.rdSlotData.slot;
-                            outgoingMessage.moveSlot.slot = incomingMessage.rdSlotData.slot;
+                            outgoingMessage.move_slot.source = incomingMessage.slot_data.slot;
+                            outgoingMessage.move_slot.slot = incomingMessage.slot_data.slot;
                             info->request_state = STATE_NULL_MOVE;
-                            info->slot_number = incomingMessage.rdSlotData.slot;
+                            info->slot_number = incomingMessage.slot_data.slot;
                             if( ln_write_message( loconet_context, &outgoingMessage ) < 0 ){
                                 fprintf( stderr, "ERROR writing outgoing message\n" );
                             }
@@ -283,20 +283,20 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                     }
 
                     if( info->request_state == STATE_NONE &&
-                            info->slot_number == incomingMessage.rdSlotData.slot ){
+                            info->slot_number == incomingMessage.slot_data.slot ){
                         // Update everything about this guy on the cab
                         cabbus_cab_set_loco_number( cab, addr );
-                        if( LOCONET_GET_DIRECTION_REV(incomingMessage.rdSlotData.dir_funcs) ){
+                        if( LOCONET_GET_DIRECTION_REV(incomingMessage.slot_data.dir_funcs) ){
                             cabbus_cab_set_direction( cab, CAB_DIR_REVERSE );
                         }else{
                             cabbus_cab_set_direction( cab, CAB_DIR_FORWARD );
                         }
 
-                        char lights = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 4));
-                        char f1 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 0));
-                        char f2 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 1));
-                        char f3 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 2));
-                        char f4 = !!(incomingMessage.rdSlotData.dir_funcs & (0x01 << 3));
+                        char lights = !!(incomingMessage.slot_data.dir_funcs & (0x01 << 4));
+                        char f1 = !!(incomingMessage.slot_data.dir_funcs & (0x01 << 0));
+                        char f2 = !!(incomingMessage.slot_data.dir_funcs & (0x01 << 1));
+                        char f3 = !!(incomingMessage.slot_data.dir_funcs & (0x01 << 2));
+                        char f4 = !!(incomingMessage.slot_data.dir_funcs & (0x01 << 3));
                         cabbus_cab_set_functions( cab, 0, lights );
                         cabbus_cab_set_functions( cab, 1, f1 );
                         cabbus_cab_set_functions( cab, 2, f2 );
@@ -380,10 +380,10 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                     if( info->slot_number == incomingMessage.dirFunc.slot &&
                             info->request_state == STATE_SET_COMMON ){
                         // Dispatch the LOCO
-                        Ln_Message msg;
+                        struct loconet_message msg;
                         msg.opcode = LN_OPC_MOVE_SLOT;
-                        msg.moveSlot.source = info->slot_number;
-                        msg.moveSlot.slot = 0;
+                        msg.move_slot.source = info->slot_number;
+                        msg.move_slot.slot = 0;
                         if( ln_write_message( loconet_context, &msg ) < 0 ){
                             printf( "ERROR writing message\n" );
                         }

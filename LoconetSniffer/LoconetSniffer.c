@@ -16,7 +16,7 @@
 // Local variables
 //
 static int loconet_timer_fd;
-static LoconetContext* lnContext;
+static struct loconet_context* lnContext;
 
 //
 // Method Implementations
@@ -58,7 +58,7 @@ int main( int argc, const char** argv ){
 	FILE* textOutput;
 	FILE* binaryOutput;
 	int doBinaryOutput;
-	Ln_Message incomingMessage;
+    struct loconet_message incomingMessage;
 	char* serialPort;
 	char* textFile;
 	char* binaryFile;

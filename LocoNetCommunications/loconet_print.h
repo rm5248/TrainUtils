@@ -10,6 +10,10 @@
 
 #include "loconet_buffer.h"
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 /**
  * Given a byte of data, print out the direction of the locomotive,
  * plus the functions that are on( F0-F4 )
@@ -29,11 +33,15 @@ void loconet_print_track_status( FILE* output, uint8_t trk );
 /**
  * Print out the message in a text format
  */
-void loconet_print_message( FILE* output, const Ln_Message* message );
+void loconet_print_message( FILE* output, const struct loconet_message* message );
 
 /**
  * Print out the message as hex bytes
  */
-void loconet_print_message_hex( FILE* output, const Ln_Message* message );
+void loconet_print_message_hex( FILE* output, const struct loconet_message* message );
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif
