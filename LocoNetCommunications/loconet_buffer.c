@@ -14,8 +14,7 @@ struct loconet_context {
     writeFn writeFunc;
     uint8_t additionalDelay;
     volatile enum loconet_state currentState;
-    uint8_t lnBufferStart;
-    uint8_t lnBufferEnd;
+    uint8_t lnBufferLocation;
     uint8_t lnBuffer[ LN_BUFFER_LEN ];
     int ignoreState;
     volatile uint8_t lnLastTransmit;
@@ -28,14 +27,20 @@ struct loconet_context {
 
 // get how long the buffer currently is
 static uint8_t get_ln_buffer_len( struct loconet_context* ctx ){
-    if( ctx->lnBufferStart == ctx->lnBufferEnd ){
-		return 0;
-	}
-    if( ctx->lnBufferStart < ctx->lnBufferEnd ){
-        return ctx->lnBufferEnd - ctx->lnBufferStart;
-	}
+    return ctx->lnBufferLocation;
+}
 
-    return ( sizeof(ctx->lnBuffer) - ctx->lnBufferStart ) + ctx->lnBufferEnd;
+// remove bytes from the front of our buffer, moving everything else down
+static void ln_remove_bytes( struct loconet_context* ctx, int numBytes ){
+    if( numBytes > ctx->lnBufferLocation ){
+        ctx->lnBufferLocation = 0;
+        return;
+    }
+
+    memmove( ctx->lnBuffer,
+             ctx->lnBuffer + numBytes,
+             ctx->lnBufferLocation - numBytes );
+    ctx->lnBufferLocation -= numBytes;
 }
 
 struct loconet_context* ln_context_new( timerStartFn timerStart, writeFn write ){
@@ -83,27 +88,22 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* messag
 
     printf( "Current buffer len: %d\n", get_ln_buffer_len( ctx ) );
 
-    workingByte = ctx->lnBuffer[ ctx->lnBufferStart ];
+    workingByte = ctx->lnBuffer[ 0 ];
 	workingByte = workingByte & 0xE0;
 	if( workingByte == 0x80 ){
 		// Two bytes, including checksum
         if( get_ln_buffer_len( ctx ) < 2 ){
 			return 0;
 		}else{
-            message->data[ 0 ] = ctx->lnBuffer[ ctx->lnBufferStart++ ];
-            if( ctx->lnBufferStart >= LN_BUFFER_LEN ){
-                ctx->lnBufferStart = 0;
-			}
-            message->data[ 1 ] = ctx->lnBuffer[ ctx->lnBufferStart++ ];
-            if( ctx->lnBufferStart >= LN_BUFFER_LEN ){
-                ctx->lnBufferStart = 0;
-			}
+            message->data[ 0 ] = ctx->lnBuffer[ 0 ];
+            message->data[ 1 ] = ctx->lnBuffer[ 1 ];
 			checksum ^= message->data[ 0 ];
 			if( checksum != message->data[ 1 ] ){
 				// checksum did not match, return an error and discard just the first byte
-                ctx->lnBufferStart--;
+                ln_remove_bytes( ctx, 1 );
 				return -1;
 			}
+            ln_remove_bytes( ctx, 2 );
 			return 1;
 		}
 	}else if( workingByte == 0xA0 ){
@@ -111,31 +111,8 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* messag
         if( get_ln_buffer_len( ctx ) < 4 ){
 			return 0;
 		}else{
-			uint8_t msgLoc;
-            uint8_t bufStart = ctx->lnBufferStart;
-            if( ctx->lnBufferStart + 4 > LN_BUFFER_LEN ){
-				// this wraps.
-                message->data[ 0 ] = ctx->lnBuffer[ bufStart++ ];
-                if( bufStart >= LN_BUFFER_LEN ){
-					bufStart = 0;
-				}
-                message->data[ 1 ] = ctx->lnBuffer[ bufStart++ ];
-                if( bufStart >= LN_BUFFER_LEN ){
-					bufStart = 0;
-				}
-                message->data[ 2 ] = ctx->lnBuffer[ bufStart++ ];
-                if( bufStart >= LN_BUFFER_LEN ){
-					bufStart = 0;
-				}
-                message->data[ 3 ] = ctx->lnBuffer[ bufStart++ ];
-                if( bufStart >= LN_BUFFER_LEN ){
-					bufStart = 0;
-				}
-			}else{
-                memcpy( message, ctx->lnBuffer + ctx->lnBufferStart, 4 );
-				bufStart += 4;
-			}
-
+            uint8_t msgLoc;
+            memcpy( message, ctx->lnBuffer, 4 );
 			// calculate the checksum
 			checksum ^= message->opcode;
 			for( msgLoc = 0; msgLoc < 2; msgLoc++ ){
@@ -143,13 +120,10 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* messag
 			}
 			if( checksum != message->data[ 2 ] ){
 				//checksum did not match, discard first byte
-                ctx->lnBufferStart++;
-                if( ctx->lnBufferStart >= LN_BUFFER_LEN ){
-                    ctx->lnBufferStart = 0;
-				}
+                ln_remove_bytes( ctx, 1 );
 				return -1;
 			}else{
-                ctx->lnBufferStart = bufStart;
+                ln_remove_bytes( ctx, 4 );
 				return 1;
 			}
 		}
@@ -158,36 +132,21 @@ printf( "six byte\n" );
 		// six bytes, including checksum
         if( get_ln_buffer_len( ctx ) < 6 ){
 			return 0;
-		}else{
-			uint8_t msgLoc;
-            uint8_t bufStart = ctx->lnBufferStart;
-            if( ctx->lnBufferStart + 6 > LN_BUFFER_LEN ){
-				// this wraps
-				for( msgLoc = 0; msgLoc < 6; msgLoc++ ){
-                    message->data[ msgLoc ] = ctx->lnBuffer[ bufStart++ ];
-                    if( bufStart >= LN_BUFFER_LEN ){
-						bufStart = 0;
-					}
-				}
-			}else{
-                memcpy( message, ctx->lnBuffer + ctx->lnBufferStart, 6 );
-				bufStart += 6;
-			}
+        }else{
+            uint8_t msgLoc;
+            memcpy( message, ctx->lnBuffer, 6 );
 
 			// calculate the checksum
 			checksum ^= message->opcode;
-			for( msgLoc = 0; msgLoc < 4; msgLoc++ ){
+            for( msgLoc = 0; msgLoc < 6; msgLoc++ ){
 				checksum ^= message->data[ msgLoc ];
 			}
-			if( checksum != message->data[ 4 ] ){
+            if( checksum != message->data[ 6 ] ){
 				//checksum did not match, discard first byte
-                ctx->lnBufferStart++;
-                if( ctx->lnBufferStart >= LN_BUFFER_LEN ){
-                    ctx->lnBufferStart = 0;
-				}
+                ln_remove_bytes( ctx, 1 );
 				return -1;
 			}else{
-                ctx->lnBufferStart = bufStart;
+                ln_remove_bytes( ctx, 6 );
 				return 1;
 			}
 		}
@@ -197,19 +156,12 @@ printf( "six byte\n" );
 			return 0;
 		}else{
 			uint8_t msgLoc = 0;
-			uint8_t checksum = 0xFF;
-            uint8_t bufStart = ctx->lnBufferStart;
+            uint8_t checksum = 0xFF;
 
 			//copy the opcode first
-            message->opcode = ctx->lnBuffer[ bufStart++ ];
-            if( bufStart >= LN_BUFFER_LEN ){
-				bufStart = 0;
-			}
+            message->opcode = ctx->lnBuffer[ 0 ];
 			//copy how many bytes long this message is
-            message->data[ msgLoc++ ] = ctx->lnBuffer[ bufStart++ ];
-            if( bufStart >= LN_BUFFER_LEN ){
-				bufStart = 0;
-			}
+            message->data[ msgLoc++ ] = ctx->lnBuffer[ 1 ];
 			if( message->opcode == LN_OPC_SLOT_WRITE_DATA ||
 				message->opcode == LN_OPC_SLOT_READ_DATA ){
 				//apparently somebody at digitrax is an idiot and the len of these messages
@@ -220,39 +172,48 @@ printf( "six byte\n" );
 					return 0;
 				}
 
-                if( ctx->lnBufferStart + 12 > LN_BUFFER_LEN ){
-                    memcpy( message->data + 1, ctx->lnBuffer + bufStart, 12 );
-					bufStart += 12;
-				}else{
-					for( msgLoc = 1; msgLoc < 13; msgLoc++ ){
-                        message->data[ msgLoc ] = ctx->lnBuffer[ bufStart++ ];
-                        if( bufStart >= LN_BUFFER_LEN ){
-							bufStart = 0;
-						}
-					}
-				}
+                memcpy( message->data + 1, ctx->lnBuffer + 2, 12 );
 
 				checksum ^= message->opcode;
 				for( msgLoc = 0; msgLoc < 12; msgLoc++ ){
 					checksum ^= message->data[ msgLoc ];
 				}
 				if( checksum != message->data[ 12 ] ){
+                    //checksum did not match, discard first byte
+                    ln_remove_bytes( ctx, 1 );
 					return -1;
 				}
-                ctx->lnBufferStart = bufStart;
+                ln_remove_bytes( ctx, 14 );
 				return 1;
-			}
+            }else{
+                uint8_t numBytes = ctx->lnBuffer[ 1 ];
 
-			printf( "Generic Variable length message, IMPLEMENT THIS\n" );
+                if( get_ln_buffer_len( ctx ) < numBytes ){
+                    return 0;
+                }
+
+                memcpy( message->data + 1, ctx->lnBuffer + 2, numBytes );
+
+                checksum ^= message->opcode;
+                for( msgLoc = 0; msgLoc < numBytes; msgLoc++ ){
+                    checksum ^= message->data[ msgLoc ];
+                }
+                if( checksum != message->data[ numBytes ] ){
+                    //checksum did not match, discard first byte
+                    ln_remove_bytes( ctx, 1 );
+                    return -1;
+                }
+                ln_remove_bytes( ctx, numBytes );
+                return 1;
+            }
+
 			return 0;
 		}
 	}else{
 		// this must be bad data, discard it
-        ctx->lnBufferStart++;
-        if( ctx->lnBufferStart >= LN_BUFFER_LEN ){
-            ctx->lnBufferStart = 0;
-		}
+        ln_remove_bytes( ctx, 1 );
 printf( "got spurious data\n" );
+fflush(stdout);
 
 		return 0;
 	}
@@ -334,10 +295,10 @@ printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
 		//return; //let's not parse our own messages
 	}
 
-    ctx->lnBuffer[ ctx->lnBufferEnd ] = byte;
-    ctx->lnBufferEnd++;
-    if( ctx->lnBufferEnd >= LN_BUFFER_LEN ){
-        ctx->lnBufferEnd = 0;
+    ctx->lnBuffer[ ctx->lnBufferLocation ] = byte;
+    ctx->lnBufferLocation++;
+    if( ctx->lnBufferLocation >= LN_BUFFER_LEN ){
+        ctx->lnBufferLocation = 0;
 	}
 
     ctx->timerStart( 360 ); // everything must wait AT LEAST 360 uS before attempting to transmit
