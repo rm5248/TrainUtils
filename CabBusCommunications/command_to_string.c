@@ -18,6 +18,8 @@ const char* cabbus_command_to_string( int command ){
 		return "CabCommandDirection";
 	case CAB_CMD_ESTOP:
 		return "CabCommandESTOP";
+    case CAB_CMD_FUNCTION:
+        return "CabCommandFunction";
     case CAB_CMD_UNSELECT_LOCO:
         return "CabCommandUnselectLoco";
 	default:
