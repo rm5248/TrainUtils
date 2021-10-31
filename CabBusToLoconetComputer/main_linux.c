@@ -124,7 +124,8 @@ int main( int argc, char** argv ){
     printf( "About to open %s for loconet use\n", argv[ 1 ] );
     status = c_serial_new( &loconet_port, &errnum );
     c_serial_set_port_name( loconet_port, argv[ 1 ] );
-    status = c_serial_open_keep_settings( loconet_port, 1 );
+    c_serial_set_baud_rate( loconet_port, CSERIAL_BAUD_57600 );
+    status = c_serial_open( loconet_port );
     if( status != CSERIAL_OK ){
         fprintf( stderr, "ERROR: Can't open loconet port: %s\n",
             c_serial_get_error_string( status ) );
