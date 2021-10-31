@@ -138,7 +138,8 @@ int main( int argc, const char** argv ){
 
 	c_serial_new( &loconet_port, NULL );
 	c_serial_set_port_name( loconet_port, serialPort );
-	status = c_serial_open_keep_settings( loconet_port, 1 );
+    c_serial_set_baud_rate( loconet_port, CSERIAL_BAUD_57600 );
+    status = c_serial_open( loconet_port );
 	if( status != CSERIAL_OK ){
 		fprintf( stderr, "ERROR: Unable to open serial port: %s\n",
 			c_serial_get_error_string( status ) );
@@ -184,7 +185,7 @@ int main( int argc, const char** argv ){
 				loconet_print_message_hex( binaryOutput, &incomingMessage );
 			}
 			loconet_print_message( textOutput, &incomingMessage );
-		}	
+        }
 		fflush( textOutput );
 		fflush( binaryOutput );
 	}
