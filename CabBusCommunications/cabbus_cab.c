@@ -424,7 +424,7 @@ static int cabbus_handle_select_accy( cab_write_fn write_fn, struct cabbus_cab* 
             !CAB_GET_SELECTING_ACCY(current) ) {
         // Send the message "CONTROL\nACC NUMBER: <num>" to the cab
         char accNumber[17];
-        snprintf( accNumber, 17, "ACC NUMBER: %04d", 1 );
+        snprintf( accNumber, 17, "ACC NUMBER: %04d", 0 );
 
         memcpy(current->topRow, "CONTROL ", 8);
         memcpy(current->bottomRow, accNumber, 16 );
