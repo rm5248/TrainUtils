@@ -571,10 +571,6 @@ static int cabbus_handle_press_number_key( cab_write_fn write_fn, struct cabbus_
     current->command.function.onoff = !cabbus_cab_get_function( current, functionNumber );
     current->command.function.function_number = functionNumber;
 
-    printf( "function %d is now %d\n",
-            current->command.function.function_number,
-            current->command.function.onoff );
-
     return 1;
 }
 
@@ -632,6 +628,10 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
         current->command.command = CAB_CMD_FUNCTION;
         current->command.function.onoff = 0;
         current->command.function.function_number = 2;
+    }else if( keyByte == BELL_KEY ){
+        current->command.command = CAB_CMD_FUNCTION;
+        current->command.function.onoff = !cabbus_cab_get_function( current, 1 );
+        current->command.function.function_number = 1;
     }
 
     return;
