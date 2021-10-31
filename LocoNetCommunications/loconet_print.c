@@ -14,6 +14,15 @@ void loconet_print_directions_and_func( FILE* output,  uint8_t byte ){
 	fprintf( output, "\n" );
 }
 
+static void loconet_print_high_functions( FILE* output, uint8_t byte ){
+    fprintf( output, "  Functions: " );
+    if( byte & 0x01 ) fprintf( output, "F5 " );
+    if( byte & 0x02 ) fprintf( output, "F6 " );
+    if( byte & 0x04 ) fprintf( output, "F7 " );
+    if( byte & 0x08 ) fprintf( output, "F8 " );
+    fprintf( output, "\n" );
+}
+
 void loconet_print_slot_status( FILE* output, uint8_t stat ){
 	uint8_t decoderType = stat & 0x07;
 	uint8_t slotStatus = ( stat & ( 0x03 << 4 ) ) >> 4;
@@ -137,6 +146,11 @@ void loconet_print_message( FILE* output, const struct loconet_message* message 
             fprintf( output, "  Switch number: %d\n", message->req_switch.sw1 + 1 );
             fprintf( output, "  Set to: %s\n", message->req_switch.sw2 & ( 0x01 << 5 ) ? "CLOSED" : "THROWN" );
 			break;
+    case LN_OPC_LOCO_SOUND:
+        fprintf( output, "Sound functions\n" );
+        fprintf( output, "  Slot: %d\n", message->sound.slot );
+        loconet_print_high_functions( output, message->sound.snd );
+        break;
 		default:
 			fprintf( output, "Unimplemented print for opcode 0x%X\n", message->opcode );
 	}

@@ -184,6 +184,47 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
                 CLEAR_BIT(message.direction_functions.dir_funcs, 3);
                 cabbus_cab_set_functions( cab, 4, 0 );
             }
+
+            if( cmd->function.function_number >= 5 && cmd->function.function_number <= 8 ){
+                message.opcode = LN_OPC_LOCO_SOUND;
+                message.sound.snd = 0;
+                message.sound.snd |= (cabbus_cab_get_function( cab, 5 ) << 0);
+                message.sound.snd |= (cabbus_cab_get_function( cab, 6 ) << 1);
+                message.sound.snd |= (cabbus_cab_get_function( cab, 7 ) << 2);
+                message.sound.snd |= (cabbus_cab_get_function( cab, 8 ) << 3);
+
+                if( cmd->function.function_number == 5 && cmd->function.onoff ){
+                    SET_BIT(message.sound.snd, 0);
+                    cabbus_cab_set_functions( cab, 5, 1 );
+                }else if( cmd->function.function_number == 5 ){
+                    CLEAR_BIT(message.sound.snd, 0);
+                    cabbus_cab_set_functions( cab, 5, 0 );
+                }
+
+                if( cmd->function.function_number == 6 && cmd->function.onoff ){
+                    SET_BIT(message.sound.snd, 1);
+                    cabbus_cab_set_functions( cab, 6, 1 );
+                }else if( cmd->function.function_number == 6 ){
+                    CLEAR_BIT(message.sound.snd, 1);
+                    cabbus_cab_set_functions( cab, 6, 0 );
+                }
+
+                if( cmd->function.function_number == 7 && cmd->function.onoff ){
+                    SET_BIT(message.sound.snd, 2);
+                    cabbus_cab_set_functions( cab, 7, 1 );
+                }else if( cmd->function.function_number == 7 ){
+                    CLEAR_BIT(message.sound.snd, 2);
+                    cabbus_cab_set_functions( cab, 7, 0 );
+                }
+
+                if( cmd->function.function_number == 8 && cmd->function.onoff ){
+                    SET_BIT(message.sound.snd, 3);
+                    cabbus_cab_set_functions( cab, 8, 1 );
+                }else if( cmd->function.function_number == 8 ){
+                    CLEAR_BIT(message.sound.snd, 3);
+                    cabbus_cab_set_functions( cab, 8, 0 );
+                }
+            }
         }
 
         printf( "Going to write Loconet message:\n" );
@@ -394,6 +435,29 @@ static void handle_incoming_loconet( struct cab2loconet_context* context, struct
 
                 cabbus_cab_set_loco_number( cab, 0 );
                 cabbus_cab_set_loco_speed( cab, 0 );
+            }
+        }
+    }else if( incomingMessage->opcode == LN_OPC_LOCO_SOUND ){
+        struct LoconetInfoForCab* info;
+        struct cabbus_cab* cab;
+        for( int x = 0; x < ( sizeof( context->cab_info ) / sizeof( context->cab_info[ 0 ] ) ); x++ ){
+            cab = cabbus_cab_by_id( context->cab_context, x );
+            info = cabbus_cab_get_user_data( cab );
+            if( info == NULL ){
+                continue;
+            }
+
+            if( info->slot_number == incomingMessage->sound.slot ){
+
+                char f5 = !!(incomingMessage->sound.snd & (0x01 << 0));
+                char f6 = !!(incomingMessage->sound.snd & (0x01 << 1));
+                char f7 = !!(incomingMessage->sound.snd & (0x01 << 2));
+                char f8 = !!(incomingMessage->sound.snd & (0x01 << 3));
+                cabbus_cab_set_functions( cab, 5, f5 );
+                cabbus_cab_set_functions( cab, 6, f6 );
+                cabbus_cab_set_functions( cab, 7, f7 );
+                cabbus_cab_set_functions( cab, 8, f8 );
+
             }
         }
     }

@@ -53,7 +53,7 @@ struct cabbus_cab {
     //the current locomotive number that we are controlling
     uint16_t loco_number;
     //bitfields representing the functions that we are using(displayed on the cab)
-    uint8_t functions;
+    uint16_t functions;
     //lower 4 bits correspond to the dirtyness of the screens
     //upper 4 bits = flags
     // 0x01 << 5 = asking a question
