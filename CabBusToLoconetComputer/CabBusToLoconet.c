@@ -207,7 +207,12 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
     }else if( cmd->command == CAB_CMD_SWITCH ){
         struct loconet_message msg;
         msg.opcode = LN_OPC_SWITCH_REQUEST;
-
+        msg.req_switch.sw1 = cmd->switch_state.switch_number - 1;
+        msg.req_switch.sw2 = cmd->switch_state.normal_rev == CAB_SWITCH_NORMAL ? ( 0x01 << 5 ) : 0;
+        msg.req_switch.sw2 |= (0x01 << 4);
+        if( ln_write_message( context->loconet_context, &msg ) < 0 ){
+            printf( "ERROR writing message\n" );
+        }
     }
 }
 
