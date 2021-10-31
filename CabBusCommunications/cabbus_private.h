@@ -18,7 +18,7 @@
 #define DEL_LOCO_CONSIST_KEY 0x46
 #define KILL_CONSIST_KEY 0x47
 #define SELECT_LOCO_KEY  0x48
-#define HORN_KEY
+#define HORN_KEY 0x49
 #define STEP_FASTER_KEY  0x4A
 #define STEP_SLOWER_KEY  0x4B
 #define ESTOP_KEY 0x4C
@@ -39,6 +39,8 @@
 #define SELECT_MACRO_KEY 0x5C
 #define SPEED_STEP_CHANGE_KEY 0x5D
 #define BRAKE_KEY 0x5E
+#define HORN_KEY_RELEASE 0x5F
+#define OPTION_KEY 0x69
 
 #include "cab_commands.h"
 #include "CabBus.h"

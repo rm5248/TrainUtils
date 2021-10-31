@@ -200,9 +200,9 @@ void cabbus_cab_set_loco_number(struct cabbus_cab* cab, int number) {
     if (cab->loco_number != number) {
         cab->loco_number = number;
         char tempBuffer[ 9 ];
-        snprintf(tempBuffer, 9, "LOC:%3d", number);
+        snprintf(tempBuffer, 9, "LOC:%4d", number);
         memcpy(cab->topRow, tempBuffer, 8);
-        cab->topRow[ 7 ] = ' ';
+//        cab->topRow[ 7 ] = ' ';
         CAB_SET_TOPLEFT_DIRTY(cab);
     }
 }
@@ -524,6 +524,60 @@ static int cabbus_handle_select_accy_dir( cab_write_fn write_fn, struct cabbus_c
     return 1;
 }
 
+static int cabbus_handle_press_number_key( cab_write_fn write_fn, struct cabbus_cab* current, int keyByte ){
+    int functionNumber = -1;
+
+    if (keyByte == KEY_0) {
+        if (CAB_GET_ASK_QUESTION(current)) {
+            CAB_CLEAR_ASK_QUESTION(current);
+            cabbus_cab_reset(current);
+            current->command.command = CAB_CMD_RESPONSE;
+            current->command.response.response = 0;
+            return 1;
+        }
+        functionNumber = 0;
+    } else if (keyByte == KEY_1) {
+        if (CAB_GET_ASK_QUESTION(current)) {
+            CAB_CLEAR_ASK_QUESTION(current);
+            cabbus_cab_reset(current);
+            current->command.command = CAB_CMD_RESPONSE;
+            current->command.response.response = 1;
+            return 1;
+        }
+        functionNumber = 1;
+    }else if(keyByte == KEY_2){
+        functionNumber = 2;
+    }else if( keyByte == KEY_3 ){
+        functionNumber = 3;
+    }else if( keyByte == KEY_4 ){
+        functionNumber = 4;
+    }else if( keyByte == KEY_5 ){
+        functionNumber = 5;
+    }else if( keyByte == KEY_6 ){
+        functionNumber = 6;
+    }else if( keyByte == KEY_7 ){
+        functionNumber = 7;
+    }else if( keyByte == KEY_8 ){
+        functionNumber = 8;
+    }else if( keyByte == KEY_9 ){
+        functionNumber = 9;
+    }
+
+    if( functionNumber < 0 ){
+        return 0;
+    }
+
+    current->command.command = CAB_CMD_FUNCTION;
+    current->command.function.onoff = !cabbus_cab_get_function( current, functionNumber );
+    current->command.function.function_number = functionNumber;
+
+    printf( "function %d is now %d\n",
+            current->command.function.function_number,
+            current->command.function.onoff );
+
+    return 1;
+}
+
 /**
  * Process the button press from the specified cab.
  *
@@ -547,30 +601,18 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
         return;
     }
 
+    if( cabbus_handle_press_number_key( write, current, keyByte ) ){
+        return;
+    }
+
+    printf( "key is 0x%02X\n", keyByte );
+
     if (keyByte == REPEAT_SCREEN) {
         // set all screens to be dirty
         current->dirty_screens = 0x0F;
     } else if (keyByte == ENTER) {
         //reset all screens
         cabbus_cab_reset(current);
-    } else if (keyByte == KEY_0) {
-        if (CAB_GET_ASK_QUESTION(current)) {
-            CAB_CLEAR_ASK_QUESTION(current);
-            cabbus_cab_reset(current);
-            current->command.command = CAB_CMD_RESPONSE;
-            current->command.response.response = 0;
-        }else{
-            current->command.command = CAB_CMD_FUNCTION;
-            current->command.function.onoff = !cabbus_cab_get_function( current, 0 );
-            current->command.function.function_number = 0;
-        }
-    } else if (keyByte == KEY_1) {
-        if (CAB_GET_ASK_QUESTION(current)) {
-            CAB_CLEAR_ASK_QUESTION(current);
-            cabbus_cab_reset(current);
-            current->command.command = CAB_CMD_RESPONSE;
-            current->command.response.response = 1;
-        }
     } else if (keyByte == DIRECTION_KEY) {
         current->command.command = CAB_CMD_DIRECTION;
         if (current->speed & 0x80) {
@@ -581,6 +623,15 @@ void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* curr
         }
     } else if (keyByte == ESTOP_KEY) {
         current->command.command = CAB_CMD_ESTOP;
+    } else if (keyByte == OPTION_KEY){
+    } else if (keyByte == HORN_KEY){
+        current->command.command = CAB_CMD_FUNCTION;
+        current->command.function.onoff = 1;
+        current->command.function.function_number = 2;
+    } else if (keyByte == HORN_KEY_RELEASE){
+        current->command.command = CAB_CMD_FUNCTION;
+        current->command.function.onoff = 0;
+        current->command.function.function_number = 2;
     }
 
     return;

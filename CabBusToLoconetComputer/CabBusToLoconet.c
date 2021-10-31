@@ -3,6 +3,9 @@
 
 #define LOCONET_INTERLOCK
 
+#define DIRECTION_FWD 0
+#define DIRECTION_REV 1
+
 #include "CabBus.h"
 #include "loconet_buffer.h"
 #include "loconet_print.h"
@@ -26,6 +29,7 @@ struct LoconetInfoForCab {
     enum LocoRequestState request_state;
     uint16_t request_loco_number;
     uint8_t request_slot_number;
+    uint8_t direction;
 };
 
 struct cab2loconet_context {
@@ -117,7 +121,15 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
         message.opcode = LN_OPC_LOCO_DIR_FUNC;
         message.direction_functions.slot = info->slot_number;
         message.direction_functions.dir_funcs = 0;
-        if( cmd->direction.direction == CAB_DIR_REVERSE ){
+
+        if( cmd->command == CAB_CMD_DIRECTION ){
+            if( cmd->direction.direction == CAB_DIR_FORWARD ){
+                info->direction = DIRECTION_FWD;
+            }else{
+                info->direction = DIRECTION_REV;
+            }
+        }
+        if( info->direction == DIRECTION_REV ){
             LOCONET_SET_DIRECTION_REV(message.direction_functions.dir_funcs);
         }else{
             LOCONET_SET_DIRECTION_FWD(message.direction_functions.dir_funcs);
@@ -130,36 +142,47 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
         message.direction_functions.dir_funcs |= (cabbus_cab_get_function( cab, 3 ) << 2);
         message.direction_functions.dir_funcs |= (cabbus_cab_get_function( cab, 4 ) << 3);
 
-        // Now set any functions that may have changed
+        // Set any functions that may have changed,
+        // and tell the cab that the function is on(or off)
         if( cmd->command == CAB_CMD_FUNCTION ){
             if( cmd->function.function_number == 0 && cmd->function.onoff ){
                 SET_BIT(message.direction_functions.dir_funcs, 4);
-            }else{
+                cabbus_cab_set_functions( cab, 0, 1 );
+            }else if( cmd->function.function_number == 0 ){
                 CLEAR_BIT(message.direction_functions.dir_funcs, 4);
+                cabbus_cab_set_functions( cab, 0, 0 );
             }
 
             if( cmd->function.function_number == 1 && cmd->function.onoff ){
                 SET_BIT(message.direction_functions.dir_funcs, 0);
-            }else{
+                cabbus_cab_set_functions( cab, 1, 1 );
+            }else if( cmd->function.function_number == 1 ){
                 CLEAR_BIT(message.direction_functions.dir_funcs, 0);
+                cabbus_cab_set_functions( cab, 1, 0 );
             }
 
             if( cmd->function.function_number == 2 && cmd->function.onoff ){
                 SET_BIT(message.direction_functions.dir_funcs, 1);
-            }else{
+                cabbus_cab_set_functions( cab, 2, 1 );
+            }else if( cmd->function.function_number == 2 ){
                 CLEAR_BIT(message.direction_functions.dir_funcs, 1);
+                cabbus_cab_set_functions( cab, 2, 0 );
             }
 
             if( cmd->function.function_number == 3 && cmd->function.onoff ){
                 SET_BIT(message.direction_functions.dir_funcs, 2);
-            }else{
+                cabbus_cab_set_functions( cab, 3, 1 );
+            }else if( cmd->function.function_number == 3 ){
                 CLEAR_BIT(message.direction_functions.dir_funcs, 2);
+                cabbus_cab_set_functions( cab, 3, 0 );
             }
 
             if( cmd->function.function_number == 4 && cmd->function.onoff ){
                 SET_BIT(message.direction_functions.dir_funcs, 3);
-            }else{
+                cabbus_cab_set_functions( cab, 4, 1 );
+            }else if( cmd->function.function_number == 4 ){
                 CLEAR_BIT(message.direction_functions.dir_funcs, 3);
+                cabbus_cab_set_functions( cab, 4, 0 );
             }
         }
 
