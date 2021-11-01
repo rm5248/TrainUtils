@@ -17,6 +17,12 @@ Protocol - folder which contains protocol information for both LocoNet and the C
 for the USB to serial connection!  It won't work well otherwise:
 `echo 1 > /sys/devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.0/ttyUSB0/latency_timer`
 
+You can also make a udev rule like this:
+```
+ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTRS{serial}=="FTU7E2W0", ATTR{latency_timer}="1"
+```
+Change the serial that you are looking for to be the serial number of your FTDI cable.
+
 ## License:
  
  GPL v2 ONLY
