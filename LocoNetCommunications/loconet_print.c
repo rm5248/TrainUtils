@@ -2,6 +2,26 @@
 
 #include "loconet_print.h"
 
+static void loconet_print_clock( FILE* output, const struct loconet_message* message ){
+    fprintf( output, "%s slot data\n", message->opcode == LN_OPC_SLOT_READ_DATA ? "Read" : "Write"  );
+    fprintf( output, "  Slot #: %d(clock)\n", message->clock_slot_data.slot );
+    fprintf( output, "  Clock rate: %d\n", message->clock_slot_data.clock_rate );
+    fprintf( output, "  Frac_minsh: %d\n", message->clock_slot_data.frac_minsh );
+    fprintf( output, "  Frac_minsl: %d\n", message->clock_slot_data.frac_minsl );
+    fprintf( output, "  Frac mins: %d\n", (message->clock_slot_data.frac_minsh << 8) |
+             message->clock_slot_data.frac_minsl );
+    fprintf( output, "  minutes: %d\n", message->clock_slot_data.mins_60 );
+    fprintf( output, "  hours: %d\n", message->clock_slot_data.hours_24 );
+    fprintf( output, "  Days: %d\n", message->clock_slot_data.days );
+    fprintf( output, "  Clock control: %d\n", message->clock_slot_data.clock_ctl );
+
+    int hours = ((0xFF - message->clock_slot_data.hours_24) & 0x7F) % 24;
+    hours = (24 - hours) % 24;
+    int minutes = ((0xFF - message->clock_slot_data.mins_60) & 0x7F) % 60;
+    minutes = (60 - minutes) % 60;
+    fprintf( output, "  Time is: %d:%02d\n", hours - 1, minutes );
+}
+
 void loconet_print_directions_and_func( FILE* output,  uint8_t byte ){
 	fprintf( output, "  Direction: %s\n", byte & 0x20 ? "REV" : "FWD"  );
 	fprintf( output, "  Functions: " );
@@ -116,6 +136,10 @@ void loconet_print_message( FILE* output, const struct loconet_message* message 
 			break;
 		case LN_OPC_SLOT_READ_DATA:
 		case LN_OPC_SLOT_WRITE_DATA:
+        if( message->slot_data.slot == 123 ){
+            loconet_print_clock( output, message );
+            break;
+        }
 			fprintf( output, "%s slot data\n", message->opcode == LN_OPC_SLOT_READ_DATA ? "Read" : "Write"  );
             fprintf( output, "  Slot #: %d\n", message->slot_data.slot );
             fprintf( output, "  Slot status: 0x%X\n", message->slot_data.stat );

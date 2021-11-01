@@ -282,10 +282,22 @@ static void handle_good_cab_ping( struct cab2loconet_context* context, struct ca
 
 static void handle_incoming_loconet( struct cab2loconet_context* context, struct loconet_message* incomingMessage ){
     struct cabbus_cab* cab;
-    struct loconet_context* info;
     struct loconet_message outgoingMessage;
 
     if( incomingMessage->opcode == LN_OPC_SLOT_READ_DATA ){
+        if( incomingMessage->slot_data.slot == 123 ){
+            // time has just been updated.
+            struct loconet_time lnTime = ln_current_time( context->loconet_context );
+            int hours = lnTime.hours;
+            int am = hours < 12;
+            if( hours == 0 ){
+                hours = 12;
+            }
+
+            cabbus_set_all_cab_times( context->cab_context, hours, lnTime.minutes, am );
+            return;
+        }
+
         //check to see if this slot is one that we are controlling
         int addr = incomingMessage->slot_data.addr1 | (incomingMessage->slot_data.addr2 << 7);
         struct LoconetInfoForCab* info;

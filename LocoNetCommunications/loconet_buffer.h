@@ -161,6 +161,22 @@ struct loconet_slot_data {
 	uint8_t id2;
 };
 
+// Command = 0xEF, slot = 0x7B
+struct loconet_clock_slot_data {
+    uint8_t len;
+    uint8_t slot;
+    uint8_t clock_rate;
+    uint8_t frac_minsl;
+    uint8_t frac_minsh;
+    uint8_t mins_60;
+    uint8_t track;
+    uint8_t hours_24;
+    uint8_t days;
+    uint8_t clock_ctl;
+    uint8_t id1;
+    uint8_t id2;
+};
+
 struct loconet_message {
 	uint8_t opcode;
 	union{
@@ -181,10 +197,20 @@ struct loconet_message {
         struct loconet_direction		direction_functions;
         struct loconet_speed			speed;
         struct loconet_slot_data		slot_data;
+        struct loconet_clock_slot_data  clock_slot_data;
 		uint8_t data[ 16 ];
 	};
 };
 	
+/**
+ * Represents the current loconet time.  Use ln_get_time
+ * to get the current loconet time.  The time will be valid
+ * as soon as a read for slot 123 comes in.
+ */
+struct loconet_time {
+    int hours;
+    int minutes;
+};
 
 // What state the loconet currently is
 enum loconet_state {
@@ -316,6 +342,14 @@ void ln_timer_fired( struct loconet_context* ctx );
  * ln_incoming_byte and ln_read_message
  */
 void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte );
+
+/**
+ * Get the current loconet time.
+ *
+ * @param ctx
+ * @return
+ */
+struct loconet_time ln_current_time( struct loconet_context* ctx );
 
 #ifdef	__cplusplus
 }

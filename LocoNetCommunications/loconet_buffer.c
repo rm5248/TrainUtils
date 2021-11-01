@@ -17,6 +17,7 @@ struct loconet_context {
     uint8_t lnBufferLocation;
     uint8_t lnBuffer[ LN_BUFFER_LEN ];
     int ignoreState;
+    struct loconet_time fastclockTime;
     volatile uint8_t lnLastTransmit;
     volatile uint8_t got_byte;
 };
@@ -24,6 +25,20 @@ struct loconet_context {
 // 
 // Function Implementations
 //
+
+static void ln_update_current_time( struct loconet_context* ctx, struct loconet_message* message ){
+    if( message->slot_data.slot != 123 ){
+        return;
+    }
+
+    int hours = ((0xFF - message->clock_slot_data.hours_24) & 0x7F) % 24;
+    hours = (24 - hours) % 24;
+    int minutes = ((0xFF - message->clock_slot_data.mins_60) & 0x7F) % 60;
+    minutes = (60 - minutes) % 60;
+
+    ctx->fastclockTime.hours = hours - 1;
+    ctx->fastclockTime.minutes = minutes;
+}
 
 // get how long the buffer currently is
 static uint8_t get_ln_buffer_len( struct loconet_context* ctx ){
@@ -184,6 +199,13 @@ printf( "six byte\n" );
 					return -1;
 				}
                 ln_remove_bytes( ctx, 14 );
+
+                if( message->opcode == LN_OPC_SLOT_READ_DATA &&
+                        message->slot_data.slot == 123 ){
+                    // Special case: this is the time
+                    ln_update_current_time( ctx, message );
+                }
+
 				return 1;
             }else{
                 uint8_t numBytes = ctx->lnBuffer[ 1 ];
@@ -204,6 +226,7 @@ printf( "six byte\n" );
                     return -1;
                 }
                 ln_remove_bytes( ctx, numBytes );
+
                 return 1;
             }
 
@@ -312,4 +335,8 @@ printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
 	}
 */
 
+}
+
+struct loconet_time ln_current_time( struct loconet_context* ctx ){
+    return ctx->fastclockTime;
 }

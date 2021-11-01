@@ -80,6 +80,16 @@ void cabbus_set_user_data( struct cabbus_context* ctx, void* user_data );
 
 void* cabbus_get_user_data( struct cabbus_context* ctx );
 
+/**
+ * Set the time on all connected cabs at once.
+ *
+ * @param ctx
+ * @param hours
+ * @param minutes
+ * @param amPm
+ */
+void cabbus_set_all_cab_times( struct cabbus_context* ctx, int hours, int minutes, _Bool am );
+
 #ifdef	__cplusplus
 }
 #endif

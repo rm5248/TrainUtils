@@ -226,3 +226,15 @@ void* cabbus_get_user_data( struct cabbus_context* ctx ){
     }
     return ctx->user_data;
 }
+
+void cabbus_set_all_cab_times( struct cabbus_context* ctx, int hours, int minutes, _Bool am ){
+    int x;
+
+    if( ctx == NULL ){
+        return;
+    }
+
+    for (x = 0; x < 64; x++) {
+        cabbus_cab_set_time( &ctx->allCabs[ x ], hours, minutes, am );
+    }
+}
