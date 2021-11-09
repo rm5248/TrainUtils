@@ -229,7 +229,7 @@ void cabbus_cab_set_time(struct cabbus_cab* cab, char hour, char minute, char am
     if (cab == NULL) return;
 
     char tempBuffer[ 9 ];
-    snprintf(tempBuffer, 9, "%2d:%02d %s", hour, minute, am ? AM : PM);
+    snprintf(tempBuffer, 9, " %2d:%02d%s", hour, minute, am ? AM : PM);
     memcpy(cab->topRow + 8, tempBuffer, 8);
     CAB_SET_TOPRIGHT_DIRTY(cab);
 }
@@ -581,6 +581,17 @@ static int cabbus_handle_press_number_key( cab_write_fn write_fn, struct cabbus_
  * @param keyByte
  */
 void cabbus_cab_process_button_press(cab_write_fn write, struct cabbus_cab* current, int keyByte) {
+    if( keyByte == PROGRAM_KEY ){
+        /* also known as the 'escape' key */
+        if( current->dirty_screens & 0xF0){
+            // we are currently selecting something, set it so that we are not
+            cabbus_cab_reset(current);
+            current->new_cursor_position = CURSOR_POSITION_DISABLE;
+            current->dirty_screens = 0x0F;
+        }
+        return;
+    }
+
     if( cabbus_cab_handle_select_loco( write, current, keyByte ) ){
         return;
     }
