@@ -216,9 +216,9 @@ void cabbus_cab_set_loco_speed(struct cabbus_cab* cab, uint8_t speed) {
     //need a temp buffer, sprintf will put a NULL at the end, we
     //only want 8 bytes
     char tempBuffer[ 9 ];
-    snprintf(tempBuffer, 9, "%s:%3d", cab->speed & 0x80 ? FWD : REV, userSpeed);
+    snprintf(tempBuffer, 9, "%s:%-4d", cab->speed & 0x80 ? FWD : REV, userSpeed);
     memcpy(cab->bottomRow, tempBuffer, 8);
-    cab->bottomRow[ 7 ] = ' ';
+    cab->bottomRow[ 8 ] = ' ';
     CAB_SET_BOTTOMLEFT_DIRTY(cab);
 }
 
@@ -245,14 +245,14 @@ void cabbus_cab_set_functions(struct cabbus_cab* cab, char functionNum, char on)
         cab->functions &= ~(0x01 << functionNum);
     }
 
-    for (x = 0; x < 8; x++) {
+    for (x = 0; x < 7; x++) {
         if (cab->functions & (0x01 << x)) {
-            cab->bottomRow[ x + 8 ] = simp_atoi(x);
+            cab->bottomRow[ x + 9 ] = simp_atoi(x);
             if (x == 0) {
-                cab->bottomRow[ x + 8 ] = 'L';
+                cab->bottomRow[ x + 9 ] = 'L';
             }
         } else {
-            cab->bottomRow[ x + 8 ] = '-';
+            cab->bottomRow[ x + 9 ] = '-';
         }
     }
 
@@ -275,18 +275,19 @@ void cabbus_cab_reset(struct cabbus_cab* cab) {
     int x;
 
     char tempBuffer[ 9 ];
-    snprintf(tempBuffer, 9, "%s:%3d", cab->speed & 0x80 ? FWD : REV, cab->speed & 0x7F);
+    memset( tempBuffer, ' ', 8 );
+    snprintf(tempBuffer, 9, "%s:%-4d", cab->speed & 0x80 ? FWD : REV, cab->speed & 0x7F);
     memcpy(cab->bottomRow, tempBuffer, 8);
-    cab->bottomRow[ 7 ] = ' ';
+    cab->bottomRow[ 8 ] = ' ';
 
-    for (x = 0; x < 8; x++) {
+    for (x = 0; x < 7; x++) {
         if (cab->functions & (0x01 << x)) {
-            cab->bottomRow[ x + 8 ] = simp_atoi(x);
+            cab->bottomRow[ x + 9 ] = simp_atoi(x);
             if (x == 0) {
-                cab->bottomRow[ x + 8 ] = 'L';
+                cab->bottomRow[ x + 9 ] = 'L';
             }
         } else {
-            cab->bottomRow[ x + 8 ] = '-';
+            cab->bottomRow[ x + 9 ] = '-';
         }
     }
 
