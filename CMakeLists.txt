@@ -27,6 +27,7 @@ add_subdirectory(CabBusCommunications)
 add_subdirectory(CabBusSniffer)
 add_subdirectory(LocoNetCommunications)
 add_subdirectory(LoconetSniffer)
+add_subdirectory(LCC)
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
     IF( UNIX )
