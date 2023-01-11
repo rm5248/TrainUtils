@@ -475,6 +475,23 @@ static void handle_incoming_loconet( struct cab2loconet_context* context, struct
     }
 }
 
+static void handle_slot_refresh( struct cab2loconet_context* context ){
+    struct LoconetInfoForCab* info;
+    struct cabbus_cab* cab;
+
+    for( int x = 0; x < ( sizeof( context->cab_info ) / sizeof( context->cab_info[ 0 ] ) ); x++ ){
+        cab = cabbus_cab_by_id( context->cab_context, x );
+        info = cabbus_cab_get_user_data( cab );
+        if( info == NULL ){
+            continue;
+        }
+
+        // This cab has a valid slot number, refresh it by setting the speed to the current value
+        int speed = cabbus_cab_get_speed(cab);
+        handle_cabbus_speed(info, context->loconet_context, speed, 0 );
+    }
+}
+
 //
 // External Functions
 //
@@ -487,6 +504,7 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
                              loconet_read_fn loconet_read,
                              void* loconet_read_fn_data){
     struct cab2loconet_context context;
+    uint32_t loop_number = 0;
 
     memset( &context, 0, sizeof( context ) );
     context.cab_context = cab_context;
@@ -535,5 +553,14 @@ void cabbus_to_loconet_main( struct cabbus_context* cab_context,
         fflush( stdout );
         fflush( stderr );
 		usleep( 1000 );
+
+        loop_number++;
+        // Every 30 seconds we re-ping slots
+        // Since this loop should be running(more or less) at 1 ms increments, that is
+        // 1000 * 30 loops
+        if( (loop_number % (1000 * 30)) == 0 ){
+            // Do the re-ping!
+            handle_slot_refresh( &context );
+        }
 	}
 }

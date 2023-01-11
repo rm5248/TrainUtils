@@ -712,3 +712,8 @@ int cabbus_cab_get_function(struct cabbus_cab* cab, uint8_t function) {
 
     return 0;
 }
+
+int cabbus_cab_get_speed( struct cabbus_cab* cab ){
+    if( cab == NULL ) return 0;
+    return cab->speed;
+}

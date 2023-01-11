@@ -12,6 +12,7 @@
 struct loconet_context {
     lnTimerStartFn timerStart;
     lnWriteFn writeFunc;
+    lnWriteInterlockFn writeInterlock;
     uint8_t additionalDelay;
     volatile enum loconet_state currentState;
     uint8_t lnBufferLocation;
@@ -64,6 +65,15 @@ struct loconet_context* ln_context_new( lnTimerStartFn timerStart, lnWriteFn wri
 
     newContext->timerStart = timerStart;
     newContext->writeFunc = write;
+
+    return newContext;
+}
+
+struct loconet_context* ln_context_new_interlocked( lnWriteInterlockFn writeInterlock ){
+    struct loconet_context* newContext = malloc( sizeof( struct loconet_context ) );
+    memset( newContext, 0, sizeof( struct loconet_context ) );
+
+    newContext->writeInterlock = writeInterlock;
 
     return newContext;
 }
@@ -246,6 +256,7 @@ int ln_write_message( struct loconet_context* ctx, struct loconet_message* messa
 	//first, let's calculate our checksum
 	uint8_t type = message->opcode & 0xE0;
 	uint8_t checksum = 0xFF;
+    uint8_t out_data[12];
 
     if( !ctx->ignoreState ){
         while( ctx->currentState != LN_IDLE ){}
@@ -256,29 +267,46 @@ int ln_write_message( struct loconet_context* ctx, struct loconet_message* messa
 	checksum ^= message->opcode;
 	if( type == 0x80 ){
 		//two bytes, including checksum
+        if( ctx->writeInterlock ){
+            out_data[0] = message->opcode;
+            out_data[1] = checksum;
+            ctx->writeInterlock( out_data, 2 );
+            ctx->currentState = LN_IDLE;
+        }else{
+            ctx->got_byte = 0;
+            ctx->lnLastTransmit = message->opcode;
+            ctx->writeFunc( message->opcode );
+            while( !ctx->got_byte ){}
 
-        ctx->got_byte = 0;
-        ctx->lnLastTransmit = message->opcode;
-        ctx->writeFunc( message->opcode );
-        while( !ctx->got_byte ){}
+            ctx->got_byte = 0;
+            ctx->lnLastTransmit = checksum;
+            ctx->writeFunc( checksum );
+            while( !ctx->got_byte );
+        }
+    }else if( type == 0xA0 ){
+        //four bytes, including checksum
+        checksum ^= message->data[ 0 ];
+        checksum ^= message->data[ 1 ];
 
-        ctx->got_byte = 0;
-        ctx->lnLastTransmit = checksum;
-        ctx->writeFunc( checksum );
-        while( !ctx->got_byte );
-	}else if( type == 0xA0 ){
-		//four bytes, including checksum
-		checksum ^= message->data[ 0 ];
-		checksum ^= message->data[ 1 ];
-		
-        LN_WRITE_BYTE( ctx, message->opcode );
-        LN_WRITE_BYTE( ctx, message->data[ 0 ] );
-        LN_WRITE_BYTE( ctx, message->data[ 1 ] );
-        LN_WRITE_BYTE( ctx, checksum );
+        if( ctx->writeInterlock ){
+            out_data[0] = message->opcode;
+            out_data[1] = message->data[ 0 ];
+            out_data[2] = message->data[ 1 ];
+            out_data[3] = checksum;
+            ctx->writeInterlock( out_data, 4 );
+            ctx->currentState = LN_IDLE;
+        }else{
+            LN_WRITE_BYTE( ctx, message->opcode );
+            LN_WRITE_BYTE( ctx, message->data[ 0 ] );
+            LN_WRITE_BYTE( ctx, message->data[ 1 ] );
+            LN_WRITE_BYTE( ctx, checksum );
+        }
 	}
 
-    ctx->currentState = LN_CD_BACKOFF;
-    ctx->timerStart( 1200 );
+    if( ctx->timerStart ){
+        ctx->currentState = LN_CD_BACKOFF;
+        ctx->timerStart( 1200 );
+    }
 
 	return 1;
 }
@@ -324,8 +352,11 @@ printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
         ctx->lnBufferLocation = 0;
 	}
 
-    ctx->timerStart( 360 ); // everything must wait AT LEAST 360 uS before attempting to transmit
-
+    if( ctx->timerStart ){
+        // everything must wait AT LEAST 360 uS before attempting to transmit
+        // Not important if we are interlocked
+        ctx->timerStart( 360 );
+    }
 /*
 	// This is technicaly an error, but we don't have a good way of 
 	// showing errors

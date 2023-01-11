@@ -278,6 +278,13 @@ typedef void (*lnTimerStartFn)( uint32_t );
  */
 typedef void (*lnWriteFn)( uint8_t );
 
+/**
+ * This function is called to write an entire block of data out to
+ * loconet.  This is used when what you are interfacing with handles
+ * the loconet collisions properly(e.g. PR3, PR4).
+ */
+typedef void (*lnWriteInterlockFn)( uint8_t* data, int len );
+
 //
 // Function Definitions
 //
@@ -290,6 +297,8 @@ typedef void (*lnWriteFn)( uint8_t );
  * @param additionalDelay How many more uS to wait before attempting network access
  */
 struct loconet_context* ln_context_new( lnTimerStartFn start, lnWriteFn write );
+
+struct loconet_context* ln_context_new_interlocked( lnWriteInterlockFn writeInterlock );
 
 void ln_context_free( struct loconet_context* context );
 

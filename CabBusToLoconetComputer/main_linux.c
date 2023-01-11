@@ -95,9 +95,9 @@ static int cabbus_read(void* ignore){
 }
 
 // Writing functions
-static void loconet_write( uint8_t byte ){
-    int length = sizeof( uint8_t );
-    c_serial_write_data( loconet_port, &byte, &length );
+static void loconet_write( uint8_t* data, int len ){
+    int length = len;
+    c_serial_write_data( loconet_port, data, &length );
 }
 
 static void cabbus_write( void* data, uint8_t len ){
@@ -149,7 +149,7 @@ int main( int argc, char** argv ){
     }
 
     //initialize loconet
-    loconet_context = ln_context_new( loconet_timer_start, loconet_write );
+    loconet_context = ln_context_new_interlocked( loconet_write );
     ln_context_set_ignore_state( loconet_context, 1 );
     ln_context_set_additional_delay( loconet_context, 200 );
 

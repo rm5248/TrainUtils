@@ -94,6 +94,14 @@ void* cabbus_cab_get_user_data( struct cabbus_cab* );
  */
 int cabbus_cab_get_function( struct cabbus_cab*, uint8_t function );
 
+/**
+ * Get the current speed of the cab.
+ *
+ * @param cab
+ * @return
+ */
+int cabbus_cab_get_speed( struct cabbus_cab* cab );
+
 #ifdef	__cplusplus
 }
 #endif
