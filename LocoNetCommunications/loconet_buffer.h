@@ -270,13 +270,13 @@ struct loconet_context;
  * Note that this routine should modify whatever timer it creates,
  * instead of creating a new timer each time.  
  */
-typedef void (*timerStartFn)( uint32_t );
+typedef void (*lnTimerStartFn)( uint32_t );
 
 /**
  * This function is called to actually write a byte out to the bus.
  * This function should wait until the byte has actually been written
  */
-typedef void (*writeFn)( uint8_t );
+typedef void (*lnWriteFn)( uint8_t );
 
 //
 // Function Definitions
@@ -289,7 +289,7 @@ typedef void (*writeFn)( uint8_t );
  * @param writeFn The function to call to write a byte out to the bus
  * @param additionalDelay How many more uS to wait before attempting network access
  */
-struct loconet_context* ln_context_new( timerStartFn start, writeFn write );
+struct loconet_context* ln_context_new( lnTimerStartFn start, lnWriteFn write );
 
 void ln_context_free( struct loconet_context* context );
 

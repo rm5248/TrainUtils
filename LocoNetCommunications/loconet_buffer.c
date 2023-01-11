@@ -10,8 +10,8 @@
 // Private variables
 //
 struct loconet_context {
-    timerStartFn timerStart;
-    writeFn writeFunc;
+    lnTimerStartFn timerStart;
+    lnWriteFn writeFunc;
     uint8_t additionalDelay;
     volatile enum loconet_state currentState;
     uint8_t lnBufferLocation;
@@ -58,7 +58,7 @@ static void ln_remove_bytes( struct loconet_context* ctx, int numBytes ){
     ctx->lnBufferLocation -= numBytes;
 }
 
-struct loconet_context* ln_context_new( timerStartFn timerStart, writeFn write ){
+struct loconet_context* ln_context_new( lnTimerStartFn timerStart, lnWriteFn write ){
     struct loconet_context* newContext = malloc( sizeof( struct loconet_context ) );
     memset( newContext, 0, sizeof( struct loconet_context ) );
 
