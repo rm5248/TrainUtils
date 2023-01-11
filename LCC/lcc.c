@@ -3,28 +3,8 @@
 #include <string.h>
 
 #include "lcc.h"
-
-#define LCC_FRAME_TYPE_MASK     0x08000000
-#define LCC_VARIABLE_FIELD_MASK 0x07FFF000
-#define LCC_NID_ALIAS_MASK      0x00000FFF
-
-#define LCC_STATE_INHIBITED 1
-#define LCC_STATE_PERMITTED 0
-
-#define LCC_NODE_ALIAS_NOT_SET 0
-#define LCC_NODE_ALIAS_SENT_CID 1
-#define LCC_NODE_ALIAS_FAIL 2
-#define LCC_NODE_ALIAS_GOOD 3
-
-struct lcc_context{
-    uint64_t unique_id;
-    union{
-        int16_t flags;
-        int16_t reserved : 13, node_alias_state : 2, state : 1;
-    };
-    int16_t node_alias;
-    lcc_write_fn write_function;
-};
+#include "lcc-common-internal.h"
+#include "lcc-common.h"
 
 static void lcc_set_lcb_variable_field(struct lcc_can_frame* frame, struct lcc_context* ctx, int variable_field){
     frame->can_id = 0;

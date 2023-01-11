@@ -1,48 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef LIBLCC_RM_H
-#define LIBLCC_RM_H
+#ifndef LIBLCC_H
+#define LIBLCC_H
 
 #include <stdint.h>
+
+#include "lcc-common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Various definitions for LCC */
-
-/*
- * Error code definitions
- */
-#define LCC_OK 0
-#define LCC_ERROR_GENERIC -1
-#define LCC_ERROR_INVALID_ARG -2
-#define LCC_ERROR_UNIQUE_ID_NOT_SET -3
-#define LCC_ERROR_ALIAS_SET -4
-#define LCC_ERROR_ALIAS_FAILURE -5
-
-/**
- * Struct used to pass frames to/from the library.
- * This struct is intentionally pretty much the same as a Linux struct can_frame
- */
-struct lcc_can_frame {
-        uint32_t can_id;  /* 32 bit CAN_ID + EFF/RTR/ERR flags */
-        uint8_t can_len;
-        uint8_t res0;
-        uint8_t res1;
-        uint8_t res2;
-        uint8_t data[8];
-};
-
-/**
- * Opaque context used to hold data.
- */
-struct lcc_context;
-
-/**
- * A function that will be called in order to write the specified CAN frame out
- * to the bus in an implementation-specific manner
- */
-typedef void(*lcc_write_fn)(struct lcc_can_frame*);
 
 /**
  * Create a new LCC context.
