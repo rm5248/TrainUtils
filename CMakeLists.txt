@@ -10,6 +10,12 @@ option (BUILD_LOCONET_SNIFFER
 option (BUILD_CAB2LOCONET_COMPUTER
         "Build the Cab2Loconet program for use with a computer"
 		OFF)
+
+# Request C++17, if available
+# This *should* fallback to an older standard if it is not available
+if( NOT "${CMAKE_CXX_STANDARD}")
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 		
 IF( NOT UNIX )
     SET(CSERIAL_INCLUDE_DIR         "${CMAKE_INSTALL_PREFIX}/include"           CACHE STRING "Directory with CSerial include files")
@@ -27,6 +33,7 @@ add_subdirectory(CabBusCommunications)
 add_subdirectory(CabBusSniffer)
 add_subdirectory(LocoNetCommunications)
 add_subdirectory(LoconetSniffer)
+add_subdirectory(LoconetTCPUtil)
 add_subdirectory(LCC)
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
@@ -39,3 +46,20 @@ IF( BUILD_CAB2LOCONET_COMPUTER )
     add_executable( Cab2Loconet  CabBusToLoconetComputer/CabBusToLoconet.c CabBusToLoconetComputer/main_linux.c )
     target_link_libraries( Cab2Loconet PRIVATE cabbus_utils loconet_utils ${POPT_LIBRARIES} ${CSERIAL_LIBRARIES} )
 ENDIF( BUILD_CAB2LOCONET_COMPUTER )
+
+#
+# Output configuration information
+#
+message(STATUS "")
+message(STATUS "")
+message(STATUS "Train Utils configuration summary:")
+message(STATUS "")
+
+message(STATUS "  C++ standard: ................... : ${CMAKE_CXX_STANDARD}")
+message(STATUS "  Build Cabbus comms: ............. : ON")
+message(STATUS "  Build Cabbus sniffer: ........... : ${BUILD_CABBUS_SNIFFER}")
+message(STATUS "  Build Loconet comms: ............ : ON")
+message(STATUS "  Build Loconet sniffer: .......... : ${BUILD_LOCONET_SNIFFER}")
+message(STATUS "  Build Loconet TCP util: ......... : ON")
+message(STATUS "  Build Cab2Loconet(Computer): .... : ${BUILD_CAB2LOCONET_COMPUTER}")
+message(STATUS "  Build liblcc: ................... : ON")

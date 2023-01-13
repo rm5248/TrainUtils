@@ -15,18 +15,6 @@ extern "C" {
 //
 // Macro definitions
 //
-#ifdef LOCONET_INTERLOCK
-  #define LN_WRITE_BYTE( byte ) \
-		got_byte = 0;\
-		lnLastTransmit = byte;\
-		writeFunc( byte ); \
-		while( !got_byte ){}
-#else
-  #define LN_WRITE_BYTE( ctx, byte )\
-        ctx->lnLastTransmit = byte; \
-        ctx->writeFunc( byte );
-#endif
-
 #define CHECK_BIT(number,bit)   (number & (0x1 << bit))
 #define SET_BIT(number, bit)    (number |= (0x1 << bit))
 #define CLEAR_BIT(number, bit)  (number &= (~(0x1 << bit)))
@@ -270,20 +258,20 @@ struct loconet_context;
  * Note that this routine should modify whatever timer it creates,
  * instead of creating a new timer each time.  
  */
-typedef void (*lnTimerStartFn)( uint32_t );
+typedef void (*lnTimerStartFn)( struct loconet_context* ctx, uint32_t );
 
 /**
  * This function is called to actually write a byte out to the bus.
  * This function should wait until the byte has actually been written
  */
-typedef void (*lnWriteFn)( uint8_t );
+typedef void (*lnWriteFn)( struct loconet_context* ctx, uint8_t );
 
 /**
  * This function is called to write an entire block of data out to
  * loconet.  This is used when what you are interfacing with handles
- * the loconet collisions properly(e.g. PR3, PR4).
+ * the loconet collisions properly(e.g. PR3, PR4, LoconetTCP).
  */
-typedef void (*lnWriteInterlockFn)( uint8_t* data, int len );
+typedef void (*lnWriteInterlockFn)( struct loconet_context* ctx, uint8_t* data, int len );
 
 //
 // Function Definitions
@@ -359,6 +347,10 @@ void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte );
  * @return
  */
 struct loconet_time ln_current_time( struct loconet_context* ctx );
+
+void* ln_user_data( struct loconet_context* ctx );
+
+void ln_set_user_data( struct loconet_context* ctx, void* user_data );
 
 #ifdef	__cplusplus
 }

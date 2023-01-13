@@ -6,6 +6,18 @@
 
 #define LN_BUFFER_LEN 128
 
+#ifdef LOCONET_INTERLOCK
+  #define LN_WRITE_BYTE( byte ) \
+        got_byte = 0;\
+        lnLastTransmit = byte;\
+        writeFunc( byte ); \
+        while( !got_byte ){}
+#else
+  #define LN_WRITE_BYTE( ctx, byte )\
+        ctx->lnLastTransmit = byte; \
+        ctx->writeFunc( ctx, byte );
+#endif
+
 //
 // Private variables
 //
@@ -21,6 +33,7 @@ struct loconet_context {
     struct loconet_time fastclockTime;
     volatile uint8_t lnLastTransmit;
     volatile uint8_t got_byte;
+    void* user_data;
 };
 
 // 
@@ -270,17 +283,17 @@ int ln_write_message( struct loconet_context* ctx, struct loconet_message* messa
         if( ctx->writeInterlock ){
             out_data[0] = message->opcode;
             out_data[1] = checksum;
-            ctx->writeInterlock( out_data, 2 );
+            ctx->writeInterlock( ctx, out_data, 2 );
             ctx->currentState = LN_IDLE;
         }else{
             ctx->got_byte = 0;
             ctx->lnLastTransmit = message->opcode;
-            ctx->writeFunc( message->opcode );
+            ctx->writeFunc( ctx, message->opcode );
             while( !ctx->got_byte ){}
 
             ctx->got_byte = 0;
             ctx->lnLastTransmit = checksum;
-            ctx->writeFunc( checksum );
+            ctx->writeFunc( ctx, checksum );
             while( !ctx->got_byte );
         }
     }else if( type == 0xA0 ){
@@ -293,7 +306,7 @@ int ln_write_message( struct loconet_context* ctx, struct loconet_message* messa
             out_data[1] = message->data[ 0 ];
             out_data[2] = message->data[ 1 ];
             out_data[3] = checksum;
-            ctx->writeInterlock( out_data, 4 );
+            ctx->writeInterlock( ctx, out_data, 4 );
             ctx->currentState = LN_IDLE;
         }else{
             LN_WRITE_BYTE( ctx, message->opcode );
@@ -305,7 +318,7 @@ int ln_write_message( struct loconet_context* ctx, struct loconet_message* messa
 
     if( ctx->timerStart ){
         ctx->currentState = LN_CD_BACKOFF;
-        ctx->timerStart( 1200 );
+        ctx->timerStart( ctx, 1200 );
     }
 
 	return 1;
@@ -319,7 +332,7 @@ void ln_timer_fired( struct loconet_context* ctx ){
     if( ctx->currentState == LN_CD_BACKOFF ){
 		//add in the aditional delay
         ctx->currentState = LN_CD_BACKOFF_ADDITIONAL;
-        ctx->timerStart( ctx->additionalDelay );
+        ctx->timerStart( ctx, ctx->additionalDelay );
     }else if( ctx->currentState == LN_CD_BACKOFF_ADDITIONAL ){
         ctx->currentState = LN_IDLE;
     }else if( ctx->currentState == LN_COLLISION ){
@@ -339,7 +352,7 @@ void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte ){
 			//we have a collision on the bus
 printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
             ctx->currentState = LN_COLLISION;
-            ctx->timerStart( 1000 ); // wait at least 15 bit times
+            ctx->timerStart( ctx, 1000 ); // wait at least 15 bit times
 			return;
 		}
 
@@ -355,7 +368,7 @@ printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
     if( ctx->timerStart ){
         // everything must wait AT LEAST 360 uS before attempting to transmit
         // Not important if we are interlocked
-        ctx->timerStart( 360 );
+        ctx->timerStart( ctx, 360 );
     }
 /*
 	// This is technicaly an error, but we don't have a good way of 
@@ -370,4 +383,14 @@ printf( "OH SNAP collision rx 0x%X tx 0x%X\n", byte, ctx->lnLastTransmit );
 
 struct loconet_time ln_current_time( struct loconet_context* ctx ){
     return ctx->fastclockTime;
+}
+
+void* ln_user_data( struct loconet_context* ctx ){
+    if( ctx == NULL ) return NULL;
+    return ctx->user_data;
+}
+
+void ln_set_user_data( struct loconet_context* ctx, void* user_data ){
+    if( ctx == NULL ) return;
+    ctx->user_data = user_data;
 }
