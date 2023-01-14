@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.13)
 project( TrainUtils )
 
+include( CTest )
+
 option (BUILD_CABBUS_SNIFFER
         "Build the CabBus sniffer project"
 		ON)

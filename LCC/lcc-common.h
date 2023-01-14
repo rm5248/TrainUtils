@@ -30,6 +30,7 @@ typedef void(*lcc_write_fn)(struct lcc_can_frame*);
 #define LCC_ERROR_UNIQUE_ID_NOT_SET -3
 #define LCC_ERROR_ALIAS_SET -4
 #define LCC_ERROR_ALIAS_FAILURE -5
+#define LCC_ERROR_BUFFER_SIZE_INCORRECT -6
 
 /**
  * Struct used to pass frames to/from the library.
