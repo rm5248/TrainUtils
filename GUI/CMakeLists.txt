@@ -30,6 +30,9 @@ set(PROJECT_SOURCES
         lcc/lccnetworkconnection.h
         mdns/mdnsmanager.cpp
         mdns/mdnsmanager.h
+        lcctrafficmonitor.cpp
+        lcctrafficmonitor.h
+        lcctrafficmonitor.ui
 )
 
 if(UNIX)

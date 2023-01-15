@@ -26,7 +26,7 @@ std::shared_ptr<LCCConnection> LCCManager::createNewNetworkLCC(QString connectio
 }
 
 std::shared_ptr<LCCConnection> LCCManager::getConnectionByName(QString connectionName){
-    if(m_lccConnections.find(connectionName) != m_lccConnections.end()){
+    if(m_lccConnections.find(connectionName) == m_lccConnections.end()){
         return std::shared_ptr<LCCConnection>();
     }
 

@@ -4,6 +4,7 @@
 #include "trainutils_state.h"
 #include "lcc/lccmanager.h"
 #include "mdns/mdnsmanager.h"
+#include "lcctrafficmonitor.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -74,7 +75,8 @@ void MainWindow::on_action_lcc_Manual_IP_triggered()
 
     std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewNetworkLCC(QString(), addr, port);
     if(conn){
-        ui->menuLCC->addAction(conn->name());
+        QMenu* menu = ui->menuLCC->addMenu(conn->name());
+        addSubmenusLCCConnection(menu, conn->name());
     }
 }
 
@@ -110,6 +112,20 @@ void MainWindow::connectToLCC(QAction* action){
     uint16_t port = action->property("traingui_port").toInt();
     std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewNetworkLCC(QString(), addr, port);
     if(conn){
-        ui->menuLCC->addAction(conn->name());
+        QMenu* menu = ui->menuLCC->addMenu(conn->name());
+        addSubmenusLCCConnection(menu, conn->name());
     }
+}
+
+void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionName){
+    QAction* action = parentMenu->addAction("Traffic Monitor");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LCCConnection> lccConn = m_state->lccManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Traffic Monitor").arg(lccConn->name()));
+        LCCTrafficMonitor* trafficMonitor = new LCCTrafficMonitor(this);
+        trafficMonitor->setLCCConnection(lccConn);
+        DockWidget->setWidget(trafficMonitor);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
 }

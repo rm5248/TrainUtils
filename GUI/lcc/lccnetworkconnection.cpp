@@ -107,5 +107,6 @@ void LCCNetworkConnection::gridconnectLCCFrameParsed(lcc_can_frame* frame){
         fflush(stderr);
     }
 
+    Q_EMIT incomingRawFrame(frame);
     lcc_context_incoming_frame(m_lcc, frame);
 }

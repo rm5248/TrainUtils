@@ -18,6 +18,7 @@ public:
     QString name() const;
 
 Q_SIGNALS:
+    void incomingRawFrame(lcc_can_frame* frame);
 
 protected:
     QString m_name;

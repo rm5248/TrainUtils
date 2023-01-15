@@ -33,6 +33,9 @@ private Q_SLOTS:
     void connectToLCC(QAction* requestAction);
 
 private:
+    void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
+
+private:
     Ui::MainWindow *ui;
     ads::CDockManager* m_dockManager;
     TrainUtilsState* m_state;
