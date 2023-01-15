@@ -57,6 +57,11 @@ IF( BUILD_CAB2LOCONET_COMPUTER )
     target_link_libraries( Cab2Loconet PRIVATE cabbus_utils loconet_utils ${POPT_LIBRARIES} ${CSERIAL_LIBRARIES} )
 ENDIF( BUILD_CAB2LOCONET_COMPUTER )
 
+if(UNIX)
+  install(FILES udev-rules/50-digitrax.rules
+          DESTINATION /lib/udev/rules.d)
+endif(UNIX)
+
 #
 # Output configuration information
 #
