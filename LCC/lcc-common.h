@@ -19,7 +19,7 @@ struct lcc_can_frame;
  * A function that will be called in order to write the specified CAN frame out
  * to the bus in an implementation-specific manner
  */
-typedef void(*lcc_write_fn)(struct lcc_can_frame*);
+typedef void(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
 
 /*
  * Error code definitions

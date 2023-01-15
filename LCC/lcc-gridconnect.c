@@ -8,6 +8,9 @@
 struct lcc_gridconnect{
     char buffer[128];
     int buffer_pos;
+    struct lcc_can_frame frame;
+    lcc_gridconnect_frame_parsed frame_parsed;
+    void* user_data;
 };
 
 struct lcc_gridconnect* lcc_gridconnect_new(){
@@ -23,7 +26,31 @@ void lcc_gridconnect_free(struct lcc_gridconnect* gc){
 
 int lcc_gridconnect_incoming_data(struct lcc_gridconnect* context, void* data, uint32_t len){
     if(!context || !data) return LCC_ERROR_INVALID_ARG;
-    if(len > 128) return LCC_ERROR_BUFFER_SIZE_INCORRECT;
+
+    uint8_t* u8_data = (uint8_t*)data;
+    int discardUntilColon = context->buffer_pos == 0;
+    for(uint32_t x = 0; x < len; x++){
+        if(discardUntilColon && u8_data[x] != ':'){
+            continue;
+        }
+        discardUntilColon = 0;
+        context->buffer[context->buffer_pos] = u8_data[x];
+        if(context->buffer[context->buffer_pos] == ';'){
+            // Hey, look at that.  We should have a full packet
+            context->buffer[context->buffer_pos + 1] = 0;
+            if(lcc_gridconnect_to_canframe(context->buffer, &context->frame) == 0 &&
+                    context->frame_parsed){
+                context->frame_parsed(context, &context->frame);
+            }
+            context->buffer_pos = -1;
+            discardUntilColon = 1;
+        }
+        context->buffer_pos++;
+        if(context->buffer_pos >= sizeof(context->buffer)){
+            context->buffer_pos = 0;
+            discardUntilColon = 1;
+        }
+    }
 
     return LCC_OK;
 }
@@ -100,4 +127,21 @@ int lcc_gridconnect_to_canframe(char* ascii, struct lcc_can_frame* frame){
     frame->can_len = num_bytes;
 
     return LCC_OK;
+}
+
+int lcc_gridconnect_set_frame_parsed(struct lcc_gridconnect* context, lcc_gridconnect_frame_parsed frame_parsed_fn){
+    if(context == NULL) return LCC_ERROR_INVALID_ARG;
+
+    context->frame_parsed = frame_parsed_fn;
+
+    return LCC_OK;
+}
+
+void lcc_gridconnect_set_userdata(struct lcc_gridconnect* ctx, void* user_data){
+    if(!ctx) return;
+    ctx->user_data = user_data;
+}
+
+void* lcc_gridconnect_user_data(struct lcc_gridconnect* ctx){
+    return ctx->user_data;
 }

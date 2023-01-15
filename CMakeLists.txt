@@ -37,6 +37,7 @@ add_subdirectory(LocoNetCommunications)
 add_subdirectory(LoconetSniffer)
 add_subdirectory(LoconetTCPUtil)
 add_subdirectory(LCC)
+add_subdirectory(GUI)
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
     IF( UNIX )

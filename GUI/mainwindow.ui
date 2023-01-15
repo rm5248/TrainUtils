@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>24</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuTrainGUI">
+    <property name="title">
+     <string>TrainGUI</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuLoconet">
+    <property name="title">
+     <string>Loconet</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuNCE">
+    <property name="title">
+     <string>NCE</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuLCC">
+    <property name="title">
+     <string>LCC</string>
+    </property>
+    <widget class="QMenu" name="menu_lcc_Connect_To">
+     <property name="title">
+      <string>Connect To ...</string>
+     </property>
+     <addaction name="action_lcc_Manual_IP"/>
+     <addaction name="separator"/>
+     <addaction name="action_lcc_Auto_discovered"/>
+     <addaction name="separator"/>
+     <addaction name="action_lcc_Serial_Connections"/>
+    </widget>
+    <addaction name="menu_lcc_Connect_To"/>
+    <addaction name="separator"/>
+   </widget>
+   <addaction name="menuTrainGUI"/>
+   <addaction name="menuLoconet"/>
+   <addaction name="menuNCE"/>
+   <addaction name="menuLCC"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="action_lcc_Auto_discovered">
+   <property name="text">
+    <string>Auto-discovered:</string>
+   </property>
+  </action>
+  <action name="action_lcc_Serial_Connections">
+   <property name="text">
+    <string>Serial Connections:</string>
+   </property>
+  </action>
+  <action name="action_lcc_Manual_IP">
+   <property name="text">
+    <string>Manual IP</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

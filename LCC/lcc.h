@@ -74,6 +74,12 @@ int lcc_context_generate_alias(struct lcc_context* ctx);
  */
 int lcc_context_claim_alias(struct lcc_context* ctx);
 
+void lcc_context_set_userdata(struct lcc_context* ctx, void* user_data);
+
+void* lcc_context_user_data(struct lcc_context* ctx);
+
+int lcc_context_alias(struct lcc_context* ctx);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif
