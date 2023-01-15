@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.13)
 project( TrainUtils )
 
 include( CTest )
+include( GNUInstallDirs )
 
 option (BUILD_CABBUS_SNIFFER
         "Build the CabBus sniffer project"
@@ -12,6 +13,9 @@ option (BUILD_LOCONET_SNIFFER
 option (BUILD_CAB2LOCONET_COMPUTER
         "Build the Cab2Loconet program for use with a computer"
 		OFF)
+option (BUILD_GUI
+	"Build the Train GUI"
+	OFF)
 
 # Request C++17, if available
 # This *should* fallback to an older standard if it is not available
@@ -37,7 +41,10 @@ add_subdirectory(LocoNetCommunications)
 add_subdirectory(LoconetSniffer)
 add_subdirectory(LoconetTCPUtil)
 add_subdirectory(LCC)
-add_subdirectory(GUI)
+
+if(BUILD_GUI)
+	add_subdirectory(GUI)
+endif()
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
     IF( UNIX )
@@ -66,3 +73,4 @@ message(STATUS "  Build Loconet sniffer: .......... : ${BUILD_LOCONET_SNIFFER}")
 message(STATUS "  Build Loconet TCP util: ......... : ON")
 message(STATUS "  Build Cab2Loconet(Computer): .... : ${BUILD_CAB2LOCONET_COMPUTER}")
 message(STATUS "  Build liblcc: ................... : ON")
+message(STATUS "  Build GUI: ...................... : ${BUILD_GUI}")

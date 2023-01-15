@@ -89,3 +89,7 @@ target_include_directories(train-gui PRIVATE
     ${train-required_INCLUDE_DIRS}
     ../LCC
 )
+
+install(TARGETS train-gui
+        RUNTIME DESTINATION bin
+)
