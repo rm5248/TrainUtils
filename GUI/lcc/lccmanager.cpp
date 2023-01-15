@@ -4,10 +4,14 @@
 
 LCCManager::LCCManager(QObject *parent) : QObject(parent)
 {
-
+    m_nextConnNumber = 1;
 }
 
 std::shared_ptr<LCCConnection> LCCManager::createNewNetworkLCC(QString connectionName, QHostAddress addr, uint16_t port){
+    if(connectionName.isNull() || connectionName.isEmpty()){
+        connectionName = QString("LCC%1").arg(m_nextConnNumber);
+        m_nextConnNumber++;
+    }
     if(m_lccConnections.find(connectionName) != m_lccConnections.end()){
         return std::shared_ptr<LCCConnection>();
     }

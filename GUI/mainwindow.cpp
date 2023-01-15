@@ -3,6 +3,7 @@
 #include "./ui_mainwindow.h"
 #include "trainutils_state.h"
 #include "lcc/lccmanager.h"
+#include "mdns/mdnsmanager.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -28,6 +29,11 @@ MainWindow::~MainWindow()
 
 void MainWindow::setTrainUtilsState(TrainUtilsState* state){
     m_state = state;
+
+    connect(m_state->mdnsManager, &MDNSManager::lccServerFound,
+            this, &MainWindow::lccServerFound);
+    connect(m_state->mdnsManager, &MDNSManager::lccServerLeft,
+            this, &MainWindow::lccServerLeft);
 }
 
 void MainWindow::on_actionExit_triggered()
@@ -66,7 +72,43 @@ void MainWindow::on_action_lcc_Manual_IP_triggered()
         return;
     }
 
-    std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewNetworkLCC("LCC1", addr, port);
+    std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewNetworkLCC(QString(), addr, port);
+    if(conn){
+        ui->menuLCC->addAction(conn->name());
+    }
+}
+
+void MainWindow::lccServerFound(QString serviceName, QHostAddress address, uint16_t port){
+    QAction* before = nullptr;
+    for( QAction* action : ui->menu_lcc_Connect_To->actions() ){
+        if(action->objectName().compare("action_lcc_Serial_Connections") == 0){
+            break;
+        }
+        before = action;
+    }
+
+    QAction* newAction = new QAction(serviceName, this);
+    newAction->setProperty( "traingui_servicename", serviceName );
+    newAction->setProperty( "traingui_address", address.toString() );
+    newAction->setProperty( "traingui_port", port );
+    connect(newAction, &QAction::triggered,
+            this, [newAction,this](){
+        connectToLCC(newAction);
+    });
+    ui->menu_lcc_Connect_To->insertAction(before, newAction);
+}
+
+void MainWindow::lccServerLeft(QString serviceName){
+
+}
+
+void MainWindow::connectToLCC(QAction* action){
+    action->deleteLater();
+    ui->menu_lcc_Connect_To->removeAction(action);
+
+    QHostAddress addr(action->property("traingui_address").toString());
+    uint16_t port = action->property("traingui_port").toInt();
+    std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewNetworkLCC(QString(), addr, port);
     if(conn){
         ui->menuLCC->addAction(conn->name());
     }

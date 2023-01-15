@@ -3,6 +3,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QHostAddress>
 
 #include "DockManager.h"
 
@@ -26,6 +27,10 @@ private Q_SLOTS:
     void on_actionExit_triggered();
 
     void on_action_lcc_Manual_IP_triggered();
+
+    void lccServerFound(QString serviceName, QHostAddress address, uint16_t port);
+    void lccServerLeft(QString serviceName);
+    void connectToLCC(QAction* requestAction);
 
 private:
     Ui::MainWindow *ui;

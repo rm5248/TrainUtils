@@ -18,7 +18,7 @@ public:
      * Create a new LCC connection over the network to the specified host.
      * If a connection with this name already exists, return an invalid shared pointer.
      *
-     * @param connectionName
+     * @param connectionName Optional connection name.  If no name is provided, auto-number(LCC1, LCC2, etc.)
      * @param addr
      * @param port
      * @return
@@ -38,6 +38,7 @@ Q_SIGNALS:
 
 private:
     QMap<QString,std::shared_ptr<LCCConnection>> m_lccConnections;
+    int m_nextConnNumber;
 };
 
 #endif // LCCMANAGER_H

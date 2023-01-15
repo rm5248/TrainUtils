@@ -28,7 +28,28 @@ set(PROJECT_SOURCES
         lcc/lccconnection.h
         lcc/lccnetworkconnection.cpp
         lcc/lccnetworkconnection.h
+        mdns/mdnsmanager.cpp
+        mdns/mdnsmanager.h
 )
+
+if(UNIX)
+    set(PROJECT_SOURCES ${PROJECT_SOURCES}
+        mdns/avahi-dbus/org_freedesktop_Avahi_Server2Proxy.cpp
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServiceBrowserProxy.h
+        mdns/avahi-dbus/ServiceBrowserProxy.cpp
+        mdns/avahi-dbus/org_freedesktop_Avahi_Server2Proxy.h
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServiceResolverProxy.cpp
+        mdns/avahi-dbus/ServiceBrowserProxy.h
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServerProxy.cpp
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServiceResolverProxy.h
+        mdns/avahi-dbus/ServiceResolverProxy.cpp
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServerProxy.h
+        mdns/avahi-dbus/ServerProxy.cpp
+        mdns/avahi-dbus/ServiceResolverProxy.h
+        mdns/avahi-dbus/org_freedesktop_Avahi_ServiceBrowserProxy.cpp
+        mdns/avahi-dbus/ServerProxy.h
+        )
+endif(UNIX)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui

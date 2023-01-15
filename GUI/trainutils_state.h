@@ -9,10 +9,11 @@ class QtDispatcher;
 }
 
 class LCCManager;
+class MDNSManager;
 
 struct TrainUtilsState{
-    std::shared_ptr<DBus::Qt::QtDispatcher> dispatcher;
     LCCManager* lccManager;
+    MDNSManager* mdnsManager;
 };
 
 #endif // TRAINUTILS_STATE_H
