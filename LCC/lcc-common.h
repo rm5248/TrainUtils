@@ -55,6 +55,8 @@ struct lcc_can_frame {
 /** Assumes that our MTI is 16-bits */
 #define LCC_MTI_PRIORITY_MASK   (0x3 << 10)
 #define LCC_MTI_TYPE_WITHIN_PRIORITY_MASK (0xF << 5)
+#define LCC_MTI_SIMPLE (0x01 << 4)
+#define LCC_MTI_ADDRESSED (0x01 << 3)
 
 #define LCC_STATE_INHIBITED 1
 #define LCC_STATE_PERMITTED 0

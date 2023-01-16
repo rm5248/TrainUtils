@@ -2,6 +2,8 @@ project( LibLCC
 	VERSION 0.1.0 
 	DESCRIPTION "Layout Command and control library")
 
+# These are the public headers that get installed
+# No internal headers should go in this variable
 set(headers
     lcc.h
     lcc-print.h
@@ -11,10 +13,15 @@ set(headers
 
 add_library(lcc STATIC
     ${headers}
+    lcc-simple.h
     lcc-common-internal.h
+    lcc-common-internal.c
+    lcc-addressed.h
+    lcc-addressed.c
     lcc.c
     lcc-print.c
     lcc-gridconnect.c
+    lcc-simple.c
 )
 target_compile_definitions(lcc PRIVATE LIBLCC_BUILD)
 

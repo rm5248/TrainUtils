@@ -21,4 +21,12 @@ struct lcc_context{
     void* user_data;
 };
 
+void lcc_set_lcb_variable_field(struct lcc_can_frame* frame, struct lcc_context* ctx, int variable_field);
+
+void lcc_set_lcb_can_frame_type(struct lcc_can_frame* frame, int type);
+
+void lcc_set_nodeid_in_data(struct lcc_can_frame* frame, uint64_t node_id);
+
+uint64_t lcc_get_node_id_from_data(struct lcc_can_frame* frame);
+
 #endif

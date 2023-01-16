@@ -5,28 +5,8 @@
 #include "lcc.h"
 #include "lcc-common-internal.h"
 #include "lcc-common.h"
-
-static void lcc_set_lcb_variable_field(struct lcc_can_frame* frame, struct lcc_context* ctx, int variable_field){
-    frame->can_id = 0;
-    frame->can_id |= (0x01 << 28); /* reserved, set as 1 */
-    frame->can_id |= (0x01 << 27); /* openLCB frame type */
-    frame->can_id |= (variable_field << 12);
-    frame->can_id |= (ctx->node_alias & 0xFFF);
-}
-
-static void lcc_set_lcb_can_frame_type(struct lcc_can_frame* frame, int type){
-    frame->can_id |= (type << 24);
-}
-
-static void lcc_set_nodeid_in_data(struct lcc_can_frame* frame, uint64_t node_id){
-    frame->can_len = 6;
-    frame->data[0] = (node_id & 0xFF0000000000l) >> 40;
-    frame->data[1] = (node_id & 0x00FF00000000l) >> 32;
-    frame->data[2] = (node_id & 0x0000FF000000l) >> 24;
-    frame->data[3] = (node_id & 0x000000FF0000l) >> 16;
-    frame->data[4] = (node_id & 0x00000000FF00l) >> 8;
-    frame->data[5] = (node_id & 0x0000000000FFl) >> 0;
-}
+#include "lcc-simple.h"
+#include "lcc-addressed.h"
 
 struct lcc_context* lcc_context_new(){
     struct lcc_context* newctx = malloc(sizeof(struct lcc_context));
@@ -75,18 +55,17 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     uint8_t frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     uint16_t source_alias = (frame->can_id & LCC_NID_ALIAS_MASK);
 
-    if(frame_type != 1){
-        return LCC_OK;
+    if(mti & LCC_MTI_SIMPLE){
+        // this is a simple message
+        return lcc_handle_simple_protocol(ctx, frame);
     }
 
-    if(mti == LCC_MTI_BASIC_VERIFY_NODE_ID_NUM_GLOBAL){
-        // Respond with frame ID
-        struct lcc_can_frame frame;
-        memset(&frame, 0, sizeof(frame));
-        lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_BASIC_VERIFIED_NODE_ID_NUM);
-        lcc_set_lcb_can_frame_type(&frame, 1);
-        lcc_set_nodeid_in_data(&frame, ctx->unique_id);
-        ctx->write_function(ctx, &frame);
+    if(mti & LCC_MTI_ADDRESSED){
+        return lcc_handle_addressed(ctx, frame);
+    }
+
+    if(frame_type != 1){
+        return LCC_OK;
     }
 
     return LCC_OK;
