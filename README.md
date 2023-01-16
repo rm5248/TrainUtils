@@ -23,6 +23,16 @@ ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTRS{serial}=="FTU7
 ```
 Change the serial that you are looking for to be the serial number of your FTDI cable.
 
+## Building
+
+Not all dependencies are available thru apt for debian/ubuntu based systems.  Support for APT is TBD.
+
+Configuration files for vcpkg are available, you can try those.
+
+```
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+```
+
 ## License:
  
  GPL v2 ONLY

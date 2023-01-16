@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "trainutils",
+  "version-semver": "0.1.0",
+  "builtin-baseline": "877e3dc2323a4d4c3c75e7168c22a0c4e921d4db",
+  "dependencies": [
+    {
+      "name": "log4cxx",
+      "version>=": "1.0.0"
+    },
+    {
+      "name": "dbus-cxx",
+      "platform": "!windows",
+      "version>=":"2.3.1"
+    },
+    {
+      "name": "fmt"
+    },
+    "qt5-serialport",
+    {
+      "name":"rm5248-cserial",
+      "version>=": "0.3"
+    },
+    "qt-advanced-docking-system"
+  ]
+}

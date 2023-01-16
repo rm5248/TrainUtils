@@ -1,0 +1,5 @@
+{
+  "name":"rm5248-cserial",
+  "version-string":"0.3",
+  "description":"A low-level cross-platform serial library in C"
+}
