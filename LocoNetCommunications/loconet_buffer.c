@@ -91,6 +91,10 @@ struct loconet_context* ln_context_new_interlocked( lnWriteInterlockFn writeInte
     return newContext;
 }
 
+void ln_context_free(struct loconet_context* ctx){
+    free(ctx);
+}
+
 void ln_context_set_additional_delay( struct loconet_context* context, uint8_t additionalDelay ){
     if( context == NULL ){
         return;

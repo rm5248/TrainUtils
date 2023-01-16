@@ -34,7 +34,7 @@ public:
     void incomingData(void* data, size_t len);
     void incomingData(const std::vector<uint8_t>& data);
 
-    void setWriteDataFunction(std::function<void(uint8_t*,int)> writeDataFun);
+//    void setWriteDataFunction(std::function<void(uint8_t*,int)> writeDataFun);
 
     struct loconet_context* loconetContext() const;
 

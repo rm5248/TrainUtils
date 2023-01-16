@@ -75,23 +75,23 @@ void MDNSManager::initialize(){
 
     proxyTmp->Start();
 
-    // Create a new resolver for JMRI
-//    DBus::Path serviceBrowsePathJMRI =
-//            m_avahiServer->getorg_freedesktop_Avahi_ServerInterface()
-//                ->ServiceBrowserNew( -1, 0, "_http._tcp", std::string(), 0 );
+    // Create a new resolver for Loconet
+    DBus::Path serviceBrowseLoconetPath =
+            m_avahiServer->getorg_freedesktop_Avahi_ServerInterface()
+                ->ServiceBrowserNew( -1, 0, "_loconetovertcpserver._tcp", std::string(), 0 );
 
-//    m_browserProxyJMRIHttp = Avahi::ServiceBrowserProxy::create( m_conn, "org.freedesktop.Avahi", serviceBrowsePathJMRI );
+    m_browserProxyLoconet = Avahi::ServiceBrowserProxy::create( m_connection, "org.freedesktop.Avahi", serviceBrowseLoconetPath );
 
-//    std::shared_ptr<Avahi::org_freedesktop_Avahi_ServiceBrowserProxy> proxyTmp2 =
-//            m_browserProxyJMRIHttp->getorg_freedesktop_Avahi_ServiceBrowserInterface();
+    std::shared_ptr<Avahi::org_freedesktop_Avahi_ServiceBrowserProxy> proxyTmp2 =
+            m_browserProxyLoconet->getorg_freedesktop_Avahi_ServiceBrowserInterface();
 
-//    proxyTmp2->signal_Failure()->connect( sigc::mem_fun( *this, &AvahiBrowse::signalFailure) );
-//    proxyTmp2->signal_AllForNow()->connect( sigc::mem_fun( *this, &AvahiBrowse::signalAllForNow ) );
-//    proxyTmp2->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &AvahiBrowse::signalCacheExhausted ) );
-//    proxyTmp2->signal_ItemNew()->connect( sigc::mem_fun( *this, &AvahiBrowse::signalHTTPNew ) );
-//    proxyTmp2->signal_ItemRemove()->connect( sigc::mem_fun( *this, &AvahiBrowse::signalHTTPRemoved ) );
+    proxyTmp2->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::signalFailure) );
+    proxyTmp2->signal_AllForNow()->connect( sigc::mem_fun( *this, &MDNSManager::signalAllForNow ) );
+    proxyTmp2->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &MDNSManager::signalCacheExhausted ) );
+    proxyTmp2->signal_ItemNew()->connect( sigc::mem_fun( *this, &MDNSManager::signalLoconetNew ) );
+    proxyTmp2->signal_ItemRemove()->connect( sigc::mem_fun( *this, &MDNSManager::signalLoconetRemoved ) );
 
-//    proxyTmp2->Start();
+    proxyTmp2->Start();
 }
 
 void MDNSManager::signalFailure(std::string str){
@@ -168,13 +168,76 @@ void MDNSManager::resolvedLCCFound(int32_t interface,
                    << port );
 
     Q_EMIT lccServerFound(QString::fromStdString(name), QHostAddress(QString::fromStdString(address)), port);
-
-//    foundRPIVideoSender( QString::fromStdString( name ),
-//                         QString::fromStdString( address ),
-//                         port,
-//                         txt );
 }
 
 void MDNSManager::resolvedLCCError(std::string err){
+    LOG4CXX_ERROR( logger, "Resolver had error: " << err );
+}
+
+void MDNSManager::signalLoconetNew(int32_t interface,
+                                int32_t protocol,
+                                std::string name,
+                                std::string type,
+                                std::string domain,
+                                uint32_t flags){
+    LOG4CXX_DEBUG_FMT( logger, "New Loconet over TCP!  name: {} type: {}", name, type );
+
+
+    LOG4CXX_DEBUG_FMT( logger, "Getting new resolver for {}:{}:{}", name, type, domain );
+    DBus::Path serviceResolverPath =
+            m_avahiServer->getorg_freedesktop_Avahi_ServerInterface()
+            ->ServiceResolverNew(-1, 0, name, type, domain, 0, 0 );
+
+    LOG4CXX_DEBUG_FMT( logger, "Service resolver path = {}", serviceResolverPath );
+    std::shared_ptr<Avahi::ServiceResolverProxy> newResolver =
+            Avahi::ServiceResolverProxy::create( m_connection, "org.freedesktop.Avahi", serviceResolverPath );
+    m_nameToResolver[ QString::fromStdString( name ) ] = newResolver;
+
+    newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
+            ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLoconetFound ) );
+    newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
+            ->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLoconetError ) );
+    //newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()->Start();
+
+}
+
+void MDNSManager::signalLoconetRemoved(int32_t interface,
+                                int32_t protocol,
+                                std::string name,
+                                std::string type,
+                                std::string domain,
+                                uint32_t flags){
+    LOG4CXX_DEBUG( logger, "Removed item!  name: " << name << " type: " << type );
+    QString nameAsQStr = QString::fromStdString( name );
+
+    Q_EMIT loconetServerLeft(nameAsQStr);
+}
+
+void MDNSManager::resolvedLoconetFound(int32_t interface,
+                        int32_t protocol,
+                        std::string name,
+                        std::string type,
+                        std::string domain,
+                        std::string host,
+                        int32_t aprotocol,
+                        std::string address,
+                        uint16_t port,
+                        std::vector<std::vector<uint8_t> > txt,
+                        uint32_t flags){
+    LOG4CXX_DEBUG( logger, "Found!  name: "
+                   << name
+                   << " type: "
+                   << type
+                   << " host: "
+                   << host
+                   << " address: "
+                   << address
+                   << " port: "
+                   << port );
+
+    Q_EMIT loconetServerFound(QString::fromStdString(name), QHostAddress(QString::fromStdString(address)), port);
+}
+
+void MDNSManager::resolvedLoconetError(std::string err){
     LOG4CXX_ERROR( logger, "Resolver had error: " << err );
 }

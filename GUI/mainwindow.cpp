@@ -5,6 +5,8 @@
 #include "lcc/lccmanager.h"
 #include "mdns/mdnsmanager.h"
 #include "lcctrafficmonitor.h"
+#include "loconet/loconetmanager.h"
+#include "loconet/loconetconnection.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -35,6 +37,10 @@ void MainWindow::setTrainUtilsState(TrainUtilsState* state){
             this, &MainWindow::lccServerFound);
     connect(m_state->mdnsManager, &MDNSManager::lccServerLeft,
             this, &MainWindow::lccServerLeft);
+    connect(m_state->mdnsManager, &MDNSManager::loconetServerFound,
+            this, &MainWindow::loconetServerFound);
+    connect(m_state->mdnsManager, &MDNSManager::loconetServerLeft,
+            this, &MainWindow::loconetServerLeft);
 }
 
 void MainWindow::on_actionExit_triggered()
@@ -126,6 +132,56 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
         LCCTrafficMonitor* trafficMonitor = new LCCTrafficMonitor(this);
         trafficMonitor->setLCCConnection(lccConn);
         DockWidget->setWidget(trafficMonitor);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+}
+
+void MainWindow::loconetServerFound(QString serviceName, QHostAddress address, uint16_t port){
+    QAction* before = nullptr;
+    for( QAction* action : ui->menu_loconet_connect_to->actions() ){
+        if(action->objectName().compare("action_loconet_serial_connections") == 0){
+            break;
+        }
+        before = action;
+    }
+
+    QAction* newAction = new QAction(serviceName, this);
+    newAction->setProperty( "traingui_servicename", serviceName );
+    newAction->setProperty( "traingui_address", address.toString() );
+    newAction->setProperty( "traingui_port", port );
+    connect(newAction, &QAction::triggered,
+            this, [newAction,this](){
+        connectToLoconetServer(newAction);
+    });
+    ui->menu_loconet_connect_to->insertAction(before, newAction);
+}
+
+void MainWindow::loconetServerLeft(QString serviceName){
+
+}
+
+void MainWindow::connectToLoconetServer(QAction* requestAction){
+    requestAction->deleteLater();
+    ui->menu_lcc_Connect_To->removeAction(requestAction);
+
+    QHostAddress addr(requestAction->property("traingui_address").toString());
+    uint16_t port = requestAction->property("traingui_port").toInt();
+    std::shared_ptr<LoconetConnection> conn = m_state->loconetManager->createNewNetworkLoconet(QString(), addr, port);
+    if(conn){
+        QMenu* menu = ui->menuLoconet->addMenu(conn->name());
+        addSubmenusLoconetConnection(menu, conn->name());
+    }
+}
+
+void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName){
+    QAction* action = parentMenu->addAction("Traffic Monitor");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Traffic Monitor").arg(loconetConn->name()));
+//        LCCTrafficMonitor* trafficMonitor = new LCCTrafficMonitor(this);
+//        trafficMonitor->setLCCConnection(lccConn);
+//        DockWidget->setWidget(trafficMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

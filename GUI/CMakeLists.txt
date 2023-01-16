@@ -33,6 +33,12 @@ set(PROJECT_SOURCES
         lcctrafficmonitor.cpp
         lcctrafficmonitor.h
         lcctrafficmonitor.ui
+        loconet/loconetmanager.cpp
+        loconet/loconetmanager.h
+        loconet/loconetconnection.cpp
+        loconet/loconetconnection.h
+        loconet/loconetnetworkconnection.cpp
+        loconet/loconetnetworkconnection.h
 )
 
 if(UNIX)
@@ -82,12 +88,16 @@ target_link_libraries(train-gui PRIVATE
     qtadvanceddocking
     ${train-required_LIBRARIES}
     lcc
+    loconet-tcp
+    loconet_utils
     fmt::fmt
 )
 target_include_directories(train-gui PRIVATE
     /usr/local/include/qtads
     ${train-required_INCLUDE_DIRS}
     ../LCC
+    ../LocoNetCommunications
+    ../LoconetTCPUtil
 )
 
 install(TARGETS train-gui

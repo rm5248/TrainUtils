@@ -6,6 +6,7 @@
 #include "trainutils_state.h"
 #include "lcc/lccmanager.h"
 #include "mdns/mdnsmanager.h"
+#include "loconet/loconetmanager.h"
 
 #include <log4cxx-qt/messagehandler.h>
 #include <log4cxx-qt/configuration.h>
@@ -25,6 +26,7 @@ int main(int argc, char *argv[])
 
     LCCManager lccManager;
     MDNSManager mdnsManager;
+    LoconetManager loconetManager;
 
     MainWindow w;
     w.show();
@@ -32,6 +34,7 @@ int main(int argc, char *argv[])
     TrainUtilsState programState;
     programState.lccManager = &lccManager;
     programState.mdnsManager = &mdnsManager;
+    programState.loconetManager = &loconetManager;
 
     w.setTrainUtilsState(&programState);
 

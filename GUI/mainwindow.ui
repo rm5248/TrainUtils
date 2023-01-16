@@ -33,6 +33,17 @@
     <property name="title">
      <string>Loconet</string>
     </property>
+    <widget class="QMenu" name="menu_loconet_connect_to">
+     <property name="title">
+      <string>Connect To ...</string>
+     </property>
+     <addaction name="action_loconet_manual_ip"/>
+     <addaction name="separator"/>
+     <addaction name="action_loconet_auto_discovered"/>
+     <addaction name="separator"/>
+     <addaction name="action_loconet_serial_connections"/>
+    </widget>
+    <addaction name="menu_loconet_connect_to"/>
    </widget>
    <widget class="QMenu" name="menuNCE">
     <property name="title">
@@ -80,6 +91,21 @@
   <action name="action_lcc_Manual_IP">
    <property name="text">
     <string>Manual IP</string>
+   </property>
+  </action>
+  <action name="action_loconet_manual_ip">
+   <property name="text">
+    <string>Manual IP</string>
+   </property>
+  </action>
+  <action name="action_loconet_auto_discovered">
+   <property name="text">
+    <string>Auto-Discovered:</string>
+   </property>
+  </action>
+  <action name="action_loconet_serial_connections">
+   <property name="text">
+    <string>Serial Connections:</string>
    </property>
   </action>
  </widget>

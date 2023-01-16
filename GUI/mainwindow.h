@@ -32,8 +32,13 @@ private Q_SLOTS:
     void lccServerLeft(QString serviceName);
     void connectToLCC(QAction* requestAction);
 
+    void loconetServerFound(QString serviceName, QHostAddress address, uint16_t port);
+    void loconetServerLeft(QString serviceName);
+    void connectToLoconetServer(QAction* requestAction);
+
 private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
+    void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
 
 private:
     Ui::MainWindow *ui;
