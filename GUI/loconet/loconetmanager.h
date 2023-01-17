@@ -43,6 +43,12 @@ public:
      */
     std::shared_ptr<LoconetConnection> getConnectionByName(QString connectionName);
 
+    /**
+     * Get a list of the available serial connections that we think are loconet connections.
+     *
+     * @return
+     */
+    QStringList getAvailableLocalSerialPortConnections();
 
 Q_SIGNALS:
 

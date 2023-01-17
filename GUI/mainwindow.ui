@@ -38,6 +38,7 @@
       <string>Connect To ...</string>
      </property>
      <addaction name="action_loconet_manual_ip"/>
+     <addaction name="action_loconet_manual_Serial"/>
      <addaction name="separator"/>
      <addaction name="action_loconet_auto_discovered"/>
      <addaction name="separator"/>
@@ -106,6 +107,11 @@
   <action name="action_loconet_serial_connections">
    <property name="text">
     <string>Serial Connections:</string>
+   </property>
+  </action>
+  <action name="action_loconet_manual_Serial">
+   <property name="text">
+    <string>Manual Serial</string>
    </property>
   </action>
  </widget>

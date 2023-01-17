@@ -24,6 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     m_dockManager = new ads::CDockManager(this);
+
+    connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
+            this, &MainWindow::scanForLoconetConnections);
 }
 
 MainWindow::~MainWindow()
@@ -158,7 +161,7 @@ void MainWindow::loconetServerFound(QString serviceName, QHostAddress address, u
 }
 
 void MainWindow::loconetServerLeft(QString serviceName){
-
+    // TODO remove from UI
 }
 
 void MainWindow::connectToLoconetServer(QAction* requestAction){
@@ -185,4 +188,29 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
         DockWidget->setWidget(trafficMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
+}
+
+void MainWindow::scanForLoconetConnections(){
+    // Remove all options in the list and re-populate
+    QList<QAction*> toRemove;
+    bool remove = false;
+    for(QAction* action : ui->menu_loconet_connect_to->actions()){
+        if(action->objectName().compare("action_loconet_serial_connections") == 0){
+            remove = true;
+            continue;
+        }
+
+        if(remove){
+            toRemove.push_back(action);
+        }
+    }
+
+    for(QAction* action : toRemove){
+        ui->menu_loconet_connect_to->removeAction(action);
+        action->deleteLater();
+    }
+
+    for(QString& str : m_state->loconetManager->getAvailableLocalSerialPortConnections()){
+        ui->menu_loconet_connect_to->addAction(str);
+    }
 }

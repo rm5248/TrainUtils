@@ -36,6 +36,8 @@ private Q_SLOTS:
     void loconetServerLeft(QString serviceName);
     void connectToLoconetServer(QAction* requestAction);
 
+    void scanForLoconetConnections();
+
 private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
