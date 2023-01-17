@@ -31,10 +31,10 @@ void LoconetTrafficMonitor::incomingRawData(QByteArray ba){
     QString data = "[";
 
     for(uint8_t byte : ba){
-        data += QString("%1 ").arg(byte, 2, 16);
+        data += QString("%1 ").arg(byte, 2, 16, QChar('0'));
     }
     data = data.trimmed();
-    data += "]\n";
+    data += "]";
 
     ui->loconetData->appendPlainText(data);
 }

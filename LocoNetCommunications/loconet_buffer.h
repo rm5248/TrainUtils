@@ -308,8 +308,9 @@ void ln_context_set_ignore_state( struct loconet_context* ctx, int ignore_state 
  * Read the next available message from the bus.
  * See: ln_incoming_byte for mutex instructions
  *
- * @return 1 if the message is valid, 0 if no message,
- * -1 if the checksum was bad(data will be discarded)
+ * @return >= 1 if the message is valid, 0 if no message,
+ * -1 if the checksum was bad(data will be discarded). If
+ * value is >= 1, that is the number of bytes in the message.
  */
 int ln_read_message( struct loconet_context* ctx, struct loconet_message* );
 

@@ -50,4 +50,15 @@ void LoconetSerialConnection::dataAvailable(){
     for(uint8_t byte : ba){
         ln_incoming_byte(m_locoContext, byte);
     }
+
+    int ret = ln_read_message(m_locoContext, &m_messageBuffer);
+    if(ret >= 1){
+        QByteArray ba;
+        ba.push_back(m_messageBuffer.opcode);
+        for(int x = 0; x < ret; x++){
+            ba.push_back(m_messageBuffer.data[x]);
+        }
+        Q_EMIT incomingLoconetMessage(m_messageBuffer);
+        Q_EMIT incomingRawPacket(ba);
+    }
 }

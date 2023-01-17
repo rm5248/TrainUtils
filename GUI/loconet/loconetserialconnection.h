@@ -6,6 +6,7 @@
 #include <QSerialPort>
 
 #include "loconetconnection.h"
+#include "loconet_buffer.h"
 
 class LoconetSerialConnection : public LoconetConnection
 {
@@ -24,6 +25,7 @@ private Q_SLOTS:
 
 private:
     QSerialPort m_serialPort;
+    loconet_message m_messageBuffer;
 };
 
 #endif // LOCONETSERIALCONNECTION_H

@@ -146,7 +146,7 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* messag
 				return -1;
 			}
             ln_remove_bytes( ctx, 2 );
-			return 1;
+            return 2;
 		}
 	}else if( workingByte == 0xA0 ){
 		// Four bytes, including checksum
@@ -166,7 +166,7 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* messag
 				return -1;
 			}else{
                 ln_remove_bytes( ctx, 4 );
-				return 1;
+                return 4;
 			}
 		}
 	}else if( workingByte == 0xC0 ){
@@ -189,7 +189,7 @@ printf( "six byte\n" );
 				return -1;
 			}else{
                 ln_remove_bytes( ctx, 6 );
-				return 1;
+                return 6;
 			}
 		}
 	}else if( workingByte == 0xE0 ){
@@ -233,7 +233,7 @@ printf( "six byte\n" );
                     ln_update_current_time( ctx, message );
                 }
 
-				return 1;
+                return 14;
             }else{
                 uint8_t numBytes = ctx->lnBuffer[ 1 ];
 
@@ -254,7 +254,7 @@ printf( "six byte\n" );
                 }
                 ln_remove_bytes( ctx, numBytes );
 
-                return 1;
+                return numBytes;
             }
 
 			return 0;
