@@ -9,8 +9,6 @@ vcpkg_extract_source_archive(
     SOURCE_PATH ARCHIVE "${ARCHIVE}"
     PATCHES
         expat.patch
-        threadutility.patch
-        linux.patch
 )
 
 vcpkg_cmake_configure(

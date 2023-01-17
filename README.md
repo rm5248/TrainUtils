@@ -30,7 +30,7 @@ Not all dependencies are available thru apt for debian/ubuntu based systems.  Su
 Configuration files for vcpkg are available, you can try those.
 
 ```
-cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=/home/robert/vcpkg/scripts/buildsystems/vcpkg.cmake -DBUILD_GUI=ON
 ```
 
 ## License:
