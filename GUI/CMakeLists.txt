@@ -39,6 +39,9 @@ set(PROJECT_SOURCES
         loconet/loconetconnection.h
         loconet/loconetnetworkconnection.cpp
         loconet/loconetnetworkconnection.h
+        loconettrafficmonitor.h
+        loconettrafficmonitor.cpp
+        loconettrafficmonitor.ui
 )
 
 if(UNIX)

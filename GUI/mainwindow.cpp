@@ -7,6 +7,7 @@
 #include "lcctrafficmonitor.h"
 #include "loconet/loconetmanager.h"
 #include "loconet/loconetconnection.h"
+#include "loconettrafficmonitor.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -179,9 +180,9 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
         ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Traffic Monitor").arg(loconetConn->name()));
-//        LCCTrafficMonitor* trafficMonitor = new LCCTrafficMonitor(this);
-//        trafficMonitor->setLCCConnection(lccConn);
-//        DockWidget->setWidget(trafficMonitor);
+        LoconetTrafficMonitor* trafficMonitor = new LoconetTrafficMonitor(this);
+        trafficMonitor->setLoconetConnection(loconetConn);
+        DockWidget->setWidget(trafficMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

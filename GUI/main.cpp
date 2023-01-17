@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    log4cxx::qt::Configuration::configureFromFileAndWatch({"/home/robert/TrainUtils/GUI"}, {"log4cxx.xml"});
+    log4cxx::qt::Configuration::configureFromFileAndWatch({"/home/robert/train-stuff/TrainUtils/GUI"}, {"log4cxx.xml"});
 
     qInstallMessageHandler(log4cxx::qt::messageHandler);
 
