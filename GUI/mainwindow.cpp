@@ -8,6 +8,7 @@
 #include "loconet/loconetmanager.h"
 #include "loconet/loconetconnection.h"
 #include "loconettrafficmonitor.h"
+#include "loconetslotmonitor.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -178,14 +179,25 @@ void MainWindow::connectToLoconetServer(QAction* requestAction){
 }
 
 void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName){
-    QAction* action = parentMenu->addAction("Traffic Monitor");
-    connect(action, &QAction::triggered,
+    QAction* actionTrafficMonitor = parentMenu->addAction("Traffic Monitor");
+    connect(actionTrafficMonitor, &QAction::triggered,
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
         ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Traffic Monitor").arg(loconetConn->name()));
         LoconetTrafficMonitor* trafficMonitor = new LoconetTrafficMonitor(this);
         trafficMonitor->setLoconetConnection(loconetConn);
         DockWidget->setWidget(trafficMonitor);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    QAction* actionSlotMonitor = parentMenu->addAction("Slot Monitor");
+    connect(actionSlotMonitor, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Slot Monitor").arg(loconetConn->name()));
+        LoconetSlotMonitor* slotMonitor = new LoconetSlotMonitor(this);
+        slotMonitor->setLoconetConnection(loconetConn);
+        DockWidget->setWidget(slotMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }
@@ -211,6 +223,18 @@ void MainWindow::scanForLoconetConnections(){
     }
 
     for(QString& str : m_state->loconetManager->getAvailableLocalSerialPortConnections()){
-        ui->menu_loconet_connect_to->addAction(str);
+        QAction* newAction = ui->menu_loconet_connect_to->addAction(str);
+        connect(newAction, &QAction::triggered,
+                [newAction,this](){
+            connectToLoconetSerial(newAction);
+        });
+    }
+}
+
+void MainWindow::connectToLoconetSerial(QAction* requestAction){
+    std::shared_ptr<LoconetConnection> conn = m_state->loconetManager->createNewLocalLoconet(QString(), requestAction->text());
+    if(conn){
+        QMenu* menu = ui->menuLoconet->addMenu(conn->name());
+        addSubmenusLoconetConnection(menu, conn->name());
     }
 }

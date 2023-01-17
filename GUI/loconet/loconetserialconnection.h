@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef LOCONETSERIALCONNECTION_H
+#define LOCONETSERIALCONNECTION_H
+
+#include <QObject>
+#include <QSerialPort>
+
+#include "loconetconnection.h"
+
+class LoconetSerialConnection : public LoconetConnection
+{
+    Q_OBJECT
+public:
+    explicit LoconetSerialConnection(QObject *parent = nullptr);
+
+    void setSerialPortName(QString port);
+
+    void writeData(QByteArray ba);
+
+Q_SIGNALS:
+
+private Q_SLOTS:
+    void dataAvailable();
+
+private:
+    QSerialPort m_serialPort;
+};
+
+#endif // LOCONETSERIALCONNECTION_H

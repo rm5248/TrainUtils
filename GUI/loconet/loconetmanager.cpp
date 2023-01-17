@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "loconetmanager.h"
 #include "loconetnetworkconnection.h"
+#include "loconetserialconnection.h"
 
 #include <QSerialPort>
 #include <QSerialPortInfo>
@@ -42,7 +43,14 @@ std::shared_ptr<LoconetConnection> LoconetManager::createNewLocalLoconet(QString
         return std::shared_ptr<LoconetConnection>();
     }
 
-    return std::shared_ptr<LoconetConnection>();
+    std::shared_ptr<LoconetSerialConnection> conn = std::make_shared<LoconetSerialConnection>();
+
+    conn->setName(connectionName);
+    conn->setSerialPortName(serialPort);
+
+    m_loconetConnections[connectionName] = conn;
+
+    return conn;
 }
 
 std::shared_ptr<LoconetConnection> LoconetManager::getConnectionByName(QString connectionName){

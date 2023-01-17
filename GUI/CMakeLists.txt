@@ -42,6 +42,13 @@ set(PROJECT_SOURCES
         loconettrafficmonitor.h
         loconettrafficmonitor.cpp
         loconettrafficmonitor.ui
+        loconetslotmonitor.h
+        loconetslotmonitor.cpp
+        loconetslotmonitor.ui
+        loconetslotmonitormodel.h
+        loconetslotmonitormodel.cpp
+        loconet/loconetserialconnection.h
+        loconet/loconetserialconnection.cpp
 )
 
 if(UNIX)

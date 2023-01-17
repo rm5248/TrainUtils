@@ -35,6 +35,7 @@ private Q_SLOTS:
     void loconetServerFound(QString serviceName, QHostAddress address, uint16_t port);
     void loconetServerLeft(QString serviceName);
     void connectToLoconetServer(QAction* requestAction);
+    void connectToLoconetSerial(QAction* requestAction);
 
     void scanForLoconetConnections();
 
