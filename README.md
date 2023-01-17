@@ -1,4 +1,4 @@
-# Cab bus / loconet utilities
+# Cab bus / Loconet / LCC utilities
 
 Directories here:
 
@@ -11,6 +11,9 @@ CabBusToLoconet.X - MPLABX project for PIC32.  Uses both CabBusCommunications
 CabBusToLoconetComputer - A Linux/Unix program which uses both 
  CabBusCommunications and LocoNetCommunications to do the conversions.
 Protocol - folder which contains protocol information for both LocoNet and the CabBus
+LCC - Contains LCC related code
+LoconetTCPUtil - Utilities related to using Loconet over TCP
+GUI - Train GUI that lets you do things
 
 ## Notes:
 * If you are using CabBusToLoconetComputer, make sure to set your latency timer to 1
