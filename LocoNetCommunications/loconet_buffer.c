@@ -87,6 +87,7 @@ struct loconet_context* ln_context_new_interlocked( lnWriteInterlockFn writeInte
     memset( newContext, 0, sizeof( struct loconet_context ) );
 
     newContext->writeInterlock = writeInterlock;
+    newContext->ignoreState = 1;
 
     return newContext;
 }
@@ -260,9 +261,21 @@ printf( "six byte\n" );
 			return 0;
 		}
 	}else{
-		// this must be bad data, discard it
-        ln_remove_bytes( ctx, 1 );
-printf( "got spurious data\n" );
+        // this must be bad data, discard until we find a
+        // byte that looks sane.
+        int numRemoved = 0;
+        workingByte = ctx->lnBuffer[ 0 ];
+        workingByte = workingByte & 0xE0;
+        while( workingByte != 0xE0 &&
+               workingByte != 0xC0 &&
+               workingByte != 0xA0 &&
+               workingByte != 0x80 ){
+            ln_remove_bytes( ctx, 1 );
+            workingByte = ctx->lnBuffer[ 0 ];
+            workingByte = workingByte & 0xE0;
+            numRemoved++;
+        }
+printf( "got spurious data: removed %d bytes\n", numRemoved );
 fflush(stdout);
 
 		return 0;

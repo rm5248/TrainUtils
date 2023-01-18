@@ -43,12 +43,12 @@ void LoconetNetworkConnection::incomingData(){
     }while(haveMessage == 1);
 }
 
-void LoconetNetworkConnection::writeData(QByteArray ba){
+void LoconetNetworkConnection::writeData(uint8_t* data, int len){
     if(m_socket.state() != QAbstractSocket::ConnectedState){
         return;
     }
 
-    m_socket.write(ba);
+    m_socket.write((const char*)data, len);
 }
 
 void LoconetNetworkConnection::writeDataTCP(uint8_t* data, int len){

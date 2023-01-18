@@ -16,7 +16,7 @@ public:
 
     void setSerialPortName(QString port);
 
-    void writeData(QByteArray ba);
+    void writeData(uint8_t* data, int len);
 
 Q_SIGNALS:
 

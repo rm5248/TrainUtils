@@ -38,9 +38,9 @@ void LoconetSerialConnection::setSerialPortName(QString port){
     }
 }
 
-void LoconetSerialConnection::writeData(QByteArray ba){
+void LoconetSerialConnection::writeData(uint8_t* data, int len){
     if(m_serialPort.isOpen()){
-        m_serialPort.write(ba);
+        m_serialPort.write((const char*)data, len);
     }
 }
 
@@ -52,7 +52,7 @@ void LoconetSerialConnection::dataAvailable(){
     }
 
     int ret = ln_read_message(m_locoContext, &m_messageBuffer);
-    if(ret >= 1){
+    while(ret >= 1){
         QByteArray ba;
         ba.push_back(m_messageBuffer.opcode);
         for(int x = 0; x < ret; x++){
@@ -60,5 +60,7 @@ void LoconetSerialConnection::dataAvailable(){
         }
         Q_EMIT incomingLoconetMessage(m_messageBuffer);
         Q_EMIT incomingRawPacket(ba);
+
+        ret = ln_read_message(m_locoContext, &m_messageBuffer);
     }
 }

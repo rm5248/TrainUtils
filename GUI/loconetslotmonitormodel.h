@@ -20,7 +20,22 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
+    void updateSlot(int slotNum, int address, int speed );
+    void updateSlotSpeed(int slotNum, int speed);
+
 private:
+    struct SlotData{
+        int address = 0;
+        int speed = 0;
+        int status = 0;
+        int use;
+        bool consisted = 0;
+        int throttle_id = 0;
+        QString direction;
+        bool functions[7] = {0};
+    };
+
+    std::array<SlotData,120> m_slotData;
 };
 
 #endif // LOCONETSLOTMONITORMODEL_H

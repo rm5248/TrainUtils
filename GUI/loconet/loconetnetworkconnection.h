@@ -25,7 +25,7 @@ private Q_SLOTS:
     void incomingData();
 
 protected:
-    void writeData(QByteArray ba);
+    void writeData(uint8_t* data, int len);
 
 private:
     void writeDataTCP(uint8_t* data, int len);

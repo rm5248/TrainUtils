@@ -6,6 +6,8 @@
 
 #include "loconetslotmonitormodel.h"
 
+#include "loconet_buffer.h"
+
 class LoconetConnection;
 
 namespace Ui {
@@ -21,6 +23,11 @@ public:
     ~LoconetSlotMonitor();
 
     void setLoconetConnection(std::shared_ptr<LoconetConnection> conn);
+
+private Q_SLOTS:
+    void incomingLoconetMessage(loconet_message msg);
+
+    void on_forceRefresh_clicked();
 
 private:
     Ui::LoconetSlotMonitor *ui;
