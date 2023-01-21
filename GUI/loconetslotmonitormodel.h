@@ -38,6 +38,7 @@ private:
         bool functions[7] = {0};
     };
 
+    // Note: slots 0-119 are for locos, 120-127 are for system/master control
     std::array<SlotData,120> m_slotData;
 };
 

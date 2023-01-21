@@ -37,6 +37,21 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wmissing-prototypes")
 endif()
 
+#set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+#    -fsanitize=address \
+#    -fsanitize=null \
+#    -fsanitize=return \
+#    -fsanitize=object-size \
+#    -fsanitize=bool \
+#    -fsanitize=enum" )
+#set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
+#    -fsanitize=address \
+#    -fsanitize=null \
+#    -fsanitize=return \
+#    -fsanitize=object-size \
+#    -fsanitize=bool \
+#    -fsanitize=enum" )
+
 add_subdirectory(CabBusCommunications)
 add_subdirectory(CabBusSniffer)
 add_subdirectory(LocoNetCommunications)

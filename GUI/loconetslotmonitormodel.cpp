@@ -125,6 +125,9 @@ QVariant LoconetSlotMonitorModel::data(const QModelIndex &index, int role) const
 }
 
 void LoconetSlotMonitorModel::updateSlot(int slotNum, int address, int speed, int status, loconet_slot_status use, int direction ){
+    if(slotNum < 0 || slotNum > m_slotData.size()){
+        return;
+    }
     m_slotData[slotNum].address = address;
     m_slotData[slotNum].speed = speed;
     m_slotData[slotNum].status = status;
