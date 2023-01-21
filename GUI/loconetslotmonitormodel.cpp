@@ -83,6 +83,12 @@ QVariant LoconetSlotMonitorModel::data(const QModelIndex &index, int role) const
     case 4:
         break;
     case 5:
+        switch(data.use){
+        case LN_SLOT_STATUS_FREE: return QVariant("Free");
+        case LN_SLOT_STATUS_COMMON: return QVariant("Common");
+        case LN_SLOT_STATUS_IDLE: return QVariant("Idle");
+        case LN_SLOT_STATUS_IN_USE: return QVariant("In use");
+        }
         break;
     case 6:
         break;
@@ -91,7 +97,7 @@ QVariant LoconetSlotMonitorModel::data(const QModelIndex &index, int role) const
     case 8:
         break;
     case 9:
-        break;
+        return data.direction;
     case 10:
         break;
     case 11:
@@ -118,9 +124,16 @@ QVariant LoconetSlotMonitorModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-void LoconetSlotMonitorModel::updateSlot(int slotNum, int address, int speed ){
+void LoconetSlotMonitorModel::updateSlot(int slotNum, int address, int speed, int status, loconet_slot_status use, int direction ){
     m_slotData[slotNum].address = address;
     m_slotData[slotNum].speed = speed;
+    m_slotData[slotNum].status = status;
+    m_slotData[slotNum].use = use;
+    if(direction == 1){
+        m_slotData[slotNum].direction = "FWD";
+    }else{
+        m_slotData[slotNum].direction = "REV";
+    }
 }
 
 void LoconetSlotMonitorModel::updateSlotSpeed(int slotNum, int speed){

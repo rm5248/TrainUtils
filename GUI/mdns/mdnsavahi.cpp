@@ -2,6 +2,8 @@
 #include "mdnsavahi.h"
 
 #include <log4cxx/logger.h>
+#include <QTimer>
+#include <fmt/format.h>
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.mdns.MDNSAvahi" );
 
@@ -62,11 +64,11 @@ void MDNSAvahi::initialize(){
     std::shared_ptr<Avahi::org_freedesktop_Avahi_ServiceBrowserProxy> proxyTmp =
             m_browserProxyLCC->getorg_freedesktop_Avahi_ServiceBrowserInterface();
 
-    proxyTmp->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::signalFailure) );
-    proxyTmp->signal_AllForNow()->connect( sigc::mem_fun( *this, &MDNSManager::signalAllForNow ) );
-    proxyTmp->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &MDNSManager::signalCacheExhausted ) );
-    proxyTmp->signal_ItemNew()->connect( sigc::mem_fun( *this, &MDNSManager::signalLCCNew ) );
-    proxyTmp->signal_ItemRemove()->connect( sigc::mem_fun( *this, &MDNSManager::signalLCCRemoved ) );
+    proxyTmp->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalFailure) );
+    proxyTmp->signal_AllForNow()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalAllForNow ) );
+    proxyTmp->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalCacheExhausted ) );
+    proxyTmp->signal_ItemNew()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalLCCNew ) );
+    proxyTmp->signal_ItemRemove()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalLCCRemoved ) );
 
     proxyTmp->Start();
 
@@ -80,11 +82,11 @@ void MDNSAvahi::initialize(){
     std::shared_ptr<Avahi::org_freedesktop_Avahi_ServiceBrowserProxy> proxyTmp2 =
             m_browserProxyLoconet->getorg_freedesktop_Avahi_ServiceBrowserInterface();
 
-    proxyTmp2->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::signalFailure) );
-    proxyTmp2->signal_AllForNow()->connect( sigc::mem_fun( *this, &MDNSManager::signalAllForNow ) );
-    proxyTmp2->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &MDNSManager::signalCacheExhausted ) );
-    proxyTmp2->signal_ItemNew()->connect( sigc::mem_fun( *this, &MDNSManager::signalLoconetNew ) );
-    proxyTmp2->signal_ItemRemove()->connect( sigc::mem_fun( *this, &MDNSManager::signalLoconetRemoved ) );
+    proxyTmp2->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalFailure) );
+    proxyTmp2->signal_AllForNow()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalAllForNow ) );
+    proxyTmp2->signal_CacheExhausted()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalCacheExhausted ) );
+    proxyTmp2->signal_ItemNew()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalLoconetNew ) );
+    proxyTmp2->signal_ItemRemove()->connect( sigc::mem_fun( *this, &MDNSAvahi::signalLoconetRemoved ) );
 
     proxyTmp2->Start();
 }
@@ -121,9 +123,9 @@ void MDNSAvahi::signalLCCNew(int32_t interface,
     m_nameToResolver[ QString::fromStdString( name ) ] = newResolver;
 
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
-            ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLCCFound ) );
+            ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLCCFound ) );
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
-            ->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLCCError ) );
+            ->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLCCError ) );
     //newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()->Start();
 
 }
@@ -189,9 +191,9 @@ void MDNSAvahi::signalLoconetNew(int32_t interface,
     m_nameToResolver[ QString::fromStdString( name ) ] = newResolver;
 
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
-            ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLoconetFound ) );
+            ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLoconetFound ) );
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
-            ->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSManager::resolvedLoconetError ) );
+            ->signal_Failure()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLoconetError ) );
     //newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()->Start();
 
 }

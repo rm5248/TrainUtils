@@ -5,6 +5,8 @@
 #include <QAbstractTableModel>
 #include <array>
 
+#include "loconet_buffer.h"
+
 class LoconetSlotMonitorModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -21,15 +23,15 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-    void updateSlot(int slotNum, int address, int speed );
+    void updateSlot(int slotNum, int address, int speed, int status, loconet_slot_status use, int direction );
     void updateSlotSpeed(int slotNum, int speed);
 
 private:
     struct SlotData{
         int address = 0;
         int speed = 0;
-        int status = 0;
-        int use;
+        int status = 0; // 128 step
+        loconet_slot_status use = LN_SLOT_STATUS_FREE;
         bool consisted = 0;
         int throttle_id = 0;
         QString direction;

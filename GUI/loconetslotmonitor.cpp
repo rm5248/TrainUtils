@@ -9,6 +9,10 @@ LoconetSlotMonitor::LoconetSlotMonitor(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->slotsTable->setModel(&m_tableModel);
+
+    for(int x = 0; x < m_tableModel.rowCount(); x++ ){
+        ui->slotsTable->hideRow(x);
+    }
 }
 
 LoconetSlotMonitor::~LoconetSlotMonitor()
@@ -29,11 +33,22 @@ void LoconetSlotMonitor::incomingLoconetMessage(loconet_message msg){
     if(msg.opcode == LN_OPC_SLOT_READ_DATA){
         // Update our model with the new data for the slot
         loconet_slot_data slot_data = msg.slot_data;
-        int slotStatus = LN_SLOT_STATUS(msg);
+        loconet_slot_status slotStatus = (loconet_slot_status)LN_SLOT_STATUS(msg);
         int addr = msg.slot_data.addr1 | (msg.slot_data.addr2 << 7);
         int slotNum = slot_data.slot;
 
-        m_tableModel.updateSlot(slotNum, addr, slot_data.speed);
+        m_tableModel.updateSlot(slotNum,
+                                addr,
+                                slot_data.speed,
+                                0,
+                                slotStatus,
+                                (slot_data.dir_funcs & (0x01 << 8)) ? 1 : 0);
+
+        if(slotStatus == LN_SLOT_STATUS_FREE){
+            ui->slotsTable->hideRow(slotNum);
+        }else{
+            ui->slotsTable->showRow(slotNum);
+        }
     }else if(msg.opcode == LN_OPC_LOCO_SPEED){
         m_tableModel.updateSlotSpeed(msg.speed.slot, msg.speed.speed);
     }
