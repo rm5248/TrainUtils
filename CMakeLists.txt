@@ -33,7 +33,9 @@ IF( UNIX )
     pkg_check_modules( CSERIAL REQUIRED cserial )
 ENDIF( UNIX )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wmissing-prototypes")
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wmissing-prototypes")
+endif()
 
 add_subdirectory(CabBusCommunications)
 add_subdirectory(CabBusSniffer)

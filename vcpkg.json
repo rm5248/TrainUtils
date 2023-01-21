@@ -21,6 +21,12 @@
       "name":"rm5248-cserial",
       "version>=": "0.3"
     },
-    "qt-advanced-docking-system"
+	"qt-advanced-docking-system"
+  ],
+  "overrides": [
+    {
+		"name" : "qt-advanced-docking-system",
+		"version" : "3.8.1#2"
+    }
   ]
 }

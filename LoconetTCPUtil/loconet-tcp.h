@@ -6,9 +6,15 @@
 #include <stddef.h>
 #include <vector>
 #include <memory>
-#include <experimental/propagate_const>
 #include <functional>
 #include <string>
+
+#ifndef _MSC_VER
+#include <experimental/propagate_const>
+#define LNTCP_PROPAGATE_CONST(x) std::experimental::propagate_const<x>
+#else
+#define LNTCP_PROPAGATE_CONST(x) x
+#endif
 
 struct loconet_context;
 
@@ -74,7 +80,7 @@ private:
 
 private:
     struct LoconetTCPPriv;
-    std::experimental::propagate_const<std::unique_ptr<LoconetTCPPriv>> m_priv;
+    LNTCP_PROPAGATE_CONST(std::unique_ptr<LoconetTCPPriv>) m_priv;
 };
 
 }

@@ -67,8 +67,22 @@ if(UNIX)
         mdns/avahi-dbus/ServiceResolverProxy.h
         mdns/avahi-dbus/org_freedesktop_Avahi_ServiceBrowserProxy.cpp
         mdns/avahi-dbus/ServerProxy.h
+
+        mdns/mdnsavahi.h
+        mdns/mdnsavahi.cpp
         )
+		
+	pkg_check_modules( train-required-dbus REQUIRED
+		dbus-cxx-qt-2.0
+	)
 endif(UNIX)
+
+if(WIN32)
+    set(PROJECT_SOURCES ${PROJECT_SOURCES}
+        mdns/mdnswindows.h
+        mdns/mdnswindows.cpp
+    )
+endif()
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui
@@ -86,21 +100,26 @@ else()
     endif()
 endif()
 
-pkg_check_modules( train-required REQUIRED
-    dbus-cxx-qt-2.0
-    liblog4cxx-qt>=1.0.0
-)
+#pkg_check_modules( train-required REQUIRED
+#    liblog4cxx-qt>=1.0.0
+#)
+find_package(log4cxx CONFIG REQUIRED)
+find_package(log4cxx-qt CONFIG REQUIRED)
+find_package(qtadvanceddocking CONFIG REQUIRED)
 
 target_link_libraries(train-gui PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::SerialPort
     Qt${QT_VERSION_MAJOR}::Network
-    qtadvanceddocking
+    ads::qtadvanceddocking
     ${train-required_LIBRARIES}
+    ${train-required-dbus_LIBRARIES}
     lcc
     loconet-tcp
     loconet_utils
     fmt::fmt
+    log4cxx
+    log4cxx-qt
 )
 target_include_directories(train-gui PRIVATE
     /usr/local/include/qtads

@@ -3,6 +3,7 @@
 #define LOCONETSLOTMONITORMODEL_H
 
 #include <QAbstractTableModel>
+#include <array>
 
 class LoconetSlotMonitorModel : public QAbstractTableModel
 {

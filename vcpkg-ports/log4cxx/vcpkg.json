@@ -5,6 +5,7 @@
   "homepage": "https://logging.apache.org/log4cxx",
   "license": "Apache-2.0",
   "supports": "!uwp",
+  "port-version": 1,
   "dependencies": [
     "apr",
     "apr-util",

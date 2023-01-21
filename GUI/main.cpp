@@ -12,6 +12,12 @@
 #include <log4cxx-qt/configuration.h>
 #include <log4cxx/logger.h>
 
+#if defined(Q_OS_WIN)
+#include "mdns/mdnswindows.h"
+#elif defined(Q_OS_LINUX)
+#include "mdns/mdnsavahi.h"
+#endif
+
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui" );
 
 int main(int argc, char *argv[])
@@ -25,18 +31,25 @@ int main(int argc, char *argv[])
     LOG4CXX_INFO(logger, "Train GUI starting up" );
 
     LCCManager lccManager;
-    MDNSManager mdnsManager;
     LoconetManager loconetManager;
+
+#if defined(Q_OS_WIN)
+    MDNSManager* mdnsManager = new MDNSWindows();
+#elif defined(Q_OS_LINUX)
+    MDNSManager* mdnsManager = new MDNSAvahi();
+#endif
 
     MainWindow w;
     w.show();
 
     TrainUtilsState programState;
     programState.lccManager = &lccManager;
-    programState.mdnsManager = &mdnsManager;
+    programState.mdnsManager = mdnsManager;
     programState.loconetManager = &loconetManager;
 
     w.setTrainUtilsState(&programState);
 
-    return a.exec();
+    int ret = a.exec();
+    delete mdnsManager;
+    return ret;
 }
