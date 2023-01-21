@@ -23,8 +23,17 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-    void updateSlot(int slotNum, int address, int speed, int status, loconet_slot_status use, int direction );
+    void updateSlot(int slotNum,
+                    int address,
+                    int speed,
+                    int status,
+                    loconet_slot_status use,
+                    int direction,
+                    bool functions[9],
+                    int throttleId );
     void updateSlotSpeed(int slotNum, int speed);
+    void updateSlotDirection(int slotNum, int direction);
+    void updateSlotFunction(int slotNum, int functionNum, bool on);
 
 private:
     struct SlotData{
@@ -35,7 +44,7 @@ private:
         bool consisted = 0;
         int throttle_id = 0;
         QString direction;
-        bool functions[7] = {0};
+        std::array<bool,9> functions = {0};
     };
 
     // Note: slots 0-119 are for locos, 120-127 are for system/master control

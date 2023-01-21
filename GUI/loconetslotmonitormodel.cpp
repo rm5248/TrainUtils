@@ -99,32 +99,37 @@ QVariant LoconetSlotMonitorModel::data(const QModelIndex &index, int role) const
     case 9:
         return data.direction;
     case 10:
-        break;
+        return data.functions[0];
     case 11:
-        break;
+        return data.functions[1];
     case 12:
-        break;
+        return data.functions[2];
     case 13:
-        break;
+        return data.functions[3];
     case 14:
-        break;
+        return data.functions[4];
     case 15:
-        break;
+        return data.functions[5];
     case 16:
-        break;
+        return data.functions[6];
     case 17:
-        break;
+        return data.functions[7];
     case 18:
-        break;
-    case 19:
-        break;
+        return data.functions[8];
     }
 
     // FIXME: Implement me!
     return QVariant();
 }
 
-void LoconetSlotMonitorModel::updateSlot(int slotNum, int address, int speed, int status, loconet_slot_status use, int direction ){
+void LoconetSlotMonitorModel::updateSlot(int slotNum,
+                                         int address,
+                                         int speed,
+                                         int status,
+                                         loconet_slot_status use,
+                                         int direction,
+                                         bool functions[8],
+                                         int throttleId ){
     if(slotNum < 0 || slotNum > m_slotData.size()){
         return;
     }
@@ -137,11 +142,50 @@ void LoconetSlotMonitorModel::updateSlot(int slotNum, int address, int speed, in
     }else{
         m_slotData[slotNum].direction = "REV";
     }
+    for( int x = 0; x < 8; x++ ){
+        m_slotData[slotNum].functions[x] = functions[x];
+    }
+    m_slotData[slotNum].throttle_id = throttleId;
+
+    Q_EMIT dataChanged(createIndex(slotNum, 0),
+                       createIndex(slotNum, 19));
 }
 
 void LoconetSlotMonitorModel::updateSlotSpeed(int slotNum, int speed){
+    if(slotNum < 0 || slotNum > m_slotData.size()){
+        return;
+    }
     m_slotData[slotNum].speed = speed;
 
     Q_EMIT dataChanged(createIndex(slotNum, 3),
                        createIndex(slotNum, 3));
+}
+
+void LoconetSlotMonitorModel::updateSlotDirection(int slotNum, int direction){
+    if(slotNum < 0 || slotNum > m_slotData.size()){
+        return;
+    }
+
+    if(direction == 1){
+        m_slotData[slotNum].direction = "FWD";
+    }else{
+        m_slotData[slotNum].direction = "REV";
+    }
+    Q_EMIT dataChanged(createIndex(slotNum, 9),
+                       createIndex(slotNum, 9));
+}
+
+void LoconetSlotMonitorModel::updateSlotFunction(int slotNum, int functionNum, bool on){
+    if(slotNum < 0 || slotNum > m_slotData.size()){
+        return;
+    }
+
+    if(functionNum < 0 || functionNum > 8){
+        return;
+    }
+
+    m_slotData[slotNum].functions[functionNum] = on;
+
+    Q_EMIT dataChanged(createIndex(slotNum, 9),
+                       createIndex(slotNum, 9));
 }
