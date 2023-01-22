@@ -35,3 +35,8 @@ uint64_t lcc_get_node_id_from_data(struct lcc_can_frame* frame){
 
     return ret;
 }
+
+void lcc_set_flags_and_dest_alias(struct lcc_can_frame* frame, int flag_frame, int alias){
+    frame->data[0] = (flag_frame << 4) | ((alias & 0xF00) >> 8);
+    frame->data[1] = (alias & 0xFF);
+}

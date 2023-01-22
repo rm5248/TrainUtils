@@ -61,6 +61,8 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     }
 
     if(mti & LCC_MTI_ADDRESSED){
+        // This is an addressed message.  If it is for us, we will attempt
+        // to handle it
         return lcc_handle_addressed(ctx, frame);
     }
 
@@ -206,4 +208,54 @@ void* lcc_context_user_data(struct lcc_context* ctx){
 int lcc_context_alias(struct lcc_context* ctx){
     if(ctx == NULL) return 0;
     return ctx->node_alias;
+}
+
+int lcc_context_set_simple_node_information(struct lcc_context* ctx,
+                                            const char* manufacturer_name,
+                                            const char* model_name,
+                                            const char* hw_version,
+                                            const char* sw_version){
+    if( !ctx ){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    int manufacturer_string_len = strlen(manufacturer_name);
+    int model_string_len = strlen(model_name);
+    int hardware_string_len =strlen(hw_version);
+    int software_string_len = strlen(sw_version);
+
+    if(strlen(manufacturer_name) > 40 ||
+            strlen(model_name) > 40 ||
+            strlen(hw_version) > 20 ||
+            strlen(sw_version) > 20){
+        return LCC_ERROR_STRING_TOO_LONG;
+    }
+
+    memcpy(ctx->manufacturer_name, manufacturer_name, manufacturer_string_len + 1);
+    memcpy(ctx->model_name, model_name, model_string_len + 1);
+    memcpy(ctx->hw_version, hw_version, hardware_string_len + 1);
+    memcpy(ctx->sw_version, sw_version, software_string_len + 1);
+
+    return LCC_OK;
+}
+
+int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
+                                                 const char* node_name,
+                                                 const char* node_description){
+    if( !ctx ){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    int node_name_len = strlen(node_name);
+    int node_description_len = strlen(node_description);
+
+    if(node_name_len > 62 ||
+            node_description_len > 63){
+        return LCC_ERROR_STRING_TOO_LONG;
+    }
+
+    memcpy(ctx->node_name, node_name, node_name_len + 1);
+    memcpy(ctx->node_description, node_description, node_description_len + 1);
+
+    return LCC_OK;
 }

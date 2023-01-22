@@ -31,6 +31,8 @@ typedef void(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
 #define LCC_ERROR_ALIAS_SET -4
 #define LCC_ERROR_ALIAS_FAILURE -5
 #define LCC_ERROR_BUFFER_SIZE_INCORRECT -6
+/** A string provided to a function is too long(see spec for more details) */
+#define LCC_ERROR_STRING_TOO_LONG -7
 
 /**
  * Struct used to pass frames to/from the library.
@@ -78,6 +80,9 @@ struct lcc_can_frame {
 
 #define LCC_MTI_PROTOCOL_SUPPORT_INQUIRE 0x828
 #define LCC_MTI_PROTOCOL_SUPPORT_REPLY 0x668
+
+#define LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST 0x0DE8
+#define LCC_MTI_SIMPLE_NODE_INFORMATION_REPLY 0x0A08
 
 #ifdef __cplusplus
 } /* extern C */

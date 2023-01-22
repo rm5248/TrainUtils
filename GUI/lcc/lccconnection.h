@@ -17,6 +17,14 @@ public:
     void setName(QString name);
     QString name() const;
 
+    void setSimpleNodeInformation(QString manufacturer,
+                                  QString model,
+                                  QString hwVersion,
+                                  QString swVersion);
+
+    void setSimpleNodeNameDescription(QString nodeName,
+                                      QString nodeDescription);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
 

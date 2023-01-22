@@ -2,6 +2,10 @@
 #include "lccmanager.h"
 #include "lccnetworkconnection.h"
 
+static void setHardcodedInformation(std::shared_ptr<LCCConnection> conn){
+    conn->setSimpleNodeInformation("TrainUtils", "TrainUtilsGUI", "0", "0");
+}
+
 LCCManager::LCCManager(QObject *parent) : QObject(parent)
 {
     m_nextConnNumber = 1;
@@ -19,6 +23,7 @@ std::shared_ptr<LCCConnection> LCCManager::createNewNetworkLCC(QString connectio
     std::shared_ptr<LCCNetworkConnection> newConn = std::make_shared<LCCNetworkConnection>();
     newConn->connectToRemote(addr, port);
     newConn->setName(connectionName);
+    setHardcodedInformation(newConn);
 
     m_lccConnections[connectionName] = newConn;
 

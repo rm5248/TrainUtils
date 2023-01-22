@@ -76,9 +76,50 @@ int lcc_context_claim_alias(struct lcc_context* ctx);
 
 void lcc_context_set_userdata(struct lcc_context* ctx, void* user_data);
 
+/**
+ * Get the user data from this context.
+ * @param ctx
+ * @return
+ */
 void* lcc_context_user_data(struct lcc_context* ctx);
 
+/**
+ * Get the current LCC alias of this context.
+ *
+ * @param ctx
+ * @return
+ */
 int lcc_context_alias(struct lcc_context* ctx);
+
+/**
+ * Set the four main parts of the simple node description, as defined by the simple node information protocol.
+ * The lcc_context does not take ownership of the strings(they must always be valid).
+ *
+ * @param ctx
+ * @param manufacturer_name
+ * @param model_name
+ * @param hw_version
+ * @param sw_version
+ * @return
+ */
+int lcc_context_set_simple_node_information(struct lcc_context* ctx,
+                                            const char* manufacturer_name,
+                                            const char* model_name,
+                                            const char* hw_version,
+                                            const char* sw_version);
+
+/**
+ * Set the node name and description, as defined by the simple node information protocol.
+ * The lcc_context does not take ownership of the strings(they must always be valid).
+ *
+ * @param ctx
+ * @param node_name
+ * @param node_description
+ * @return
+ */
+int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
+                                                 const char* node_name,
+                                                 const char* node_description);
 
 #ifdef __cplusplus
 } /* extern C */
