@@ -45,6 +45,7 @@
      <addaction name="action_loconet_serial_connections"/>
     </widget>
     <addaction name="menu_loconet_connect_to"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuNCE">
     <property name="title">
@@ -60,6 +61,7 @@
       <string>Connect To ...</string>
      </property>
      <addaction name="action_lcc_Manual_IP"/>
+     <addaction name="action_lcc_Manual_Serial"/>
      <addaction name="separator"/>
      <addaction name="action_lcc_Auto_discovered"/>
      <addaction name="separator"/>
@@ -110,6 +112,11 @@
    </property>
   </action>
   <action name="action_loconet_manual_Serial">
+   <property name="text">
+    <string>Manual Serial</string>
+   </property>
+  </action>
+  <action name="action_lcc_Manual_Serial">
    <property name="text">
     <string>Manual Serial</string>
    </property>

@@ -12,6 +12,7 @@
 
 #include <QInputDialog>
 #include <QHostAddress>
+#include <QSerialPortInfo>
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
 
@@ -238,3 +239,25 @@ void MainWindow::connectToLoconetSerial(QAction* requestAction){
         addSubmenusLoconetConnection(menu, conn->name());
     }
 }
+
+void MainWindow::on_action_lcc_Manual_Serial_triggered()
+{
+    QList<QSerialPortInfo> allInfos = QSerialPortInfo::availablePorts();
+    QStringList portNames;
+
+    for(QSerialPortInfo inf : allInfos){
+        portNames.push_back( inf.portName() );
+    }
+
+    QString serial = QInputDialog::getItem(this, "Select Serial Port", "Select LCC serial port", portNames );
+    if(serial.isNull() || serial.isEmpty()){
+        return;
+    }
+
+    std::shared_ptr<LCCConnection> conn = m_state->lccManager->createNewLocalLCC(QString(), serial);
+    if(conn){
+        QMenu* menu = ui->menuLCC->addMenu(conn->name());
+        addSubmenusLCCConnection(menu, conn->name());
+    }
+}
+

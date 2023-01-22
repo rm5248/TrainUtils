@@ -26,6 +26,15 @@ public:
     std::shared_ptr<LCCConnection> createNewNetworkLCC(QString connectionName, QHostAddress addr, uint16_t port);
 
     /**
+     * Create a new connection to a local LCC serial connection.
+     *
+     * @param connectionName
+     * @param serialPort
+     * @return
+     */
+    std::shared_ptr<LCCConnection> createNewLocalLCC(QString connectionName, QString serialPort);
+
+    /**
      * Get an LCC connection using the previously-specified name.  If the connection
      * name already exists, return an invalid shared pointer.
      *

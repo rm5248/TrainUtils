@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "lccmanager.h"
 #include "lccnetworkconnection.h"
+#include "lccserialconnection.h"
 
 static void setHardcodedInformation(std::shared_ptr<LCCConnection> conn){
     conn->setSimpleNodeInformation("TrainUtils", "TrainUtilsGUI", "0", "0");
@@ -22,6 +23,25 @@ std::shared_ptr<LCCConnection> LCCManager::createNewNetworkLCC(QString connectio
 
     std::shared_ptr<LCCNetworkConnection> newConn = std::make_shared<LCCNetworkConnection>();
     newConn->connectToRemote(addr, port);
+    newConn->setName(connectionName);
+    setHardcodedInformation(newConn);
+
+    m_lccConnections[connectionName] = newConn;
+
+    return newConn;
+}
+
+std::shared_ptr<LCCConnection> LCCManager::createNewLocalLCC(QString connectionName, QString serialPort){
+    if(connectionName.isNull() || connectionName.isEmpty()){
+        connectionName = QString("LCC%1").arg(m_nextConnNumber);
+        m_nextConnNumber++;
+    }
+    if(m_lccConnections.find(connectionName) != m_lccConnections.end()){
+        return std::shared_ptr<LCCConnection>();
+    }
+
+    std::shared_ptr<LCCSerialConnection> newConn = std::make_shared<LCCSerialConnection>();
+    newConn->connectToSerialPort(serialPort);
     newConn->setName(connectionName);
     setHardcodedInformation(newConn);
 

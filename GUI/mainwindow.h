@@ -39,6 +39,8 @@ private Q_SLOTS:
 
     void scanForLoconetConnections();
 
+    void on_action_lcc_Manual_Serial_triggered();
+
 private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);

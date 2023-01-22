@@ -28,6 +28,10 @@ set(PROJECT_SOURCES
         lcc/lccconnection.h
         lcc/lccnetworkconnection.cpp
         lcc/lccnetworkconnection.h
+        lcc/lccserialconnection.h
+        lcc/lccserialconnection.cpp
+        lcc/lccqioconnection.h
+        lcc/lccqioconnection.cpp
         mdns/mdnsmanager.cpp
         mdns/mdnsmanager.h
         lcctrafficmonitor.cpp
