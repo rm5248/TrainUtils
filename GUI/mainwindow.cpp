@@ -9,6 +9,7 @@
 #include "loconet/loconetconnection.h"
 #include "loconettrafficmonitor.h"
 #include "loconetslotmonitor.h"
+#include "systemconnectionstatuswidget.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -89,6 +90,7 @@ void MainWindow::on_action_lcc_Manual_IP_triggered()
     if(conn){
         QMenu* menu = ui->menuLCC->addMenu(conn->name());
         addSubmenusLCCConnection(menu, conn->name());
+        newConnectionMade(conn);
     }
 }
 
@@ -126,6 +128,7 @@ void MainWindow::connectToLCC(QAction* action){
     if(conn){
         QMenu* menu = ui->menuLCC->addMenu(conn->name());
         addSubmenusLCCConnection(menu, conn->name());
+        newConnectionMade(conn);
     }
 }
 
@@ -176,6 +179,7 @@ void MainWindow::connectToLoconetServer(QAction* requestAction){
     if(conn){
         QMenu* menu = ui->menuLoconet->addMenu(conn->name());
         addSubmenusLoconetConnection(menu, conn->name());
+        newConnectionMade(conn);
     }
 }
 
@@ -237,6 +241,7 @@ void MainWindow::connectToLoconetSerial(QAction* requestAction){
     if(conn){
         QMenu* menu = ui->menuLoconet->addMenu(conn->name());
         addSubmenusLoconetConnection(menu, conn->name());
+        newConnectionMade(conn);
     }
 }
 
@@ -258,6 +263,13 @@ void MainWindow::on_action_lcc_Manual_Serial_triggered()
     if(conn){
         QMenu* menu = ui->menuLCC->addMenu(conn->name());
         addSubmenusLCCConnection(menu, conn->name());
+        newConnectionMade(conn);
     }
+}
+
+void MainWindow::newConnectionMade(std::shared_ptr<SystemConnection> conn){
+    SystemConnectionStatusWidget* newStatusWidget = new SystemConnectionStatusWidget();
+    newStatusWidget->setSystemConnection(conn);
+    ui->statusbar->addPermanentWidget(newStatusWidget);
 }
 

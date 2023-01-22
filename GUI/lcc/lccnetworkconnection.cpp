@@ -32,7 +32,12 @@ void LCCNetworkConnection::stateChanged(QAbstractSocket::SocketState state){
     LOG4CXX_DEBUG_FMT(logger, "LCC socket state: {}", state);
 
     if(state == QAbstractSocket::ConnectedState){
+        connectedToSystem();
         generateAlias();
+    }else if(state == QAbstractSocket::UnconnectedState ||
+             state == QAbstractSocket::ClosingState){
+        // TODO we should probably try to reconnect if we become disconnected
+        disconnectedFromSystem();
     }
 }
 

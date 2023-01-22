@@ -28,6 +28,7 @@ void LCCSerialConnection::connectToSerialPort(QString serialPort){
         return;
     }
 
+    connectedToSystem();
     generateAlias();
 }
 

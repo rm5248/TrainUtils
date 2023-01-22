@@ -7,16 +7,14 @@
 #include <QQueue>
 
 #include "loconet_buffer.h"
+#include "../systemconnection.h"
 
-class LoconetConnection : public QObject
+class LoconetConnection : public SystemConnection
 {
     Q_OBJECT
 public:
     explicit LoconetConnection(QObject *parent = nullptr);
     ~LoconetConnection();
-
-    void setName(QString name);
-    QString name() const;
 
     void sendMessage(loconet_message msg);
 
@@ -34,7 +32,6 @@ private:
     static void writeCB( struct loconet_context* ctx, uint8_t* data, int len );
 
 protected:
-    QString m_name;
     struct loconet_context* m_locoContext;
 
 private:

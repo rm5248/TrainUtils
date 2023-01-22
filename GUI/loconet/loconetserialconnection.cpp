@@ -19,15 +19,6 @@ void LoconetSerialConnection::setSerialPortName(QString port){
         m_serialPort.close();
     }
 
-//    QSerialPortInfo infToOpen;
-
-//    for(QSerialPortInfo& inf : QSerialPortInfo::availablePorts()){
-//        if(inf.portName() == port){
-//            infToOpen = inf;
-//            break;
-//        }
-//    }
-
     m_serialPort.setPortName(port);
 
     if(!m_serialPort.open(QIODevice::ReadWrite)){
@@ -36,6 +27,8 @@ void LoconetSerialConnection::setSerialPortName(QString port){
                           m_serialPort.errorString().toStdString() );
         return;
     }
+
+    connectedToSystem();
 }
 
 void LoconetSerialConnection::writeData(uint8_t* data, int len){

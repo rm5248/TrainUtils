@@ -29,6 +29,9 @@ void LoconetNetworkConnection::stateChanged(QAbstractSocket::SocketState state){
     LOG4CXX_DEBUG_FMT(logger, "Loconet socket state: {}", state);
 
     if(state == QAbstractSocket::ConnectedState){
+        connectedToSystem();
+    }else if(state == QAbstractSocket::UnconnectedState){
+        disconnectedFromSystem();
     }
 }
 

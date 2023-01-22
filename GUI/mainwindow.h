@@ -6,6 +6,7 @@
 #include <QHostAddress>
 
 #include "DockManager.h"
+#include "systemconnection.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -44,6 +45,7 @@ private Q_SLOTS:
 private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
+    void newConnectionMade(std::shared_ptr<SystemConnection> conn);
 
 private:
     Ui::MainWindow *ui;

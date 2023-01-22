@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "lccconnection.h"
 
-LCCConnection::LCCConnection(QObject *parent) : QObject(parent)
+LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
 
@@ -11,14 +11,6 @@ LCCConnection::LCCConnection(QObject *parent) : QObject(parent)
 
 LCCConnection::~LCCConnection(){
     lcc_context_free(m_lcc);
-}
-
-void LCCConnection::setName(QString name){
-    m_name = name;
-}
-
-QString LCCConnection::name() const{
-    return m_name;
 }
 
 void LCCConnection::setSimpleNodeInformation(QString manufacturer,

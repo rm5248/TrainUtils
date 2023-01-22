@@ -5,17 +5,15 @@
 #include <QObject>
 
 #include "lcc.h"
+#include "../systemconnection.h"
 
-class LCCConnection : public QObject
+class LCCConnection : public SystemConnection
 {
     Q_OBJECT
 public:
     explicit LCCConnection(QObject *parent = nullptr);
 
     ~LCCConnection();
-
-    void setName(QString name);
-    QString name() const;
 
     void setSimpleNodeInformation(QString manufacturer,
                                   QString model,
@@ -29,7 +27,6 @@ Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
 
 protected:
-    QString m_name;
     struct lcc_context* m_lcc;
 };
 

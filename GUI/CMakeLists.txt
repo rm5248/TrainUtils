@@ -53,6 +53,11 @@ set(PROJECT_SOURCES
         loconetslotmonitormodel.cpp
         loconet/loconetserialconnection.h
         loconet/loconetserialconnection.cpp
+        systemconnection.h
+        systemconnection.cpp
+        systemconnectionstatuswidget.h
+        systemconnectionstatuswidget.cpp
+        systemconnectionstatuswidget.ui
 )
 
 if(UNIX)
