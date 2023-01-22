@@ -93,7 +93,7 @@ int lcc_context_alias(struct lcc_context* ctx);
 
 /**
  * Set the four main parts of the simple node description, as defined by the simple node information protocol.
- * The lcc_context does not take ownership of the strings(they must always be valid).
+ * The data is copied to internal memory.
  *
  * @param ctx
  * @param manufacturer_name
@@ -110,7 +110,7 @@ int lcc_context_set_simple_node_information(struct lcc_context* ctx,
 
 /**
  * Set the node name and description, as defined by the simple node information protocol.
- * The lcc_context does not take ownership of the strings(they must always be valid).
+ * The data is copied to internal memory.
  *
  * @param ctx
  * @param node_name
