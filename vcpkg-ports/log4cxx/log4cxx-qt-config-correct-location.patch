@@ -1,0 +1,31 @@
+From 56147528603ee6ff65a2ed91e315ec709a473725 Mon Sep 17 00:00:00 2001
+From: Robert Middleton <robert.middleton@rm5248.com>
+Date: Sat, 21 Jan 2023 12:02:35 -0500
+Subject: [PATCH] Put the log4cxx cmake files in the correct location
+
+---
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5503c3a4..7cab7484 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -175,7 +175,7 @@ install(FILES   "${CMAKE_CURRENT_BINARY_DIR}/log4cxxConfigVersion.cmake"
+ if(LOG4CXX_QT_SUPPORT)
+     install(EXPORT log4cxx-qtTargets
+       FILE        log4cxx-qtConfig.cmake
+-      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/log4cxx
++      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/log4cxx-qt
+     )
+     # Support for find_package(log4cxx 0.11) in consuming CMake projects
+     include(CMakePackageConfigHelpers)
+@@ -184,7 +184,7 @@ if(LOG4CXX_QT_SUPPORT)
+       COMPATIBILITY SameMinorVersion
+     )
+     install(FILES   "${CMAKE_CURRENT_BINARY_DIR}/log4cxx-qtConfigVersion.cmake"
+-      DESTINATION   ${CMAKE_INSTALL_LIBDIR}/cmake/log4cxx
++      DESTINATION   ${CMAKE_INSTALL_LIBDIR}/cmake/log4cxx-qt
+     )
+ endif(LOG4CXX_QT_SUPPORT)
+ 

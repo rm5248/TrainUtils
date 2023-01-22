@@ -9,6 +9,7 @@ vcpkg_extract_source_archive(
     SOURCE_PATH ARCHIVE "${ARCHIVE}"
     PATCHES
         expat.patch
+        log4cxx-qt-config-correct-location.patch
 )
 
 vcpkg_cmake_configure(
@@ -22,7 +23,8 @@ vcpkg_cmake_configure(
 vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 
-vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx)
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx DO_NOT_DELETE_PARENT_CONFIG_PATH)
+vcpkg_cmake_config_fixup(PACKAGE_NAME log4cxx-qt CONFIG_PATH lib/cmake/log4cxx-qt)
 
 if(VCPKG_TARGET_IS_LINUX OR VCPKG_TARGET_IS_OSX)
     vcpkg_fixup_pkgconfig()
