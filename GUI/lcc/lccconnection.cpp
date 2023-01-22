@@ -6,7 +6,7 @@ LCCConnection::LCCConnection(QObject *parent) : QObject(parent)
     m_lcc = lcc_context_new();
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
-    lcc_context_set_unique_identifer(m_lcc, 0x040000000001);
+    lcc_context_set_unique_identifer(m_lcc, 0x040032405001);
 }
 
 LCCConnection::~LCCConnection(){

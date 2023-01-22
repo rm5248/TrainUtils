@@ -192,6 +192,12 @@ int lcc_context_claim_alias(struct lcc_context* ctx){
     lcc_set_nodeid_in_data(&frame, ctx->unique_id);
     ctx->write_function(ctx, &frame);
 
+    // Send 'initialization complete' frame
+    lcc_set_lcb_variable_field(&frame, ctx, 0x100);
+    lcc_set_lcb_can_frame_type(&frame, 1);
+    lcc_set_nodeid_in_data(&frame, ctx->unique_id);
+    ctx->write_function(ctx, &frame);
+
     return LCC_OK;
 }
 
