@@ -273,3 +273,26 @@ void MainWindow::newConnectionMade(std::shared_ptr<SystemConnection> conn){
     ui->statusbar->addPermanentWidget(newStatusWidget);
 }
 
+
+void MainWindow::on_action_loconet_manual_Serial_triggered()
+{
+    QList<QSerialPortInfo> allInfos = QSerialPortInfo::availablePorts();
+    QStringList portNames;
+
+    for(QSerialPortInfo inf : allInfos){
+        portNames.push_back( inf.portName() );
+    }
+
+    QString serial = QInputDialog::getItem(this, "Select Serial Port", "Select Loconet serial port", portNames );
+    if(serial.isNull() || serial.isEmpty()){
+        return;
+    }
+
+    std::shared_ptr<LoconetConnection> conn = m_state->loconetManager->createNewLocalLoconet(QString(), serial);
+    if(conn){
+        QMenu* menu = ui->menuLoconet->addMenu(conn->name());
+        addSubmenusLoconetConnection(menu, conn->name());
+        newConnectionMade(conn);
+    }
+}
+
