@@ -1,7 +1,7 @@
 From 56147528603ee6ff65a2ed91e315ec709a473725 Mon Sep 17 00:00:00 2001
 From: Robert Middleton <robert.middleton@rm5248.com>
 Date: Sat, 21 Jan 2023 12:02:35 -0500
-Subject: [PATCH] Put the log4cxx cmake files in the correct location
+Subject: [PATCH 1/2] Put the log4cxx cmake files in the correct location
 
 ---
  CMakeLists.txt | 4 ++--
@@ -29,3 +29,34 @@ index 5503c3a4..7cab7484 100644
      )
  endif(LOG4CXX_QT_SUPPORT)
  
+
+From ec59a5416e4f30bfc7dff84c72c900e0dce73e5b Mon Sep 17 00:00:00 2001
+From: Robert Middleton <robert.middleton@rm5248.com>
+Date: Sun, 22 Jan 2023 20:08:23 -0500
+Subject: [PATCH 2/2] Export the messageHandler function
+
+---
+ src/main/include/log4cxx-qt/messagehandler.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/main/include/log4cxx-qt/messagehandler.h b/src/main/include/log4cxx-qt/messagehandler.h
+index 252bac8e..502e5652 100644
+--- a/src/main/include/log4cxx-qt/messagehandler.h
++++ b/src/main/include/log4cxx-qt/messagehandler.h
+@@ -19,6 +19,8 @@
+ 
+ #include <QString>
+ 
++#include "log4cxx/log4cxx.h"
++
+ namespace log4cxx
+ {
+ namespace qt
+@@ -34,6 +36,7 @@ namespace qt
+  * Note that similar to Qt, upon receipt of a fatal message this calls
+  * std::abort().
+  */
++LOG4CXX_EXPORT
+ void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message);
+ 
+ } /* namespace qt */
