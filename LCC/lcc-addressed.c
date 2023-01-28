@@ -26,10 +26,17 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     if(mti == LCC_MTI_PROTOCOL_SUPPORT_INQUIRE){
         // Respond with protocol support reply
-        ret_frame.can_len = 3;
+        // Note: JMRI does not like less than 8 bytes here, even though technically it is in-spec
+        // See: https://github.com/openlcb/OpenLCB_Java/issues/210
+        ret_frame.can_len = 8;
         ret_frame.data[0] = (sender & 0xFF00) >> 8;
         ret_frame.data[1] = (sender & 0x00FF);
-        ret_frame.data[2] = 0x80; // For now just say simple protocol
+        ret_frame.data[2] = 0x80 /* Simple protocol */ | 0x02 /* identification protocol */;
+        ret_frame.data[3] = 0x10; /* Simple node information */
+        ret_frame.data[4] = 0;
+        ret_frame.data[5] = 0;
+        ret_frame.data[6] = 0;
+        ret_frame.data[7] = 0;
         lcc_set_lcb_variable_field(&ret_frame, ctx, LCC_MTI_PROTOCOL_SUPPORT_REPLY | LCC_MTI_ADDRESSED);
         lcc_set_lcb_can_frame_type(&ret_frame, 1);
         ctx->write_function(ctx, &ret_frame);

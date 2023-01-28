@@ -11,7 +11,7 @@ int lcc_handle_simple_protocol(struct lcc_context* ctx, struct lcc_can_frame* fr
 
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
 
-    if((frame->can_id & LCC_MTI_SIMPLE) == 0){
+    if((mti & LCC_MTI_SIMPLE) == 0){
         // This is not a simple frame
         return LCC_ERROR_GENERIC;
     }
