@@ -23,8 +23,11 @@ public:
     void setSimpleNodeNameDescription(QString nodeName,
                                       QString nodeDescription);
 
+    void sendEvent(uint64_t event_id);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
+    void incomingEvent(uint64_t event_id);
 
 protected:
     struct lcc_context* m_lcc;

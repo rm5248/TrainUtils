@@ -58,6 +58,9 @@ set(PROJECT_SOURCES
         systemconnectionstatuswidget.h
         systemconnectionstatuswidget.cpp
         systemconnectionstatuswidget.ui
+        lcceventtransmit.h
+        lcceventtransmit.cpp
+        lcceventtransmit.ui
 )
 
 if(UNIX)

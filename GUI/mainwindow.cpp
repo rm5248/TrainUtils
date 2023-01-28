@@ -10,6 +10,7 @@
 #include "loconettrafficmonitor.h"
 #include "loconetslotmonitor.h"
 #include "systemconnectionstatuswidget.h"
+#include "lcceventtransmit.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -141,6 +142,17 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
         LCCTrafficMonitor* trafficMonitor = new LCCTrafficMonitor(this);
         trafficMonitor->setLCCConnection(lccConn);
         DockWidget->setWidget(trafficMonitor);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    action = parentMenu->addAction("Send Event");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LCCConnection> lccConn = m_state->lccManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Event Transmit").arg(lccConn->name()));
+        LCCEventTransmit* eventTransmit = new LCCEventTransmit(this);
+        eventTransmit->setLCCConnection(lccConn);
+        DockWidget->setWidget(eventTransmit);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

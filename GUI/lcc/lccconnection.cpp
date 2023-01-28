@@ -38,3 +38,7 @@ void LCCConnection::setSimpleNodeNameDescription(QString nodeName,
                                                  nameStd.c_str(),
                                                  descriptionStd.c_str());
 }
+
+void LCCConnection::sendEvent(uint64_t event_id){
+    lcc_context_produce_event(m_lcc, event_id);
+}
