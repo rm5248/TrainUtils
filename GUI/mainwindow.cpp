@@ -11,6 +11,7 @@
 #include "loconetslotmonitor.h"
 #include "systemconnectionstatuswidget.h"
 #include "lcceventtransmit.h"
+#include "lccnetworkview.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -153,6 +154,17 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
         LCCEventTransmit* eventTransmit = new LCCEventTransmit(this);
         eventTransmit->setLCCConnection(lccConn);
         DockWidget->setWidget(eventTransmit);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    action = parentMenu->addAction("Network View");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LCCConnection> lccConn = m_state->lccManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Network").arg(lccConn->name()));
+        LCCNetworkView* networkView = new LCCNetworkView(this);
+        networkView->setLCCConnection(lccConn);
+        DockWidget->setWidget(networkView);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

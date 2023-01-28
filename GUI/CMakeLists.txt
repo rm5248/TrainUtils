@@ -61,6 +61,12 @@ set(PROJECT_SOURCES
         lcceventtransmit.h
         lcceventtransmit.cpp
         lcceventtransmit.ui
+        lccnodeinformation.h
+        lccnodeinformation.cpp
+        lccnodeinformation.ui
+        lccnetworkview.h
+        lccnetworkview.cpp
+        lccnetworkview.ui
 )
 
 if(UNIX)
