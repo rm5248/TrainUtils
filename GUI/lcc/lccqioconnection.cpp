@@ -84,6 +84,7 @@ void LCCQIoConnection::gridconnectLCCFrameParsed(lcc_can_frame* frame){
 
     Q_EMIT incomingRawFrame(frame);
     lcc_context_incoming_frame(m_lcc, frame);
+    lcc_network_incoming_frame(m_lccNetwork, frame);
 }
 
 void LCCQIoConnection::updateQIODeviceConnections(){

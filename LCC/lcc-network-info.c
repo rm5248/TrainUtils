@@ -91,13 +91,18 @@ int lcc_network_incoming_frame(struct lcc_network_info* ctx, struct lcc_can_fram
     return LCC_OK;
 }
 
-int lcc_network_get_node_list(struct lcc_network_info* inf, struct lcc_node_info** node_list, int* node_list_len){
+int lcc_network_get_node_list(struct lcc_network_info* inf, struct lcc_node_info** node_list, int node_list_len){
     if(!inf || !node_list || !node_list_len) return LCC_ERROR_INVALID_ARG;
 
-    *node_list = inf->nodes.node_list;
-    *node_list_len = inf->nodes.len;
+    int x;
+    for(x = 0; x < inf->nodes.len; x++){
+        node_list[x] = &(inf->nodes.node_list[x]);
+        if(x > node_list_len){
+            break;
+        }
+    }
 
-    return LCC_OK;
+    return x;
 }
 
 int lcc_network_refresh_nodes(struct lcc_network_info* inf){

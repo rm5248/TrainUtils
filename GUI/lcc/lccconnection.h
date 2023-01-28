@@ -5,6 +5,7 @@
 #include <QObject>
 
 #include "lcc.h"
+#include "lcc-network-info.h"
 #include "../systemconnection.h"
 
 class LCCConnection : public SystemConnection
@@ -25,12 +26,18 @@ public:
 
     void sendEvent(uint64_t event_id);
 
+    void refreshNetwork();
+
+    struct lcc_node_info* lccNodeInfoForID(uint64_t node_id);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
     void incomingEvent(uint64_t event_id);
+    void newNodeDiscovered(uint64_t node_id);
 
 protected:
     struct lcc_context* m_lcc;
+    struct lcc_network_info* m_lccNetwork;
 };
 
 #endif // LCCCONNECTION_H

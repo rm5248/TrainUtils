@@ -28,20 +28,31 @@
    </property>
    <item row="0" column="0">
     <widget class="QSplitter" name="splitter">
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
-     </property>
-     <property name="lineWidth">
-      <number>1</number>
-     </property>
-     <property name="midLineWidth">
-      <number>5</number>
-     </property>
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
-     <widget class="QTableView" name="lccNetwork"/>
-     <widget class="LCCNodeInformation" name="selectedNode" native="true"/>
+     <widget class="QWidget" name="widget" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QTableView" name="lccNetwork"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="queryNetwork">
+         <property name="text">
+          <string>Refresh / Query Network</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="LCCNodeInformation" name="selectedNode" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>50</width>
+        <height>0</height>
+       </size>
+      </property>
+     </widget>
     </widget>
    </item>
   </layout>

@@ -29,11 +29,11 @@ int lcc_network_incoming_frame(struct lcc_network_info* inf, struct lcc_can_fram
  * Get a list of all nodes that we have seen on the network.
  *
  * @param inf The network info to get the node list for
- * @param node_list A pointer that will be filled in giving the start of the node list
+ * @param node_list A pointer to the start of an array of pointers that will be filled in
  * @param node_list_len A pointer that will be filled in with the number of nodes in the list
- * @return LCC status int
+ * @return The number of entries filled out in the node_list param, or negative error code
  */
-int lcc_network_get_node_list(struct lcc_network_info* inf, struct lcc_node_info** node_list, int* node_list_len);
+int lcc_network_get_node_list(struct lcc_network_info* inf, struct lcc_node_info** node_list, int node_list_len);
 
 /**
  * Refresh/re-build our network tree by sending a 'Verify Node ID Number Global' message.

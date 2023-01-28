@@ -129,6 +129,15 @@ struct lcc_simple_node_info {
 #define LCC_MTI_PRODUCER_IDENTIFIED_INVALID 0x0545
 #define LCC_MTI_PRODUCER_IDENTIFIED_UNKNOWN 0x0547
 
+/**
+ * Convert a node id to dotted format, putting the result in 'buffer'
+ *
+ * @param node_id The node ID to convert
+ * @param buffer Must be at least 18 bytes long
+ * @param buffer_len Must be at least 18 bytes long
+ */
+int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif

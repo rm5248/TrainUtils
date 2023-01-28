@@ -67,6 +67,8 @@ set(PROJECT_SOURCES
         lccnetworkview.h
         lccnetworkview.cpp
         lccnetworkview.ui
+        lccnetworktablemodel.h
+        lccnetworktablemodel.cpp
 )
 
 if(UNIX)

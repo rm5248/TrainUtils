@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "lcc.h"
 #include "lcc-common-internal.h"
@@ -341,6 +342,22 @@ int lcc_context_produce_event(struct lcc_context* ctx,
     lcc_set_lcb_can_frame_type(&frame, 1);
     lcc_set_eventid_in_data(&frame, event_id);
     ctx->write_function(ctx, &frame);
+
+    return LCC_OK;
+}
+
+int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len){
+    if(buffer_len < 20){
+        return LCC_ERROR_BUFFER_SIZE_INCORRECT;
+    }
+
+    snprintf(buffer, buffer_len, "%02X.%02X.%02X.%02X.%02X.%02X",
+             (int)((node_id & 0xFF0000000000l) >> 40) & 0xFF,
+             (int)((node_id & 0x00FF00000000l) >> 32) & 0xFF,
+             (int)((node_id & 0x0000FF000000l) >> 24) & 0xFF,
+             (int)((node_id & 0x000000FF0000l) >> 16) & 0xFF,
+             (int)((node_id & 0x00000000FF00l) >> 8) & 0xFF,
+             (int)((node_id & 0x0000000000FFl) >> 0) & 0xFF);
 
     return LCC_OK;
 }
