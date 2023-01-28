@@ -7,6 +7,7 @@
 int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
     uint16_t alias = (frame->data[0] << 8) | frame->data[1];
     if(alias != ctx->node_alias){
+        // This is not meant for us
         return LCC_OK;
     }
 
@@ -22,16 +23,16 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         lcc_set_nodeid_in_data(&ret_frame, ctx->unique_id);
         ctx->write_function(ctx, &ret_frame);
         return LCC_OK;
-    }
-
-    if(mti == LCC_MTI_PROTOCOL_SUPPORT_INQUIRE){
+    }else if(mti == LCC_MTI_PROTOCOL_SUPPORT_INQUIRE){
         // Respond with protocol support reply
         // Note: JMRI does not like less than 8 bytes here, even though technically it is in-spec
         // See: https://github.com/openlcb/OpenLCB_Java/issues/210
         ret_frame.can_len = 8;
         ret_frame.data[0] = (sender & 0xFF00) >> 8;
         ret_frame.data[1] = (sender & 0x00FF);
-        ret_frame.data[2] = 0x80 /* Simple protocol */ | 0x02 /* identification protocol */;
+        ret_frame.data[2] = 0x80 /* Simple protocol */
+                | 0x04 /* producer/consumer protocol */
+                | 0x02 /* identification protocol */;
         ret_frame.data[3] = 0x10; /* Simple node information */
         ret_frame.data[4] = 0;
         ret_frame.data[5] = 0;
@@ -41,9 +42,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         lcc_set_lcb_can_frame_type(&ret_frame, 1);
         ctx->write_function(ctx, &ret_frame);
         return LCC_OK;
-    }
-
-    if(mti == LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST){
+    }else if(mti == LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST){
         // Respond with our simple information
         char max_simple_data[1/*type*/
                 + 41/*manf. name*/
@@ -141,6 +140,8 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
             data_offset += 6;
         }
+    }else if(mti == LCC_MTI_EVENT_IDENTIFY){
+        return lcc_send_events_produced(ctx);
     }
 
     return LCC_OK;

@@ -15,11 +15,30 @@ struct lcc_context;
 
 struct lcc_can_frame;
 
+enum lcc_producer_state{
+    LCC_PRODUCER_VALID,
+    LCC_PRODUCER_INVALID,
+    LCC_PRODUCER_UNKNOWN
+};
+
 /**
  * A function that will be called in order to write the specified CAN frame out
  * to the bus in an implementation-specific manner
  */
 typedef void(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
+
+/**
+ * A function that will be called when an event that we are interested in comes in.
+ */
+typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint64_t event_id);
+
+/**
+ * A function that will be called when producers are being queried.  For the given event,
+ * give back an enum LCC_PRODUCER_<state> determinging what the current state of the event is.
+ *
+ * This is for the Identify Producer message, MTI 0x0914
+ */
+typedef enum lcc_producer_state(*lcc_query_producer_state_fn)(struct lcc_context* ctx, uint64_t event_id);
 
 /*
  * Error code definitions
@@ -33,6 +52,7 @@ typedef void(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
 #define LCC_ERROR_BUFFER_SIZE_INCORRECT -6
 /** A string provided to a function is too long(see spec for more details) */
 #define LCC_ERROR_STRING_TOO_LONG -7
+#define LCC_ERROR_EVENT_ID_INVALID -8
 
 /**
  * Struct used to pass frames to/from the library.
@@ -59,6 +79,7 @@ struct lcc_can_frame {
 #define LCC_MTI_TYPE_WITHIN_PRIORITY_MASK (0xF << 5)
 #define LCC_MTI_SIMPLE (0x01 << 4)
 #define LCC_MTI_ADDRESSED (0x01 << 3)
+#define LCC_MTI_EVENT_NUM_PRESENT (0x01 << 2)
 
 #define LCC_STATE_INHIBITED 1
 #define LCC_STATE_PERMITTED 0
@@ -83,6 +104,21 @@ struct lcc_can_frame {
 
 #define LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST 0x0DE8
 #define LCC_MTI_SIMPLE_NODE_INFORMATION_REPLY 0x0A08
+
+#define LCC_MTI_EVENT_IDENTIFY_CONSUMER 0x08F4
+#define LCC_MTI_EVENT_IDENTIFY_PRODUCER 0x0914
+#define LCC_MTI_EVENT_IDENTIFY_EVENTS_GLOBAL 0x0970
+#define LCC_MTI_EVENT_IDENTIFY 0x0968
+#define LCC_MTI_EVENT_LEARN_EVENT 0x594
+#define LCC_MTI_PRODUCER_CONSUMER_EVENT_REPORT 0x05B4
+
+#define LCC_MTI_CONSUMER_IDENTIFIED_VALID 0x04C4
+#define LCC_MTI_CONSUMER_IDENTIFIED_INVALID 0x04C5
+#define LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN 0x04C7
+
+#define LCC_MTI_PRODUCER_IDENTIFIED_VALID 0x0544
+#define LCC_MTI_PRODUCER_IDENTIFIED_INVALID 0x0545
+#define LCC_MTI_PRODUCER_IDENTIFIED_UNKNOWN 0x0547
 
 #ifdef __cplusplus
 } /* extern C */
