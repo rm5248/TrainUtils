@@ -22,6 +22,11 @@ add_library(lcc STATIC
     lcc-print.c
     lcc-gridconnect.c
     lcc-simple.c
+    lcc-network-info.h
+    lcc-network-info.c
+    lcc-node-info.h
+    lcc-node-info.c
+    lcc-network-internal.h
 )
 target_compile_definitions(lcc PRIVATE LIBLCC_BUILD)
 

@@ -67,6 +67,15 @@ struct lcc_can_frame {
         uint8_t data[8];
 };
 
+struct lcc_simple_node_info {
+    char manufacturer_name[41];
+    char model_name[41];
+    char hw_version[21];
+    char sw_version[21];
+    char node_name[63];
+    char node_description[64];
+};
+
 /*
  * Important bitmasks/fields
  */

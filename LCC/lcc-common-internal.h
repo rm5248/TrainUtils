@@ -31,12 +31,7 @@ struct lcc_context{
     void* user_data;
 
     // Simple node information
-    char manufacturer_name[41];
-    char model_name[41];
-    char hw_version[21];
-    char sw_version[21];
-    char node_name[63];
-    char node_description[64];
+    struct lcc_simple_node_info simple_info;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0

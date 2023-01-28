@@ -237,10 +237,10 @@ int lcc_context_set_simple_node_information(struct lcc_context* ctx,
         return LCC_ERROR_STRING_TOO_LONG;
     }
 
-    memcpy(ctx->manufacturer_name, manufacturer_name, manufacturer_string_len + 1);
-    memcpy(ctx->model_name, model_name, model_string_len + 1);
-    memcpy(ctx->hw_version, hw_version, hardware_string_len + 1);
-    memcpy(ctx->sw_version, sw_version, software_string_len + 1);
+    memcpy(ctx->simple_info.manufacturer_name, manufacturer_name, manufacturer_string_len + 1);
+    memcpy(ctx->simple_info.model_name, model_name, model_string_len + 1);
+    memcpy(ctx->simple_info.hw_version, hw_version, hardware_string_len + 1);
+    memcpy(ctx->simple_info.sw_version, sw_version, software_string_len + 1);
 
     return LCC_OK;
 }
@@ -260,8 +260,8 @@ int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
         return LCC_ERROR_STRING_TOO_LONG;
     }
 
-    memcpy(ctx->node_name, node_name, node_name_len + 1);
-    memcpy(ctx->node_description, node_description, node_description_len + 1);
+    memcpy(ctx->simple_info.node_name, node_name, node_name_len + 1);
+    memcpy(ctx->simple_info.node_description, node_description, node_description_len + 1);
 
     return LCC_OK;
 }
