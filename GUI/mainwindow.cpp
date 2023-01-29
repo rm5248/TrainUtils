@@ -12,6 +12,7 @@
 #include "systemconnectionstatuswidget.h"
 #include "lcceventtransmit.h"
 #include "lccnetworkview.h"
+#include "loconetswitchcontrol.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -227,6 +228,17 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
         LoconetSlotMonitor* slotMonitor = new LoconetSlotMonitor(this);
         slotMonitor->setLoconetConnection(loconetConn);
         DockWidget->setWidget(slotMonitor);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    QAction* actionSwitchControl = parentMenu->addAction("Switch Control");
+    connect(actionSwitchControl, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Slot Monitor").arg(loconetConn->name()));
+        LoconetSwitchControl* switchControl = new LoconetSwitchControl(this);
+        switchControl->setLoconetConnection(loconetConn);
+        DockWidget->setWidget(switchControl);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

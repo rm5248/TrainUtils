@@ -69,6 +69,9 @@ set(PROJECT_SOURCES
         lccnetworkview.ui
         lccnetworktablemodel.h
         lccnetworktablemodel.cpp
+        loconetswitchcontrol.h
+        loconetswitchcontrol.cpp
+        loconetswitchcontrol.ui
 )
 
 if(UNIX)

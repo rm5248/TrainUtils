@@ -7,10 +7,12 @@ set(PROJECT_NAME "Loconet Utils")
 set(headers
   loconet_buffer.h
   loconet_print.h
+  loconet_switch.h
 )
 add_library(loconet_utils STATIC
   loconet_buffer.c
   loconet_print.c
+  loconet_switch.c
   ${headers}
 )
 

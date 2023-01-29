@@ -7,6 +7,7 @@
 #include <QQueue>
 
 #include "loconet_buffer.h"
+#include "loconet_switch.h"
 #include "../systemconnection.h"
 
 class LoconetConnection : public SystemConnection
@@ -16,7 +17,14 @@ public:
     explicit LoconetConnection(QObject *parent = nullptr);
     ~LoconetConnection();
 
+    /**
+     * A generic 'send message' method.
+     * @param msg
+     */
     void sendMessage(loconet_message msg);
+
+    void throwSwitch(int switch_num);
+    void closeSwitch(int switch_num);
 
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
@@ -30,9 +38,12 @@ protected:
 
 private:
     static void writeCB( struct loconet_context* ctx, uint8_t* data, int len );
+    static void incomingLoconetCB(struct loconet_context* ctx, struct loconet_message* msg);
+    void incomingLoconet(struct loconet_message* msg);
 
 protected:
     struct loconet_context* m_locoContext;
+    struct loconet_switch_manager* m_switchManager;
 
 private:
     QQueue<loconet_message> m_sendQueue;

@@ -280,6 +280,9 @@ int loconet_context_process( struct loconet_context* ctx ){
                 workingByte = ctx->lnBuffer[ 0 ];
                 workingByte = workingByte & 0xE0;
                 numRemoved++;
+                if(ctx->lnBufferLocation == 0){
+                    break;
+                }
             }
         }
     }

@@ -254,6 +254,7 @@ struct loconet_context;
 #define LN_OK 0
 #define LN_ERROR_INVALID_ARG -1
 #define LN_ERROR_INVALID_CHECKSUM -2
+#define LN_ERROR_INVALID_SWITCH_NUM -3
 
 //
 // Function typedefs
