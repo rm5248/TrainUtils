@@ -8,6 +8,12 @@ static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_
     Q_EMIT conn->newNodeDiscovered(lcc_node_info_get_id(new_node));
 }
 
+static void node_updated_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_network_get_userdata(inf));
+
+    Q_EMIT conn->nodeInformationUpdated(lcc_node_info_get_id(new_node));
+}
+
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
@@ -18,6 +24,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 
     lcc_network_set_userdata(m_lccNetwork, this);
     lcc_network_set_new_node_callback(m_lccNetwork, new_node_cb);
+    lcc_network_set_node_changed_callback(m_lccNetwork, node_updated_cb);
 }
 
 LCCConnection::~LCCConnection(){

@@ -45,13 +45,23 @@
        </item>
       </layout>
      </widget>
-     <widget class="LCCNodeInformation" name="selectedNode" native="true">
-      <property name="minimumSize">
-       <size>
-        <width>50</width>
-        <height>0</height>
-       </size>
+     <widget class="QScrollArea" name="scrollArea">
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOff</enum>
       </property>
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="LCCNodeInformation" name="selectedNode">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>169</width>
+         <height>298</height>
+        </rect>
+       </property>
+      </widget>
      </widget>
     </widget>
    </item>

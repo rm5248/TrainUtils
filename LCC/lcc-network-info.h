@@ -11,7 +11,16 @@ struct lcc_context;
 struct lcc_can_frame;
 struct lcc_node_info;
 
+/**
+ * A callback that will be called when a new node is seen on the network
+ */
 typedef void(*lcc_discovered_new_node)(struct lcc_network_info* inf, struct lcc_node_info* new_node);
+
+/**
+ * A callback that will be called when information in the node is updated(e.g. events produced/consumed,
+ * simple node information, etc.)
+ */
+typedef void(*lcc_node_update)(struct lcc_network_info* inf, struct lcc_node_info* node);
 
 struct lcc_network_info* lcc_network_new(struct lcc_context* ctx);
 
@@ -53,6 +62,8 @@ int lcc_network_refresh_nodes(struct lcc_network_info* inf);
  * @return
  */
 int lcc_network_set_new_node_callback(struct lcc_network_info* inf, lcc_discovered_new_node fn);
+
+int lcc_network_set_node_changed_callback(struct lcc_network_info* inf, lcc_node_update fn);
 
 int lcc_network_set_userdata(struct lcc_network_info* inf, void* user_data);
 

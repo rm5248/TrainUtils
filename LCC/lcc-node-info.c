@@ -73,7 +73,7 @@ int lcc_node_refresh_simple_info(struct lcc_node_info* inf){
     struct lcc_can_frame frame;
     memset(&frame, 0, sizeof(frame));
 
-    lcc_set_lcb_variable_field(&frame, inf->parent_ctx, LCC_MTI_BASIC_VERIFY_NODE_ID_NUM_ADDRESSED | LCC_MTI_ADDRESSED);
+    lcc_set_lcb_variable_field(&frame, inf->parent_ctx, LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST | LCC_MTI_ADDRESSED);
     lcc_set_lcb_can_frame_type(&frame, 1);
     frame.can_len = 2;
     frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
@@ -91,6 +91,9 @@ int lcc_node_refresh_events_produced(struct lcc_node_info* inf){
 
     lcc_set_lcb_variable_field(&frame, inf->parent_ctx, LCC_MTI_EVENT_IDENTIFY_PRODUCER | LCC_MTI_ADDRESSED);
     lcc_set_lcb_can_frame_type(&frame, 1);
+    frame.can_len = 2;
+    frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
+    frame.data[1] = (inf->node_alias & 0x00FF);
 
     inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 
@@ -104,6 +107,25 @@ int lcc_node_refresh_events_consumed(struct lcc_node_info* inf){
 
     lcc_set_lcb_variable_field(&frame, inf->parent_ctx, LCC_MTI_EVENT_IDENTIFY_CONSUMER | LCC_MTI_ADDRESSED);
     lcc_set_lcb_can_frame_type(&frame, 1);
+    frame.can_len = 2;
+    frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
+    frame.data[1] = (inf->node_alias & 0x00FF);
+
+    inf->parent_ctx->write_function(inf->parent_ctx, &frame);
+
+    return LCC_OK;
+}
+
+int lcc_node_refresh_protocol_support(struct lcc_node_info* inf){
+    if(!inf) return LCC_ERROR_INVALID_ARG;
+    struct lcc_can_frame frame;
+    memset(&frame, 0, sizeof(frame));
+
+    lcc_set_lcb_variable_field(&frame, inf->parent_ctx, LCC_MTI_PROTOCOL_SUPPORT_INQUIRE | LCC_MTI_ADDRESSED);
+    lcc_set_lcb_can_frame_type(&frame, 1);
+    frame.can_len = 2;
+    frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
+    frame.data[1] = (inf->node_alias & 0x00FF);
 
     inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 

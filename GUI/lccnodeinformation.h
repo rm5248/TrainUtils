@@ -25,6 +25,11 @@ public:
 
 private Q_SLOTS:
     void newNodeFound(uint64_t node_id);
+    void nodeUpdated(uint64_t node_id);
+
+    void on_queryProtocolsSimpleNode_clicked();
+
+    void on_queryEventsProducedConsumed_clicked();
 
 private:
     void clearAllData();

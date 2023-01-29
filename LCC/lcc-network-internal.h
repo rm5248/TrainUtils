@@ -19,6 +19,8 @@ struct lcc_node_info{
     enum lcc_protocols protocol_list[20];
     struct lcc_simple_node_info simple_info;
     struct lcc_context* parent_ctx;
+    uint8_t rx_buffer[255];
+    int rx_buffer_location;
 };
 
 struct lcc_node_info* lcc_node_info_new(struct lcc_context* parent);

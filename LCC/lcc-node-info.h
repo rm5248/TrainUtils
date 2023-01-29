@@ -88,6 +88,8 @@ int lcc_node_refresh_events_produced(struct lcc_node_info* inf);
 
 int lcc_node_refresh_events_consumed(struct lcc_node_info* inf);
 
+int lcc_node_refresh_protocol_support(struct lcc_node_info* inf);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif

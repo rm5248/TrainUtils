@@ -34,6 +34,7 @@ Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
     void incomingEvent(uint64_t event_id);
     void newNodeDiscovered(uint64_t node_id);
+    void nodeInformationUpdated(uint64_t node_id);
 
 protected:
     struct lcc_context* m_lcc;
