@@ -25,7 +25,6 @@ private Q_SLOTS:
 
 private:
     QSerialPort m_serialPort;
-    loconet_message m_messageBuffer;
 };
 
 #endif // LOCONETSERIALCONNECTION_H

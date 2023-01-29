@@ -40,10 +40,7 @@ void LoconetNetworkConnection::incomingData(){
 
     m_loconetTCP.incomingData(data.data(), data.size());
 
-    int haveMessage;
-    do{
-         haveMessage = ln_read_message(m_loconetTCP.loconetContext(), &m_messageBuffer);
-    }while(haveMessage == 1);
+    loconet_context_process(m_loconetTCP.loconetContext());
 }
 
 void LoconetNetworkConnection::writeData(uint8_t* data, int len){

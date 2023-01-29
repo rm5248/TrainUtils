@@ -34,8 +34,8 @@ struct LoconetTCP::LoconetTCPPriv{
 
 LoconetTCP::LoconetTCP() :
     m_priv(std::make_unique<LoconetTCPPriv>()){
-    m_priv->m_context = ln_context_new_interlocked(LoconetTCP::writeInterlockFunction);
-    ln_set_user_data(m_priv->m_context, this);
+    m_priv->m_context = loconet_context_new_interlocked(LoconetTCP::writeInterlockFunction);
+    loconet_context_set_user_data(m_priv->m_context, this);
 }
 
 LoconetTCP::~LoconetTCP(){}
@@ -131,7 +131,7 @@ void LoconetTCP::handleReceivedData(const std::string &data_str){
 
     // Push data to the loconet context
     for( uint8_t byte : data ){
-        ln_incoming_byte( m_priv->m_context, byte );
+        loconet_context_incoming_byte( m_priv->m_context, byte );
     }
     if(m_priv->m_receiveCB){
         m_priv->m_receiveCB(data);
@@ -175,7 +175,7 @@ void LoconetTCP::setErrorLineCallback(std::function<void(std::string)> errorLine
 }
 
 void LoconetTCP::writeInterlockFunction( struct loconet_context* ctx, uint8_t* data, int len ){
-    LoconetTCP* tcp = static_cast<LoconetTCP*>(ln_user_data(ctx));
+    LoconetTCP* tcp = static_cast<LoconetTCP*>(loconet_context_user_data(ctx));
 
     if(tcp->m_priv->writeDataFun){
         tcp->m_priv->writeDataFun(data, len);

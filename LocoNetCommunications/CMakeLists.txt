@@ -11,6 +11,7 @@ set(headers
 add_library(loconet_utils STATIC
   loconet_buffer.c
   loconet_print.c
+  ${headers}
 )
 
 IF( UNIX )

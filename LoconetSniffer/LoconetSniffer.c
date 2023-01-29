@@ -45,7 +45,7 @@ static int loconet_read( c_serial_port_t* loconet_port ){
 	}
 
 	for( x = 0; x < buffer_size; x++ ){
-        ln_incoming_byte( lnContext, buffer[ x ] );
+        loconet_context_incoming_byte( lnContext, buffer[ x ] );
 	}
 
 	return 0;
@@ -150,9 +150,9 @@ int main( int argc, const char** argv ){
 	loconet_timer_fd = timerfd_create( CLOCK_REALTIME, 0 );
 
 	//initialize loconet
-    lnContext = ln_context_new( timerStart, loconet_write );
-    ln_context_set_ignore_state( lnContext, 1 );
-    ln_context_set_additional_delay( lnContext, 200 );
+    lnContext = loconet_context_new( timerStart, loconet_write );
+    loconet_context_set_ignore_state( lnContext, 1 );
+    loconet_context_set_additional_delay( lnContext, 200 );
 
 	//setup the FDs to poll
 	pollfds[ 0 ].fd = loconet_timer_fd;
@@ -172,7 +172,7 @@ int main( int argc, const char** argv ){
 
 		if( pollfds[ 0 ].revents & POLLIN ){
 			//the timer has expired
-            ln_timer_fired( lnContext );
+            loconet_context_timer_fired( lnContext );
 		}
 
 		if( pollfds[ 1 ].revents & POLLIN ){
@@ -180,12 +180,12 @@ int main( int argc, const char** argv ){
 			loconet_read( loconet_port );
 		}
 
-        if( ln_read_message( lnContext, &incomingMessage ) == 1 ){
-			if( doBinaryOutput ){
-				loconet_print_message_hex( binaryOutput, &incomingMessage );
-			}
-			loconet_print_message( textOutput, &incomingMessage );
-        }
+//        if( loconet_context_process( lnContext, &incomingMessage ) == 1 ){
+//			if( doBinaryOutput ){
+//				loconet_print_message_hex( binaryOutput, &incomingMessage );
+//			}
+//			loconet_print_message( textOutput, &incomingMessage );
+//        }
 		fflush( textOutput );
 		fflush( binaryOutput );
 	}

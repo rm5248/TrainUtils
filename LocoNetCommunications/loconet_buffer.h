@@ -15,9 +15,9 @@ extern "C" {
 //
 // Macro definitions
 //
-#define CHECK_BIT(number,bit)   (number & (0x1 << bit))
-#define SET_BIT(number, bit)    (number |= (0x1 << bit))
-#define CLEAR_BIT(number, bit)  (number &= (~(0x1 << bit)))
+#define LN_CHECK_BIT(number,bit)   (number & (0x1 << bit))
+#define LN_SET_BIT(number, bit)    (number |= (0x1 << bit))
+#define LN_CLEAR_BIT(number, bit)  (number &= (~(0x1 << bit)))
 
 //
 // Useful macros for setting various bits
@@ -27,9 +27,9 @@ extern "C" {
 //NOTE NOTE NOTE: the following two macros are REVERSED from what the
 //loconet spec says that they should be.  The spec says that bit 5 set
 //is forward, however the DT400 sends bit 5 set = reversed.
-#define LOCONET_SET_DIRECTION_REV(byte) SET_BIT(byte,5)
-#define LOCONET_SET_DIRECTION_FWD(byte) CLEAR_BIT(byte,5)
-#define LOCONET_GET_DIRECTION_REV(byte) CHECK_BIT(byte,5)
+#define LOCONET_SET_DIRECTION_REV(byte) LN_SET_BIT(byte,5)
+#define LOCONET_SET_DIRECTION_FWD(byte) LN_CLEAR_BIT(byte,5)
+#define LOCONET_GET_DIRECTION_REV(byte) LN_CHECK_BIT(byte,5)
 
 //
 // Struct Definitions
@@ -249,6 +249,13 @@ struct loconet_context;
 #define LN_SLOT_STATUS(LnMessage) ((LnMessage.slot_data.stat & ( 0x03 << 4 )) >> 4)
 
 //
+// Library errors
+//
+#define LN_OK 0
+#define LN_ERROR_INVALID_ARG -1
+#define LN_ERROR_INVALID_CHECKSUM -2
+
+//
 // Function typedefs
 //
 
@@ -258,61 +265,73 @@ struct loconet_context;
  * Note that this routine should modify whatever timer it creates,
  * instead of creating a new timer each time.  
  */
-typedef void (*lnTimerStartFn)( struct loconet_context* ctx, uint32_t );
+typedef void (*loconet_timer_start_function)( struct loconet_context* ctx, uint32_t );
 
 /**
  * This function is called to actually write a byte out to the bus.
  * This function should wait until the byte has actually been written
  */
-typedef void (*lnWriteFn)( struct loconet_context* ctx, uint8_t );
+typedef void (*loconet_write_byte_function)( struct loconet_context* ctx, uint8_t );
 
 /**
  * This function is called to write an entire block of data out to
  * loconet.  This is used when what you are interfacing with handles
  * the loconet collisions properly(e.g. PR3, PR4, LoconetTCP).
  */
-typedef void (*lnWriteInterlockFn)( struct loconet_context* ctx, uint8_t* data, int len );
+typedef void (*loconet_write_interlocked_function)( struct loconet_context* ctx, uint8_t* data, int len );
+
+/**
+ * This callback will be called when a message comes in from the loconet bus
+ */
+typedef void(*loconet_incoming_message)( struct loconet_context* ctx, struct loconet_message* message);
 
 //
 // Function Definitions
 //
 
 /**
- * Initialize a new LoconetContext
+ * Initialize a new loconet_context for low-level communications(e.g. bytes/bits are written out one at a time)
  *
  * @param timerStartFn A function which will start a timer
  * @param writeFn The function to call to write a byte out to the bus
  * @param additionalDelay How many more uS to wait before attempting network access
  */
-struct loconet_context* ln_context_new( lnTimerStartFn start, lnWriteFn write );
+struct loconet_context* loconet_context_new( loconet_timer_start_function start, loconet_write_byte_function write );
 
-struct loconet_context* ln_context_new_interlocked( lnWriteInterlockFn writeInterlock );
+/**
+ * Initialize a new loconet_context where writes are interlocked(meaning, you can send the bytes and no
+ * collision checking needs to happen).
+ *
+ * @param writeInterlock
+ * @return
+ */
+struct loconet_context* loconet_context_new_interlocked( loconet_write_interlocked_function writeInterlock );
 
-void ln_context_free( struct loconet_context* context );
+void loconet_context_free( struct loconet_context* context );
 
-void ln_context_set_additional_delay( struct loconet_context* ctx, uint8_t additionalDelay );
+void loconet_context_set_additional_delay( struct loconet_context* ctx, uint8_t additionalDelay );
+
+void loconet_context_set_message_callback(struct loconet_context* ctx, loconet_incoming_message callback_function );
 
 /**
  * Set if we should ignore the state or not.
  *
  * If you are running on a system where you are directly connected to the Loconet bus,
  * don't set this.  Ignoring the state is fine if there is already a device which will
- * handle the backoff stuff(e.g. a PR3)
+ * handle the backoff stuff(e.g. a PR3).
+ *
+ * This is automatically set when creating a loconet_context with loconet_context_new_interlocked
  *
  * @param ctx
  * @param ignore_state
  */
-void ln_context_set_ignore_state( struct loconet_context* ctx, int ignore_state );
+void loconet_context_set_ignore_state( struct loconet_context* ctx, int ignore_state );
 
 /**
- * Read the next available message from the bus.
- * See: ln_incoming_byte for mutex instructions
- *
- * @return >= 1 if the message is valid, 0 if no message,
- * -1 if the checksum was bad(data will be discarded). If
- * value is >= 1, that is the number of bytes in the message.
+ * Process the bytes in our buffer.
+ * This should be called after adding bytes with loconet_incoming_byte or loconet_incoming_bytes.
  */
-int ln_read_message( struct loconet_context* ctx, struct loconet_message* );
+int loconet_context_process( struct loconet_context* ctx );
 
 /**
  * Write a message to the bus.  Will not return until the message
@@ -320,17 +339,17 @@ int ln_read_message( struct loconet_context* ctx, struct loconet_message* );
  *
  * @return 1 on success, 0 otherwise
  */
-int ln_write_message( struct loconet_context* ctx, struct loconet_message* );
+int loconet_context_write_message( struct loconet_context* ctx, struct loconet_message* );
 
 /**
  * Get the state of loconet
  */
-enum loconet_state ln_get_state( struct loconet_context* ctx );
+enum loconet_state loconet_context_get_state( struct loconet_context* ctx );
 
 /**
  * Call this when the timer fires
  */
-void ln_timer_fired( struct loconet_context* ctx );
+void loconet_context_timer_fired( struct loconet_context* ctx );
 
 /**
  * Call this when a new byte comes in.
@@ -339,7 +358,17 @@ void ln_timer_fired( struct loconet_context* ctx );
  * you must properly mutex your calls to 
  * ln_incoming_byte and ln_read_message
  */
-void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte );
+void loconet_context_incoming_byte( struct loconet_context* ctx, uint8_t byte );
+
+/**
+ * Call this with new bytes that have been received over Loconet.
+ *
+ * @param ctx
+ * @param bytes
+ * @param bytes_len
+ * @return
+ */
+int loconet_context_incoming_bytes( struct loconet_context* ctx, void* bytes, int bytes_len );
 
 /**
  * Get the current loconet time.
@@ -347,11 +376,19 @@ void ln_incoming_byte( struct loconet_context* ctx, uint8_t byte );
  * @param ctx
  * @return
  */
-struct loconet_time ln_current_time( struct loconet_context* ctx );
+struct loconet_time loconet_context_current_time( struct loconet_context* ctx );
 
-void* ln_user_data( struct loconet_context* ctx );
+void* loconet_context_user_data( struct loconet_context* ctx );
 
-void ln_set_user_data( struct loconet_context* ctx, void* user_data );
+void loconet_context_set_user_data( struct loconet_context* ctx, void* user_data );
+
+/**
+ * Helper function to get how long the message is(in bytes).
+ *
+ * @param msg
+ * @return
+ */
+int loconet_message_length( struct loconet_message* msg );
 
 #ifdef	__cplusplus
 }
