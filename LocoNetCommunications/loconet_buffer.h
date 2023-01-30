@@ -255,6 +255,9 @@ struct loconet_context;
 #define LN_ERROR_INVALID_ARG -1
 #define LN_ERROR_INVALID_CHECKSUM -2
 #define LN_ERROR_INVALID_SWITCH_NUM -3
+#define LN_ERROR_LOCO_ALREADY_SELECTED -4
+#define LN_ERROR_INVALID_LOCO_NUMBER -5
+#define LN_ERROR_NO_LOCO_SELECTED -6
 
 //
 // Function typedefs
