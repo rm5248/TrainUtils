@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define LOCONET_TURNOUT_FLAG_OUTPUT_ON_ONLY (0x01 << 0)
+
 enum loconet_turnout_status {
     LOCONET_SWITCH_UNKNOWN,
     LOCONET_SWITCH_THROWN,
@@ -28,18 +30,20 @@ int loconet_turnout_manager_incoming_message(struct loconet_turnout_manager* man
  *
  * @param manager
  * @param switch_num
+ * @param flags Flags to use when throwing the switch.
  * @return
  */
-int loconet_turnout_manager_throw(struct loconet_turnout_manager* manager, int switch_num);
+int loconet_turnout_manager_throw(struct loconet_turnout_manager* manager, int switch_num, int flags);
 
 /**
  * Close the switch(switch numbers start at 1)
  *
  * @param manager
  * @param switch_num
+ * @param flags Flags to use when closing the switch
  * @return
  */
-int loconet_turnout_manager_close(struct loconet_turnout_manager* manager, int switch_num);
+int loconet_turnout_manager_close(struct loconet_turnout_manager* manager, int switch_num, int flags);
 
 int loconet_turnout_manager_set_turnout_state_changed_callback(struct loconet_turnout_manager* manager, loconet_turnout_changed_function fn);
 

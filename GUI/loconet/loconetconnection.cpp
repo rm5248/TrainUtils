@@ -72,9 +72,9 @@ void LoconetConnection::incomingLoconet(struct loconet_message *msg){
 }
 
 void LoconetConnection::throwTurnout(int switch_num){
-    loconet_turnout_manager_throw(m_switchManager, switch_num);
+    loconet_turnout_manager_throw(m_switchManager, switch_num, 0);
 }
 
 void LoconetConnection::closeTurnout(int switch_num){
-    loconet_turnout_manager_close(m_switchManager, switch_num);
+    loconet_turnout_manager_close(m_switchManager, switch_num, 0);
 }

@@ -26,7 +26,7 @@ void LoconetSwitchControl::on_throwButton_clicked()
     if(!num){
         return;
     }
-    m_conn->throwSwitch(num);
+    m_conn->throwTurnout(num);
 }
 
 
@@ -37,6 +37,6 @@ void LoconetSwitchControl::on_closeButton_clicked()
     if(!num){
         return;
     }
-    m_conn->closeSwitch(num);
+    m_conn->closeTurnout(num);
 }
 

@@ -62,7 +62,7 @@ int loconet_turnout_manager_incoming_message(struct loconet_turnout_manager* man
     return LN_OK;
 }
 
-int loconet_turnout_manager_throw(struct loconet_turnout_manager* manager, int switch_num){
+int loconet_turnout_manager_throw(struct loconet_turnout_manager* manager, int switch_num, int flags){
     struct loconet_message msg;
 
     if(switch_num > 2048 || switch_num < 1){
@@ -84,13 +84,15 @@ int loconet_turnout_manager_throw(struct loconet_turnout_manager* manager, int s
 
     loconet_context_write_message(manager->parent, &msg);
 
-    msg.req_switch.sw2 &= ~(0x01 << 4); /* output off */
-    loconet_context_write_message(manager->parent, &msg);
+    if(flags & LOCONET_TURNOUT_FLAG_OUTPUT_ON_ONLY){
+        msg.req_switch.sw2 &= ~(0x01 << 4); /* output off */
+        loconet_context_write_message(manager->parent, &msg);
+    }
 
     return LN_OK;
 }
 
-int loconet_turnout_manager_close(struct loconet_turnout_manager* manager, int switch_num){
+int loconet_turnout_manager_close(struct loconet_turnout_manager* manager, int switch_num, int flags){
     struct loconet_message msg;
 
     if(switch_num > 2048 || switch_num < 1){
@@ -105,8 +107,10 @@ int loconet_turnout_manager_close(struct loconet_turnout_manager* manager, int s
 
     loconet_context_write_message(manager->parent, &msg);
 
-    msg.req_switch.sw2 &= ~(0x01 << 4); /* output off */
-    loconet_context_write_message(manager->parent, &msg);
+    if(flags & LOCONET_TURNOUT_FLAG_OUTPUT_ON_ONLY){
+        msg.req_switch.sw2 &= ~(0x01 << 4); /* output off */
+        loconet_context_write_message(manager->parent, &msg);
+    }
 
     return LN_OK;
 }
