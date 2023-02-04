@@ -6,8 +6,8 @@
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.loconet.LoconetConnection" );
 
-static void LoconetConnectionSwitchChangedCB(struct loconet_switch_manager* manager, int switch_num, enum loconet_switch_state_status state){
-    LoconetConnection* conn = static_cast<LoconetConnection*>(loconet_switch_manager_userdata(manager));
+static void LoconetConnectionSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state){
+    LoconetConnection* conn = static_cast<LoconetConnection*>(loconet_turnout_manager_userdata(manager));
 
     LOG4CXX_DEBUG_FMT(logger, "switch {} is {}", switch_num, state == LOCONET_SWITCH_THROWN ? "thrown" : "closed");
 }
@@ -18,9 +18,9 @@ LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)
     loconet_context_set_user_data(m_locoContext, this);
     loconet_context_set_message_callback(m_locoContext, LoconetConnection::incomingLoconetCB);
 
-    m_switchManager = loconet_switch_manager_new(m_locoContext);
-    loconet_switch_manager_set_userdata(m_switchManager, this);
-    loconet_switch_manager_set_switch_state_changed_callback(m_switchManager, LoconetConnectionSwitchChangedCB);
+    m_switchManager = loconet_turnout_manager_new(m_locoContext);
+    loconet_turnout_manager_set_userdata(m_switchManager, this);
+    loconet_turnout_manager_set_turnout_state_changed_callback(m_switchManager, LoconetConnectionSwitchChangedCB);
 
     m_sendTimer.start(50);
 
@@ -68,13 +68,13 @@ void LoconetConnection::incomingLoconet(struct loconet_message *msg){
 
     Q_EMIT incomingLoconetMessage(new_message);
     Q_EMIT incomingRawPacket(ba);
-    loconet_switch_manager_incoming_message(m_switchManager, msg);
+    loconet_turnout_manager_incoming_message(m_switchManager, msg);
 }
 
-void LoconetConnection::throwSwitch(int switch_num){
-    loconet_switch_manager_throw_switch(m_switchManager, switch_num);
+void LoconetConnection::throwTurnout(int switch_num){
+    loconet_turnout_manager_throw(m_switchManager, switch_num);
 }
 
-void LoconetConnection::closeSwitch(int switch_num){
-    loconet_switch_manager_close_switch(m_switchManager, switch_num);
+void LoconetConnection::closeTurnout(int switch_num){
+    loconet_turnout_manager_close(m_switchManager, switch_num);
 }

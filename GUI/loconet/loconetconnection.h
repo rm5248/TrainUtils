@@ -7,7 +7,7 @@
 #include <QQueue>
 
 #include "loconet_buffer.h"
-#include "loconet_switch.h"
+#include "loconet_turnout.h"
 #include "../systemconnection.h"
 
 class LoconetConnection : public SystemConnection
@@ -23,8 +23,8 @@ public:
      */
     void sendMessage(loconet_message msg);
 
-    void throwSwitch(int switch_num);
-    void closeSwitch(int switch_num);
+    void throwTurnout(int switch_num);
+    void closeTurnout(int switch_num);
 
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
@@ -43,7 +43,7 @@ private:
 
 protected:
     struct loconet_context* m_locoContext;
-    struct loconet_switch_manager* m_switchManager;
+    struct loconet_turnout_manager* m_switchManager;
 
 private:
     QQueue<loconet_message> m_sendQueue;
