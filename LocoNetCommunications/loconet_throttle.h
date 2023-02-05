@@ -108,6 +108,25 @@ int loconet_throttle_dispatch(struct loconet_throttle* throttle);
 
 int loconet_throttle_get_locomotive_number(struct loconet_throttle* throttle);
 
+/**
+ * Set the direction.
+ *
+ * @param throttle
+ * @param direction 1 = forward, 0 = reverse
+ * @return
+ */
+int loconet_throttle_set_direction(struct loconet_throttle* throttle, int direction);
+
+/**
+ * Get the state of the given function on the throttle.  The state will be 0(for off) or 1(for on),
+ * or a negative error value.
+ *
+ * @param throttle
+ * @param function
+ * @return
+ */
+int loconet_throttle_get_function_state(struct loconet_throttle* throttle, int function);
+
 int loconet_throttle_set_userdata(struct loconet_throttle* throttle, void* user_data);
 
 void* loconet_throttle_userdata(struct loconet_throttle* throttle);

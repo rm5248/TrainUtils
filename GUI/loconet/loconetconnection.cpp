@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "loconetconnection.h"
+#include "loconetthrottle.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -69,6 +70,10 @@ void LoconetConnection::incomingLoconet(struct loconet_message *msg){
     Q_EMIT incomingLoconetMessage(new_message);
     Q_EMIT incomingRawPacket(ba);
     loconet_turnout_manager_incoming_message(m_switchManager, msg);
+
+    for(std::shared_ptr<LoconetThrottle>& throttle : m_throttles){
+        loconet_throttle_incoming_message(throttle->m_throttle, msg);
+    }
 }
 
 void LoconetConnection::throwTurnout(int switch_num){
@@ -77,4 +82,16 @@ void LoconetConnection::throwTurnout(int switch_num){
 
 void LoconetConnection::closeTurnout(int switch_num){
     loconet_turnout_manager_close(m_switchManager, switch_num, 0);
+}
+
+struct loconet_context* LoconetConnection::loconetContext(){
+    return m_locoContext;
+}
+
+std::shared_ptr<LoconetThrottle> LoconetConnection::newThrottle(){
+    std::shared_ptr<LoconetThrottle> newThrottle = std::make_shared<LoconetThrottle>(m_locoContext);
+
+    m_throttles.push_back(newThrottle);
+
+    return newThrottle;
 }

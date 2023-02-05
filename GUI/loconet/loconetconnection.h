@@ -5,10 +5,13 @@
 #include <QObject>
 #include <QTimer>
 #include <QQueue>
+#include <memory>
 
 #include "loconet_buffer.h"
 #include "loconet_turnout.h"
 #include "../systemconnection.h"
+
+class LoconetThrottle;
 
 class LoconetConnection : public SystemConnection
 {
@@ -16,6 +19,8 @@ class LoconetConnection : public SystemConnection
 public:
     explicit LoconetConnection(QObject *parent = nullptr);
     ~LoconetConnection();
+
+    struct loconet_context* loconetContext();
 
     /**
      * A generic 'send message' method.
@@ -25,6 +30,13 @@ public:
 
     void throwTurnout(int switch_num);
     void closeTurnout(int switch_num);
+
+    /**
+     * Create a new throttle attached to this connection.
+     *
+     * @return
+     */
+    std::shared_ptr<LoconetThrottle> newThrottle();
 
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
@@ -48,6 +60,7 @@ protected:
 private:
     QQueue<loconet_message> m_sendQueue;
     QTimer m_sendTimer;
+    QVector<std::shared_ptr<LoconetThrottle>> m_throttles;
 };
 
 #endif // LOCONETCONNECTION_H

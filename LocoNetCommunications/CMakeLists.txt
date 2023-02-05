@@ -9,12 +9,14 @@ set(headers
   loconet_print.h
   loconet_turnout.h
   loconet_throttle.h
+  loconet_util.h
 )
 add_library(loconet_utils STATIC
   loconet_buffer.c
   loconet_print.c
   loconet_turnout.c
   loconet_throttle.c
+  loconet_util.c
   ${headers}
 )
 

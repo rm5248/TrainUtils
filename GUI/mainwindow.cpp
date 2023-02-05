@@ -13,6 +13,8 @@
 #include "lcceventtransmit.h"
 #include "lccnetworkview.h"
 #include "loconetswitchcontrol.h"
+#include "throttledisplay.h"
+#include "loconet/loconetthrottle.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -239,6 +241,18 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
         LoconetSwitchControl* switchControl = new LoconetSwitchControl(this);
         switchControl->setLoconetConnection(loconetConn);
         DockWidget->setWidget(switchControl);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    QAction* actionNewThrottle = parentMenu->addAction("Throttle");
+    connect(actionNewThrottle, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Throttle").arg(loconetConn->name()));
+        ThrottleDisplay* throttleDisp = new ThrottleDisplay(this);
+        std::shared_ptr<LoconetThrottle> throttle = loconetConn->newThrottle();
+        throttleDisp->setThrottle(throttle);
+        DockWidget->setWidget(throttleDisp);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

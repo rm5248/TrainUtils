@@ -22,7 +22,40 @@ struct loconet_throttle{
     uint8_t request_slot_number;
     uint8_t speed;
     uint8_t slot_number;
+    uint8_t direction;
+    int32_t functions;
+    uint32_t select_flags;
 };
+
+static void loconet_throttle_update_dirf(struct loconet_throttle* throttle){
+    struct loconet_message outgoing_message;
+
+    outgoing_message.opcode = LN_OPC_LOCO_DIR_FUNC;
+    outgoing_message.direction_functions.slot = throttle->slot_number;
+    outgoing_message.direction_functions.dir_funcs = 0;
+
+    if(throttle->direction){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 5);
+    }
+
+    if(throttle->functions & (0x01 << 0)){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 4);
+    }
+    if(throttle->functions & (0x01 << 1)){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 0);
+    }
+    if(throttle->functions & (0x01 << 2)){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 1);
+    }
+    if(throttle->functions & (0x01 << 3)){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 2);
+    }
+    if(throttle->functions & (0x01 << 4)){
+        outgoing_message.direction_functions.dir_funcs |= (0x01 << 3);
+    }
+
+    loconet_context_write_message(throttle->parent, &outgoing_message);
+}
 
 struct loconet_throttle* loconet_throttle_new(struct loconet_context* ctx){
     struct loconet_throttle* throttle = calloc(1, sizeof(struct loconet_throttle));
@@ -49,8 +82,12 @@ void loconet_throttle_incoming_message(struct loconet_throttle* throttle, struct
                 // Ask to steal
                 throttle->request_state = STATE_STEAL;
                 throttle->request_slot_number = msg->slot_data.slot;
-                if(throttle->prompt_steal){
+                if(!(throttle->select_flags & LOCONET_THROTTLE_SELECT_FLAG_AUTO_STEAL) &&
+                        throttle->prompt_steal){
                     throttle->prompt_steal(throttle);
+                }else if(throttle->select_flags & LOCONET_THROTTLE_SELECT_FLAG_AUTO_STEAL){
+                    // Automatically steal
+                    loconet_throttle_confirm_steal(throttle);
                 }
             }else{
                 //perform a NULL MOVE
@@ -160,9 +197,26 @@ int loconet_throttle_estop(struct loconet_throttle* throttle){
 
 int loconet_throttle_set_function(struct loconet_throttle* throttle, int function, int on){
     if(!throttle) return LN_ERROR_INVALID_ARG;
+    if(function < 0 || function > 32) return LN_ERROR_INVALID_ARG;
 
+    if(on){
+        throttle->functions |= (0x01 << function);
+    }else{
+        throttle->functions &= ~(0x01 << function);
+    }
+
+    if(function <= 4){
+        loconet_throttle_update_dirf(throttle);
+    }
 
     return LN_OK;
+}
+
+int loconet_throttle_get_function_state(struct loconet_throttle* throttle, int function){
+    if(!throttle) return LN_ERROR_INVALID_ARG;
+    if(function < 0 || function > 32) return LN_ERROR_INVALID_ARG;
+
+    return !!(throttle->functions & (0x01 << function));
 }
 
 int loconet_throttle_select_locomotive(struct loconet_throttle* throttle, int locomotive_number, int select_flags){
@@ -180,6 +234,7 @@ int loconet_throttle_select_locomotive(struct loconet_throttle* throttle, int lo
     msg.addr.locoAddrHi = (locomotive_number & ~0x7F) >> 7;
     throttle->request_state = STATE_REQUEST;
     throttle->request_loco_number = locomotive_number;
+    throttle->select_flags = select_flags;
 
     loconet_context_write_message(throttle->parent, &msg);
 
@@ -269,4 +324,20 @@ int loconet_throttle_set_userdata(struct loconet_throttle* throttle, void* user_
 void* loconet_throttle_userdata(struct loconet_throttle* throttle){
     if(!throttle) return NULL;
     return throttle->user_data;
+}
+
+int loconet_throttle_set_direction(struct loconet_throttle* throttle, int direction){
+    if(!throttle) return LN_ERROR_INVALID_ARG;
+
+    if(direction == 1){
+        throttle->direction = 1;
+    }else if(direction == 0){
+        throttle->direction = 0;
+    }else{
+        return LN_ERROR_INVALID_ARG;
+    }
+
+    loconet_throttle_update_dirf(throttle);
+
+    return LN_OK;
 }

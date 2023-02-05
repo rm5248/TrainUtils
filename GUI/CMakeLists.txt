@@ -72,6 +72,13 @@ set(PROJECT_SOURCES
         loconetswitchcontrol.h
         loconetswitchcontrol.cpp
         loconetswitchcontrol.ui
+        throttledisplay.h
+        throttledisplay.cpp
+        throttledisplay.ui
+        loconet/loconetthrottle.h
+        loconet/loconetthrottle.cpp
+        throttle.h
+        throttle.cpp
 )
 
 if(UNIX)
@@ -146,7 +153,7 @@ target_link_libraries(train-gui PRIVATE
 )
 target_include_directories(train-gui PRIVATE
     /usr/local/include/qtads
-    ${train-required_INCLUDE_DIRS}
+    ${train-required-dbus_INCLUDE_DIRS}
     ../LCC
     ../LocoNetCommunications
     ../LoconetTCPUtil
