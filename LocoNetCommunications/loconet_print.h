@@ -10,6 +10,9 @@
 
 #include "loconet_buffer.h"
 
+#define LOCONET_PRINT_FLAG_NONE 0
+#define LOCONET_PRINT_FLAG_DISPLAY_BYTES (0x01 << 0)
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -39,6 +42,16 @@ void loconet_print_message( FILE* output, const struct loconet_message* message 
  * Print out the message as hex bytes
  */
 void loconet_print_message_hex( FILE* output, const struct loconet_message* message );
+
+/**
+ * Decode the loconet message as a string.
+ *
+ * Basically like snprintf, but takes in a loconet message.
+ */
+void loconet_message_decode_as_str(char* output_string,
+                                   size_t output_string_len,
+                                   const struct loconet_message* message,
+                                   int flags);
 
 #ifdef	__cplusplus
 }
