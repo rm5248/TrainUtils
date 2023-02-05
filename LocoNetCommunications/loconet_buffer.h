@@ -258,6 +258,7 @@ struct loconet_context;
 #define LN_ERROR_LOCO_ALREADY_SELECTED -4
 #define LN_ERROR_INVALID_LOCO_NUMBER -5
 #define LN_ERROR_NO_LOCO_SELECTED -6
+#define LN_ERROR_INVALID_SENSOR_NUM -7
 
 //
 // Function typedefs

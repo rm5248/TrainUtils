@@ -122,13 +122,12 @@ int loconet_turnout_manager_set_turnout_state_changed_callback(struct loconet_tu
 }
 
 enum loconet_turnout_status loconet_turnout_manager_get_cached_turnout_state(struct loconet_turnout_manager* manager, int switch_num){
-    if(switch_num <= 1){
+    if(switch_num <= 1 || switch_num > 2048){
         return LOCONET_SWITCH_UNKNOWN;
     }
     switch_num -= 1;
     int status_offset = switch_num / 4;
     int switch_offset = switch_num % 4;
-    enum loconet_turnout_status new_status;
     int status = manager->cached_switch_status[status_offset] & (0x3 << switch_offset);
     status = status >> switch_offset;
 
