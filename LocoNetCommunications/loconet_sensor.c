@@ -28,38 +28,38 @@ void loconet_sensor_manager_free(struct loconet_sensor_manager* manager){
 }
 
 int loconet_sensor_manager_incoming_message(struct loconet_sensor_manager* manager, struct loconet_message* message){
-//    if(message->opcode != LN_OPC_){
-//        return LN_OK;
-//    }
+    if(message->opcode != LN_OPC_INPUT_REPORT){
+        return LN_OK;
+    }
 
-//    struct loconet_request_switch req = message->req_switch;
-//    int switch_num = ((req.sw2 & 0x0F) << 7) | req.sw1 ;
-//    int status_offset = switch_num / 4;
-//    int switch_offset = switch_num % 4;
-//    enum loconet_turnout_status new_status;
-//    enum loconet_turnout_status old_status;
-//    int old_status_int = (manager->cached_switch_status[status_offset] & ~(0x3 << switch_offset)) >> switch_offset;
-//    if(old_status_int == 1){
-//        old_status = LOCONET_SWITCH_CLOSED;
-//    }else if(old_status_int == 2){
-//        old_status = LOCONET_SWITCH_THROWN;
-//    }else{
-//        old_status = LOCONET_SWITCH_UNKNOWN;
-//    }
-//    if(req.sw2 & (0x01 << 5)){
-//        new_status = LOCONET_SWITCH_CLOSED;
-//        manager->cached_switch_status[status_offset] &= ~(0x3 << switch_offset);
-//        manager->cached_switch_status[status_offset] |= (0x01 << switch_offset);
-//    }else{
-//        new_status = LOCONET_SWITCH_THROWN;
-//        manager->cached_switch_status[status_offset] &= ~(0x3 << switch_offset);
-//        manager->cached_switch_status[status_offset] |= (0x02 << switch_offset);
-//    }
+    struct loconet_inputs inputs = message->inputs;
+    int sensor_num = ((inputs.in2 & 0x0F) << 7) | inputs.in1 ;
+    int status_offset = sensor_num / 4;
+    int sensor_offset = sensor_num % 4;
+    enum loconet_sensor_status new_status;
+    enum loconet_sensor_status old_status;
+    int old_status_int = (manager->cached_sensor_status[status_offset] & ~(0x3 << sensor_offset)) >> sensor_offset;
+    if(old_status_int == 1){
+        old_status = LOCONET_SENSOR_ACTIVE;
+    }else if(old_status_int == 2){
+        old_status = LOCONET_SENSOR_INACTIVE;
+    }else{
+        old_status = LOCONET_SENSOR_UNKNOWN;
+    }
+    if(inputs.in2 & (0x01 << 5)){
+        new_status = LOCONET_SENSOR_ACTIVE;
+        manager->cached_sensor_status[status_offset] &= ~(0x3 << sensor_offset);
+        manager->cached_sensor_status[status_offset] |= (0x01 << sensor_offset);
+    }else{
+        new_status = LOCONET_SENSOR_INACTIVE;
+        manager->cached_sensor_status[status_offset] &= ~(0x3 << sensor_offset);
+        manager->cached_sensor_status[status_offset] |= (0x02 << sensor_offset);
+    }
 
-//    if(manager->switch_changed_callback &&
-//            (new_status != old_status)){
-//        manager->switch_changed_callback(manager, switch_num + 1, new_status);
-//    }
+    if(manager->sensor_changed_cb &&
+            (new_status != old_status)){
+        manager->sensor_changed_cb(manager, sensor_num + 1, new_status);
+    }
 
     return LN_OK;
 }
