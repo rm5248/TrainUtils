@@ -4,6 +4,8 @@
 
 #include <QWidget>
 
+#include "loconet_buffer.h"
+
 class LoconetConnection;
 
 namespace Ui {
@@ -22,7 +24,7 @@ public:
 
 private Q_SLOTS:
     void on_clearButton_clicked();
-    void incomingRawData(QByteArray ba);
+    void incomingLoconetMessage(loconet_message msg);
 
 private:
     Ui::LoconetTrafficMonitor *ui;

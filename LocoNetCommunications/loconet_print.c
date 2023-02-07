@@ -228,14 +228,14 @@ static int loconet_dump_bytes(char * output_string,
         //two bytes with checksum
         return snprintf(output_string,
                         output_string_len,
-                        "[%02X %02X]",
+                        "[%02X %02X] ",
                         message->opcode,
                         message->data[ 0 ]);
     }else if( msgLen == 0xA0 ){
         //four bytes with checksum
         return snprintf(output_string,
                         output_string_len,
-                        "[%02X %02X %02X %02X]",
+                        "[%02X %02X %02X %02X] ",
                         message->opcode,
                         message->data[ 0 ],
                         message->data[ 1 ],
@@ -244,7 +244,7 @@ static int loconet_dump_bytes(char * output_string,
         //six bytes with checksum
         return snprintf(output_string,
                         output_string_len,
-                        "[%02X %02X %02X %02X %02X %02X]",
+                        "[%02X %02X %02X %02X %02X %02X] ",
                         message->opcode,
                         message->data[ 0 ],
                         message->data[ 1 ],
@@ -262,15 +262,15 @@ static int loconet_dump_bytes(char * output_string,
         if( message->opcode == 0xE7 || message->opcode == 0xEF ){
             thisLen = 12;
         }
-        ret = snprintf(output_string, max_to_write, "[%02X", message->opcode);
+        ret = snprintf(next_byte_location, max_to_write, "[%02X", message->opcode);
         max_to_write -= ret;
         next_byte_location += ret;
         for( x = 0; x < thisLen + 1; x++ ){
-            ret = snprintf(output_string, max_to_write, " %02X", message->data[x]);
+            ret = snprintf(next_byte_location, max_to_write, " %02X", message->data[x]);
             max_to_write -= ret;
             next_byte_location += ret;
         }
-        ret = snprintf(output_string, max_to_write, "] ");
+        ret = snprintf(next_byte_location, max_to_write, "] ");
         next_byte_location += ret;
 
         return next_byte_location - output_string;
@@ -290,67 +290,67 @@ static int loconet_dump_slot_status( char * output_string,
     char* next_byte_location = output_string;
 
     if( decoderType == 0x00 ){
-        ret = snprintf(output_string, max_to_write, "  28 step/ 3byte packet regular mode\n");
+        ret = snprintf(next_byte_location, max_to_write, "  28 step/ 3byte packet regular mode\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( decoderType == 0x01 ){
-        ret = snprintf(output_string, max_to_write, "  28 step/ trinary packets\n");
+        ret = snprintf(next_byte_location, max_to_write, "  28 step/ trinary packets\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( decoderType == 0x02 ){
-        ret = snprintf(output_string, max_to_write, "  14 step mode\n");
+        ret = snprintf(next_byte_location, max_to_write, "  14 step mode\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( decoderType == 0x03 ){
-        ret = snprintf(output_string, max_to_write, "  128 mode packets\n");
+        ret = snprintf(next_byte_location, max_to_write, "  128 mode packets\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( decoderType == 0x04 ){
-        ret = snprintf(output_string, max_to_write, "  28 step, advanced DCC consisting\n");
+        ret = snprintf(next_byte_location, max_to_write, "  28 step, advanced DCC consisting\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( decoderType == 0x07 ){
-        ret = snprintf(output_string, max_to_write, "  128 step, advanced DCC consisting\n");
+        ret = snprintf(next_byte_location, max_to_write, "  128 step, advanced DCC consisting\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else{
-        ret = snprintf(output_string, max_to_write, "  Unkown DCC decoder type\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Unkown DCC decoder type\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
 
     if( slotStatus == 0x00 ){
-        ret = snprintf(output_string, max_to_write, "  Slot status: FREE\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Slot status: FREE\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( slotStatus == 0x01 ){
-        ret = snprintf(output_string, max_to_write, "  Slot status: COMMON\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Slot status: COMMON\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( slotStatus == 0x02 ){
-        ret = snprintf(output_string, max_to_write, "  Slot status: IDLE\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Slot status: IDLE\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( slotStatus == 0x03 ){
-        ret = snprintf(output_string, max_to_write, "  Slot status: IN_USE\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Slot status: IN_USE\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
 
     if( consistStatus == 0x00 ){
-        ret = snprintf(output_string, max_to_write, "    Consist status: FREE, no consist\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Consist status: FREE, no consist\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( consistStatus == 0x01 ){
-        ret = snprintf(output_string, max_to_write, "    Consist status: logical consist sub-membert\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Consist status: logical consist sub-membert\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( consistStatus == 0x02 ){
-        ret = snprintf(output_string, max_to_write, "    Consist status: logical consist top\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Consist status: logical consist top\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else if( consistStatus == 0x03 ){
-        ret = snprintf(output_string, max_to_write, "    Consist status: logical mid consist\n");
+        ret = snprintf(next_byte_location, max_to_write, "    Consist status: logical mid consist\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
@@ -366,33 +366,33 @@ static int loconet_dump_track_status( char * output_string,
     char* next_byte_location = output_string;
 
     if( trk & 0x01 ){
-        ret = snprintf(output_string, max_to_write, "  DCC Power ON, Global power UP\n");
+        ret = snprintf(next_byte_location, max_to_write, "  DCC Power ON, Global power UP\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else{
-        ret = snprintf(output_string, max_to_write, "  DCC Power OFF\n");
+        ret = snprintf(next_byte_location, max_to_write, "  DCC Power OFF\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
 
     if( !(trk & 0x02) ){
-        ret = snprintf(output_string, max_to_write, "  Track PAUSED, Broadcast ESTOP\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Track PAUSED, Broadcast ESTOP\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
 
     if( trk & 0x04 ){
-        ret = snprintf(output_string, max_to_write, "  Master has LocoNet 1.1\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Master has LocoNet 1.1\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }else{
-        ret = snprintf(output_string, max_to_write, "  Master is DT200\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Master is DT200\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
 
     if( trk & 0x08 ){
-        ret = snprintf(output_string, max_to_write, "  Programming Track Busy\n");
+        ret = snprintf(next_byte_location, max_to_write, "  Programming Track Busy\n");
         max_to_write -= ret;
         next_byte_location += ret;
     }
@@ -407,13 +407,9 @@ static int loconet_dump_directions_and_func( char * output_string,
     int ret;
     char* next_byte_location = output_string;
 
-    ret = snprintf(output_string, max_to_write,
-                   "  Direction: %s\n", byte & 0x20 ? "REV" : "FWD"  );
-    max_to_write -= ret;
-    next_byte_location += ret;
-
-    ret = snprintf(output_string, max_to_write,
-                   "  Functions: %s%s%s%s%s\n",
+    ret = snprintf(next_byte_location, max_to_write,
+                   "Direction: %s Functions: %s%s%s%s%s",
+                   byte & 0x20 ? "REV" : "FWD",
                    byte & 0x10 ? "F0 " : "",
                    byte & 0x01 ? "F1 " : "",
                    byte & 0x02 ? "F2 " : "",
@@ -466,33 +462,56 @@ void loconet_message_decode_as_str(char* output_string,
 //        loconet_print_clock( output, message );
         break;
     }
-        ret = snprintf(output_string, max_to_write, "%s slot data\n", message->opcode == LN_OPC_SLOT_READ_DATA ? "Read" : "Write"  );
+        ret = snprintf(next_byte_location, max_to_write, "%s slot data\n", message->opcode == LN_OPC_SLOT_READ_DATA ? "Read" : "Write"  );
         max_to_write -= ret;
         next_byte_location += ret;
 
-        ret = snprintf(output_string, max_to_write, "  Slot #: %d\n", message->slot_data.slot );
+        ret = snprintf(next_byte_location, max_to_write, "  Slot #: %d\n", message->slot_data.slot );
         max_to_write -= ret;
         next_byte_location += ret;
-        ret = snprintf(output_string, max_to_write, "  Slot status: 0x%X\n", message->slot_data.stat );
+        ret = snprintf(next_byte_location, max_to_write, "  Slot status: 0x%X\n", message->slot_data.stat );
         max_to_write -= ret;
         next_byte_location += ret;
         ret = loconet_dump_slot_status( next_byte_location, max_to_write, message->slot_data.stat );
         max_to_write -= ret;
         next_byte_location += ret;
-        ret = snprintf(output_string, max_to_write, "  Speed: %d\n", message->slot_data.speed );
+        ret = snprintf(next_byte_location, max_to_write, "  Speed: %d\n", message->slot_data.speed );
         max_to_write -= ret;
         next_byte_location += ret;
         ret = loconet_dump_directions_and_func( next_byte_location, max_to_write, message->slot_data.dir_funcs );
         max_to_write -= ret;
         next_byte_location += ret;
-        ret = snprintf(output_string, max_to_write, "  TRK: 0x%X\n", message->slot_data.track );
+        ret = snprintf(next_byte_location, max_to_write, "  TRK: 0x%X\n", message->slot_data.track );
         max_to_write -= ret;
         next_byte_location += ret;
         ret = loconet_dump_track_status( next_byte_location, max_to_write, message->slot_data.track );
         max_to_write -= ret;
         next_byte_location += ret;
-        ret = snprintf(output_string, max_to_write, "  ADDR: %d(%s)\n", message->slot_data.addr1 | (message->slot_data.addr2 << 7),
+        ret = snprintf(next_byte_location, max_to_write, "  ADDR: %d(%s)\n", message->slot_data.addr1 | (message->slot_data.addr2 << 7),
             message->slot_data.addr2 ? "LONG" : "SHORT" );
+        break;
+
+    case LN_OPC_LOCO_DIR_FUNC:
+        ret = snprintf(next_byte_location, max_to_write, "Locomotive direction/funcs. Slot: %d ", message->direction_functions.slot );
+        max_to_write -= ret;
+        next_byte_location += ret;
+        loconet_dump_directions_and_func( next_byte_location, max_to_write, message->direction_functions.dir_funcs );
+        break;
+    case LN_OPC_LONG_ACK:
+        ret = snprintf(next_byte_location, max_to_write, "LACK Opcode: 0x%02X Status: 0x%02X Fail? %s",
+                       message->ack.lopc,
+                       message->ack.ack,
+                       message->ack.ack == 0 ? "true" : "false" );
+        break;
+    case LN_OPC_LOCO_ADDR:
+        ret = snprintf(next_byte_location, max_to_write, "Request locomotive address %d",
+                       message->addr.locoAddrHi << 7 | message->addr.locoAddrLo );
+        break;
+    case LN_OPC_POWER_ON:
+        ret = snprintf(next_byte_location, max_to_write, "Track power ON" );
+        break;
+    case LN_OPC_POWER_OFF:
+        ret = snprintf(next_byte_location, max_to_write, "Track power OFF" );
         break;
     }
 }

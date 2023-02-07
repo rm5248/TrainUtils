@@ -31,6 +31,7 @@ LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)
 
 LoconetConnection::~LoconetConnection(){
     loconet_context_free(m_locoContext);
+    loconet_turnout_manager_free(m_switchManager);
 }
 
 void LoconetConnection::writeCB( struct loconet_context* ctx, uint8_t* data, int len ){
@@ -63,8 +64,15 @@ void LoconetConnection::incomingLoconet(struct loconet_message *msg){
     struct loconet_message new_message = *msg;
     QByteArray ba;
     ba.push_back(new_message.opcode);
-    for(int x = 0; x < loconet_message_length(&new_message) - 1; x++){
-        ba.push_back(new_message.data[x]);
+    int msgLen = loconet_message_length(&new_message);
+    if(msgLen >= 2){
+        for(int x = 0; x < msgLen; x++){
+            ba.push_back(new_message.data[x]);
+        }
+    }else{
+        LOG4CXX_ERROR_FMT(logger, "bad message from loconet: invalid length {} opcode: 0x{:X}", msgLen,
+                          new_message.opcode );
+        return;
     }
 
     Q_EMIT incomingLoconetMessage(new_message);

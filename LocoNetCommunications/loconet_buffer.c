@@ -141,10 +141,10 @@ int loconet_context_process( struct loconet_context* ctx ){
             if( get_ln_buffer_len( ctx ) < 2 ){
                 return LN_OK;
             }
-            message.data[ 0 ] = ctx->lnBuffer[ 0 ];
-            message.data[ 1 ] = ctx->lnBuffer[ 1 ];
-            checksum ^= message.data[ 0 ];
-            if( checksum != message.data[ 1 ] ){
+            message.opcode = ctx->lnBuffer[0];
+            message.data[ 0 ] = ctx->lnBuffer[ 1 ];
+            checksum ^= message.opcode;
+            if( checksum != message.data[ 0 ] ){
                 // checksum did not match, remove bytes and hope we can sync back up
                 ln_remove_bytes( ctx, 1 );
                 continue;
