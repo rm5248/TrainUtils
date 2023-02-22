@@ -513,5 +513,11 @@ void loconet_message_decode_as_str(char* output_string,
     case LN_OPC_POWER_OFF:
         ret = snprintf(next_byte_location, max_to_write, "Track power OFF" );
         break;
+    case LN_OPC_INPUT_REPORT:
+        ret = snprintf(next_byte_location, max_to_write, "Sensor %d = %d",
+                       message->inputs.in1 | ((message->inputs.in2 & 0x0F) << 7),
+                       !!(message->inputs.in2 & (0x01 << 4))
+                       );
+        break;
     }
 }

@@ -22,6 +22,10 @@ add_library(loconet_utils STATIC
   ${headers}
 )
 
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()
+
 IF( UNIX )
     #
     # pkg-config information

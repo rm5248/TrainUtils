@@ -33,7 +33,20 @@ int loconet_sensor_manager_incoming_message(struct loconet_sensor_manager* manag
     }
 
     struct loconet_inputs inputs = message->inputs;
-    int sensor_num = ((inputs.in2 & 0x0F) << 7) | inputs.in1 ;
+
+    // Note: sensor number calculation same as JMRI
+    // This yields a value between 0-4095
+    int sensor_num = ((inputs.in2 & 0x0F) * 256) +
+            (inputs.in1 * 2);
+    if(inputs.in2 & 0x20){
+        sensor_num++;
+    }
+
+    if((sensor_num < 0) || (sensor_num > 4095)){
+        // THis is some kind of invalid message
+        return LN_ERROR_INVALID_SENSOR_NUM;
+    }
+
     int status_offset = sensor_num / 4;
     int sensor_offset = sensor_num % 4;
     enum loconet_sensor_status new_status;
@@ -46,7 +59,7 @@ int loconet_sensor_manager_incoming_message(struct loconet_sensor_manager* manag
     }else{
         old_status = LOCONET_SENSOR_UNKNOWN;
     }
-    if(inputs.in2 & (0x01 << 5)){
+    if(inputs.in2 & (0x01 << 4)){
         new_status = LOCONET_SENSOR_ACTIVE;
         manager->cached_sensor_status[status_offset] &= ~(0x3 << sensor_offset);
         manager->cached_sensor_status[status_offset] |= (0x01 << sensor_offset);
@@ -71,14 +84,14 @@ int loconet_sensor_manager_set_sensor_state_changed_callback(struct loconet_sens
 }
 
 enum loconet_sensor_status loconet_sensor_manager_get_cached_sensor_state(struct loconet_sensor_manager* manager, int sensor_num){
-    if(sensor_num <= 1 || sensor_num > 2048){
+    if(sensor_num <= 1 || sensor_num > 4095){
         return LN_ERROR_INVALID_SENSOR_NUM;
     }
     sensor_num -= 1;
     int status_offset = sensor_num / 4;
-    int switch_offset = sensor_num % 4;
-    int status = manager->cached_sensor_status[status_offset] & (0x3 << sensor_num);
-    status = status >> switch_offset;
+    int sensor_offset = sensor_num % 4;
+    int status = manager->cached_sensor_status[status_offset] & (0x3 << sensor_offset);
+    status = status >> sensor_offset;
 
     if(status == 0x01){
         return LOCONET_SENSOR_ACTIVE;
