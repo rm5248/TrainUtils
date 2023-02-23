@@ -38,18 +38,18 @@ int loconet_turnout_manager_incoming_message(struct loconet_turnout_manager* man
     enum loconet_turnout_status old_status;
     int old_status_int = (manager->cached_switch_status[status_offset] & ~(0x3 << switch_offset)) >> switch_offset;
     if(old_status_int == 1){
-        old_status = LOCONET_SWITCH_CLOSED;
+        old_status = LOCONET_TURNOUT_CLOSED;
     }else if(old_status_int == 2){
-        old_status = LOCONET_SWITCH_THROWN;
+        old_status = LOCONET_TURNOUT_THROWN;
     }else{
-        old_status = LOCONET_SWITCH_UNKNOWN;
+        old_status = LOCONET_TURNOUT_UNKNOWN;
     }
     if(req.sw2 & (0x01 << 5)){
-        new_status = LOCONET_SWITCH_CLOSED;
+        new_status = LOCONET_TURNOUT_CLOSED;
         manager->cached_switch_status[status_offset] &= ~(0x3 << switch_offset);
         manager->cached_switch_status[status_offset] |= (0x01 << switch_offset);
     }else{
-        new_status = LOCONET_SWITCH_THROWN;
+        new_status = LOCONET_TURNOUT_THROWN;
         manager->cached_switch_status[status_offset] &= ~(0x3 << switch_offset);
         manager->cached_switch_status[status_offset] |= (0x02 << switch_offset);
     }
@@ -123,7 +123,7 @@ int loconet_turnout_manager_set_turnout_state_changed_callback(struct loconet_tu
 
 enum loconet_turnout_status loconet_turnout_manager_get_cached_turnout_state(struct loconet_turnout_manager* manager, int switch_num){
     if(switch_num <= 1 || switch_num > 2048){
-        return LOCONET_SWITCH_UNKNOWN;
+        return LOCONET_TURNOUT_UNKNOWN;
     }
     switch_num -= 1;
     int status_offset = switch_num / 4;
@@ -132,12 +132,12 @@ enum loconet_turnout_status loconet_turnout_manager_get_cached_turnout_state(str
     status = status >> switch_offset;
 
     if(status == 0x01){
-        return LOCONET_SWITCH_CLOSED;
+        return LOCONET_TURNOUT_CLOSED;
     }else if(status == 0x02){
-        return LOCONET_SWITCH_THROWN;
+        return LOCONET_TURNOUT_THROWN;
     }
 
-    return LOCONET_SWITCH_UNKNOWN;
+    return LOCONET_TURNOUT_UNKNOWN;
 }
 
 void loconet_turnout_manager_set_userdata(struct loconet_turnout_manager* manager, void* user_data){

@@ -8,9 +8,9 @@ extern "C" {
 #define LOCONET_TURNOUT_FLAG_OUTPUT_ON_ONLY (0x01 << 0)
 
 enum loconet_turnout_status {
-    LOCONET_SWITCH_UNKNOWN,
-    LOCONET_SWITCH_THROWN,
-    LOCONET_SWITCH_CLOSED
+    LOCONET_TURNOUT_UNKNOWN,
+    LOCONET_TURNOUT_THROWN,
+    LOCONET_TURNOUT_CLOSED
 };
 
 struct loconet_turnout_manager;

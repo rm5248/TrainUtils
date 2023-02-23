@@ -10,7 +10,7 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.loconet
 static void LoconetConnectionSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state){
     LoconetConnection* conn = static_cast<LoconetConnection*>(loconet_turnout_manager_userdata(manager));
 
-    LOG4CXX_DEBUG_FMT(logger, "switch {} is {}", switch_num, state == LOCONET_SWITCH_THROWN ? "thrown" : "closed");
+    LOG4CXX_DEBUG_FMT(logger, "switch {} is {}", switch_num, state == LOCONET_TURNOUT_THROWN ? "thrown" : "closed");
 }
 
 LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)

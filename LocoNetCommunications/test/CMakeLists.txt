@@ -5,3 +5,5 @@ target_include_directories(loconet-test-parse PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 add_test( NAME loconet-parse-speed COMMAND loconet-test-parse parse_speed)
 add_test( NAME loconet-parse-sensor COMMAND loconet-test-parse parse_sensor)
 add_test( NAME loconet-parse-sensor2 COMMAND loconet-test-parse parse_sensor2)
+add_test( NAME loconet-parse-turnout1 COMMAND loconet-test-parse parse_turnout1)
+add_test( NAME loconet-parse-turnout2 COMMAND loconet-test-parse parse_turnout2)
