@@ -13,6 +13,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
     uint16_t sender = (frame->can_id & LCC_NID_ALIAS_MASK);
+    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     struct lcc_can_frame ret_frame;
     memset(&ret_frame, 0, sizeof(ret_frame));
 
@@ -142,6 +143,19 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         }
     }else if(mti == LCC_MTI_EVENT_IDENTIFY){
         return lcc_send_events_produced(ctx);
+    }
+
+    // See if this is a datagram frame
+    if(can_frame_type == 2 ||
+            can_frame_type == 3 ||
+            can_frame_type == 4 ||
+            can_frame_type == 5){
+        // Check to see if this comes to us
+        if(mti != ctx->node_alias){
+            return LCC_OK;
+        }
+
+        // This is a datagram that is destined for us, do something with the data
     }
 
     return LCC_OK;

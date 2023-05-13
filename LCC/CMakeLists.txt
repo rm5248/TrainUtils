@@ -27,6 +27,10 @@ add_library(lcc STATIC
     lcc-node-info.h
     lcc-node-info.c
     lcc-network-internal.h
+    lcc-datagram.c
+    lcc-datagram.h
+    lcc-memory.c
+    lcc-memory.h
 )
 target_compile_definitions(lcc PRIVATE LIBLCC_BUILD)
 

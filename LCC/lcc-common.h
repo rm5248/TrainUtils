@@ -89,6 +89,7 @@ struct lcc_simple_node_info {
 #define LCC_MTI_SIMPLE (0x01 << 4)
 #define LCC_MTI_ADDRESSED (0x01 << 3)
 #define LCC_MTI_EVENT_NUM_PRESENT (0x01 << 2)
+#define LCC_MTI_STREAM_OR_DATAGRAM (0x01 << 12)
 
 #define LCC_STATE_INHIBITED 1
 #define LCC_STATE_PERMITTED 0
