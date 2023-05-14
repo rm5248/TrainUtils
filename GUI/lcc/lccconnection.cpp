@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "lccconnection.h"
 #include "lcc-node-info.h"
+#include "lcc-memory.h"
 
 static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
     LCCConnection* conn = static_cast<LCCConnection*>(lcc_network_get_userdata(inf));
@@ -14,10 +15,37 @@ static void node_updated_cb(struct lcc_network_info* inf, struct lcc_node_info* 
     Q_EMIT conn->nodeInformationUpdated(lcc_node_info_get_id(new_node));
 }
 
+static void incoming_datagram_cb(struct lcc_context* ctx, void* datagram_data, int len){
+    QByteArray ba = QByteArray::fromRawData((const char*)datagram_data, len);
+
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+
+    Q_EMIT conn->incomingDatagram(ba);
+}
+
+static void datagram_recevied_ok(struct lcc_context* ctx, uint8_t flags){
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+
+    Q_EMIT conn->datagramReceivedOK(flags);
+}
+
+static void datagram_rejected(struct lcc_context* ctx, uint16_t error_code, void* optional_data, int optional_len){
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+    QByteArray ba = QByteArray::fromRawData((const char*)optional_data, optional_len);
+
+    Q_EMIT conn->datagramRejected(error_code, ba);
+}
+
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
+
+    lcc_context_set_userdata(m_lcc, this);
+    lcc_context_set_datagram_functions(m_lcc,
+                                       incoming_datagram_cb,
+                                       datagram_recevied_ok,
+                                       datagram_rejected);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);
@@ -83,4 +111,8 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
     }
 
     return NULL;
+}
+
+void LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
+    lcc_memory_read_single_transfer(m_lcc, alias, space, starting_address, len);
 }

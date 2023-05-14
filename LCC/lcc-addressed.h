@@ -18,6 +18,15 @@ extern "C" {
  */
 int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame);
 
+/**
+ * Handle datagram messages, which are a specific subset of addressed messages.
+ *
+ * @param ctx
+ * @param frame
+ * @return
+ */
+int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame);
+
 #ifdef __cplusplus
 }
 #endif

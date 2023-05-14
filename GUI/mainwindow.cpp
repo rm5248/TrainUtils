@@ -15,6 +15,7 @@
 #include "loconetswitchcontrol.h"
 #include "throttledisplay.h"
 #include "loconet/loconetthrottle.h"
+#include "lccmemorydisplay.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -168,6 +169,17 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
         LCCNetworkView* networkView = new LCCNetworkView(this);
         networkView->setLCCConnection(lccConn);
         DockWidget->setWidget(networkView);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+    });
+
+    action = parentMenu->addAction("Memory Display");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LCCConnection> lccConn = m_state->lccManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Memory Display").arg(lccConn->name()));
+        lccmemorydisplay* memoryDisplay = new lccmemorydisplay(this);
+        memoryDisplay->setLCCConnection(lccConn);
+        DockWidget->setWidget(memoryDisplay);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 }

@@ -79,6 +79,9 @@ set(PROJECT_SOURCES
         loconet/loconetthrottle.cpp
         throttle.h
         throttle.cpp
+        lccmemorydisplay.cpp
+        lccmemorydisplay.h
+        lccmemorydisplay.ui
 )
 
 if(UNIX)

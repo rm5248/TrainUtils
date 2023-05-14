@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <string.h>
+#include <stdio.h>
 
 #include "lcc-addressed.h"
 #include "lcc-common-internal.h"
+#include "lcc-datagram.h"
 
 int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
     uint16_t alias = (frame->data[0] << 8) | frame->data[1];
@@ -13,7 +15,6 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
     uint16_t sender = (frame->can_id & LCC_NID_ALIAS_MASK);
-    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     struct lcc_can_frame ret_frame;
     memset(&ret_frame, 0, sizeof(ret_frame));
 
@@ -145,6 +146,14 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         return lcc_send_events_produced(ctx);
     }
 
+    return LCC_OK;
+}
+
+int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
+    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
+    uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
+    uint16_t source_alias = (frame->can_id & LCC_NID_ALIAS_MASK);
+
     // See if this is a datagram frame
     if(can_frame_type == 2 ||
             can_frame_type == 3 ||
@@ -155,7 +164,35 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             return LCC_OK;
         }
 
-        // This is a datagram that is destined for us, do something with the data
+        // This is a datagram that is destined for us, append to our buffer
+        lcc_datagram_append_bytes(&ctx->incoming_datagram, frame->data, frame->can_len);
+
+        if((can_frame_type == 5 || can_frame_type == 2) &&
+                ctx->datagram_received_fn){
+            // This is the last frame - call our callback function
+            ctx->datagram_received_fn(ctx, ctx->incoming_datagram.buffer, ctx->incoming_datagram.offset);
+
+            // Now, tell the sending node that we received OK
+            struct lcc_can_frame frame;
+            memset(&frame, 0, sizeof(struct lcc_can_frame));
+
+            lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_DATAGRAM_RECEIVED_OK);
+            lcc_set_lcb_can_frame_type(&frame, 1);
+            lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, source_alias);
+            frame.can_len = 2;
+
+            ctx->write_function(ctx, &frame);
+        }
+    }
+
+    if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
+        if(ctx->datagram_received_fn){
+            ctx->datagram_ok_fn(ctx, frame->data[0]);
+        }
+    }else if(mti == LCC_MTI_DATAGRAM_REJECTED){
+        if(ctx->datagram_rejected_fn){
+            ctx->datagram_rejected_fn(ctx, frame->data[2] << 8 | frame->data[3], NULL, 0);
+        }
     }
 
     return LCC_OK;

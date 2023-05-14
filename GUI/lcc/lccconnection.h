@@ -30,11 +30,24 @@ public:
 
     struct lcc_node_info* lccNodeInfoForID(uint64_t node_id);
 
+    /**
+     * Read a single memory block(up to 64? bytes in length).
+     *
+     * @param alias
+     * @param space
+     * @param starting_address
+     * @param len
+     */
+    void readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
     void incomingEvent(uint64_t event_id);
     void newNodeDiscovered(uint64_t node_id);
     void nodeInformationUpdated(uint64_t node_id);
+    void incomingDatagram(QByteArray datagramData);
+    void datagramReceivedOK(uint8_t flags);
+    void datagramRejected(uint16_t error_code, QByteArray optional_data);
 
 protected:
     struct lcc_context* m_lcc;

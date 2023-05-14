@@ -40,6 +40,21 @@ typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint64_t event_id)
  */
 typedef enum lcc_producer_state(*lcc_query_producer_state_fn)(struct lcc_context* ctx, uint64_t event_id);
 
+/**
+ * A function that will be called when a datagram is received from a node
+ */
+typedef void(*lcc_incoming_datagram_fn)(struct lcc_context* ctx, void* datagram_data, int len);
+
+/**
+ * A function that will be called when a node responds with 'datagram received ok'
+ */
+typedef void (*lcc_datagram_received_ok_fn)(struct lcc_context* ctx, uint8_t flags);
+
+/**
+ * A function that will be called when a node responds with 'Datagram Rejected'
+ */
+typedef void (*lcc_datagram_rejected_fn)(struct lcc_context* ctx, uint16_t error_code, void* optional_data, int optional_len);
+
 /*
  * Error code definitions
  */
@@ -129,6 +144,9 @@ struct lcc_simple_node_info {
 #define LCC_MTI_PRODUCER_IDENTIFIED_VALID 0x0544
 #define LCC_MTI_PRODUCER_IDENTIFIED_INVALID 0x0545
 #define LCC_MTI_PRODUCER_IDENTIFIED_UNKNOWN 0x0547
+
+#define LCC_MTI_DATAGRAM_RECEIVED_OK 0xA28
+#define LCC_MTI_DATAGRAM_REJECTED 0xA48
 
 /**
  * Convert a node id to dotted format, putting the result in 'buffer'

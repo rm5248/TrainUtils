@@ -6,6 +6,9 @@
 extern "C" {
 #endif
 
+struct lcc_datagram_buffer;
+
+void lcc_datagram_append_bytes(struct lcc_datagram_buffer* datagram, void* bytes, int len);
 
 #ifdef __cplusplus
 } /* extern C */

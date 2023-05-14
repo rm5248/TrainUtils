@@ -16,6 +16,11 @@ struct event_list{
     int len;
 };
 
+struct lcc_datagram_buffer{
+    int offset;
+    uint8_t buffer[72];
+};
+
 struct lcc_context{
     uint64_t unique_id;
     union{
@@ -32,6 +37,11 @@ struct lcc_context{
 
     // Simple node information
     struct lcc_simple_node_info simple_info;
+
+    struct lcc_datagram_buffer incoming_datagram;
+    lcc_incoming_datagram_fn datagram_received_fn;
+    lcc_datagram_received_ok_fn datagram_ok_fn;
+    lcc_datagram_rejected_fn datagram_rejected_fn;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0

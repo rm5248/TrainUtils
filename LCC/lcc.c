@@ -9,6 +9,28 @@
 #include "lcc-simple.h"
 #include "lcc-addressed.h"
 
+static int is_datagram_frame(struct lcc_can_frame* frame){
+    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
+    uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
+
+    fprintf(stderr,"can frame type: %d\n", can_frame_type);
+    fflush(stdout);
+
+    if(can_frame_type == 2 ||
+            can_frame_type == 3 ||
+            can_frame_type == 4 ||
+            can_frame_type == 5){
+        return 1;
+    }
+
+    if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK ||
+            mti == LCC_MTI_DATAGRAM_REJECTED){
+        return 1;
+    }
+
+    return 0;
+}
+
 struct lcc_context* lcc_context_new(){
     struct lcc_context* newctx = malloc(sizeof(struct lcc_context));
 
@@ -55,6 +77,13 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
     uint8_t frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     uint16_t source_alias = (frame->can_id & LCC_NID_ALIAS_MASK);
+    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
+
+    // TODO the handlers below should probably be in a list of some kind,
+    // so that we just call them sequentially until somebody can handle the request
+    if(is_datagram_frame(frame)){
+        return lcc_handle_datagram(ctx, frame);
+    }
 
     if(mti & LCC_MTI_SIMPLE){
         // this is a simple message
@@ -358,6 +387,21 @@ int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len)
              (int)((node_id & 0x000000FF0000l) >> 16) & 0xFF,
              (int)((node_id & 0x00000000FF00l) >> 8) & 0xFF,
              (int)((node_id & 0x0000000000FFl) >> 0) & 0xFF);
+
+    return LCC_OK;
+}
+
+int lcc_context_set_datagram_functions(struct lcc_context* ctx,
+                                         lcc_incoming_datagram_fn incoming_datagram,
+                                         lcc_datagram_received_ok_fn datagram_ok,
+                                         lcc_datagram_rejected_fn datagram_rejected){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->datagram_received_fn = incoming_datagram;
+    ctx->datagram_ok_fn = datagram_ok;
+    ctx->datagram_rejected_fn = datagram_rejected;
 
     return LCC_OK;
 }
