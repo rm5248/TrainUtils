@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>559</width>
-    <height>650</height>
+    <height>651</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -335,6 +335,13 @@
     <widget class="QPushButton" name="queryProtocolsSimpleNode">
      <property name="text">
       <string>Query Protocols and Simple Node Information</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="readCDI">
+     <property name="text">
+      <string>Read CDI</string>
      </property>
     </widget>
    </item>

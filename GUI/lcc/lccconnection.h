@@ -3,10 +3,14 @@
 #define LCCCONNECTION_H
 
 #include <QObject>
+#include <QMap>
+#include <memory>
 
 #include "lcc.h"
 #include "lcc-network-info.h"
 #include "../systemconnection.h"
+
+class LCCNode;
 
 class LCCConnection : public SystemConnection
 {
@@ -40,6 +44,8 @@ public:
      */
     void readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len);
 
+    std::shared_ptr<LCCNode> lccNodeForID(uint64_t node_id);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
     void incomingEvent(uint64_t event_id);
@@ -52,6 +58,7 @@ Q_SIGNALS:
 protected:
     struct lcc_context* m_lcc;
     struct lcc_network_info* m_lccNetwork;
+    QMap<uint64_t,std::shared_ptr<LCCNode>> m_nodes;
 };
 
 #endif // LCCCONNECTION_H

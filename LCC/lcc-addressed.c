@@ -169,10 +169,7 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
         if((can_frame_type == 5 || can_frame_type == 2) &&
                 ctx->datagram_received_fn){
-            // This is the last frame - call our callback function
-            ctx->datagram_received_fn(ctx, ctx->incoming_datagram.buffer, ctx->incoming_datagram.offset);
-
-            // Now, tell the sending node that we received OK
+            // tell the sending node that we received OK
             struct lcc_can_frame frame;
             memset(&frame, 0, sizeof(struct lcc_can_frame));
 
@@ -181,7 +178,12 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, source_alias);
             frame.can_len = 2;
 
-            ctx->write_function(ctx, &frame);
+            ctx->write_function(ctx, &frame);            
+
+            // This is the last frame - call our callback function.
+            // This must happen after we send the OK response, because the callback could send a new
+            // memory read request.
+            ctx->datagram_received_fn(ctx, ctx->incoming_datagram.buffer, ctx->incoming_datagram.offset);
         }
     }
 

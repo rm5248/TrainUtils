@@ -82,6 +82,13 @@ void lccmemorydisplay::on_memorySpaceCombo_activated(int index)
 
 void lccmemorydisplay::incomingDatagram(QByteArray datagramData){
     LOG4CXX_DEBUG_FMT(logger, "Got a datagram of {} bytes", datagramData.length());
+
+    // TODO display the data as a hexdump
+    std::string data;
+    for(uint8_t byte : datagramData){
+        data.append(fmt::format("0x{:X} ", byte));
+    }
+    LOG4CXX_DEBUG_FMT(logger, "{}", data);
 }
 
 void lccmemorydisplay::datagramReceivedOK(uint8_t flags){

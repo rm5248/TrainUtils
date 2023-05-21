@@ -38,6 +38,7 @@ struct lcc_context{
     // Simple node information
     struct lcc_simple_node_info simple_info;
 
+    // Datagram handling
     struct lcc_datagram_buffer incoming_datagram;
     lcc_incoming_datagram_fn datagram_received_fn;
     lcc_datagram_received_ok_fn datagram_ok_fn;

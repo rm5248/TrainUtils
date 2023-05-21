@@ -2,6 +2,7 @@
 #include "lccconnection.h"
 #include "lcc-node-info.h"
 #include "lcc-memory.h"
+#include "lccnode.h"
 
 static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
     LCCConnection* conn = static_cast<LCCConnection*>(lcc_network_get_userdata(inf));
@@ -100,7 +101,7 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
 
     num_nodes = lcc_network_get_node_list(m_lccNetwork, node_info_list, 120);
     if(num_nodes < 0){
-        return NULL;
+        return nullptr;
     }
 
     for( int x = 0; x < num_nodes; x++ ){
@@ -110,9 +111,24 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 void LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
     lcc_memory_read_single_transfer(m_lcc, alias, space, starting_address, len);
+}
+
+std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){
+    if(m_nodes.contains(node_id)){
+        return m_nodes[node_id];
+    }
+
+    std::shared_ptr<LCCNode> lccNode = std::make_shared<LCCNode>(m_lcc, lccNodeInfoForID(node_id), this);
+    if(lccNode->valid()){
+        // If the node is valid(e.g. it exists in the C world), then we store the pointer.
+        // Otherwise we don't, as we assume that this is an invalid node
+        m_nodes[node_id] = lccNode;
+    }
+
+    return lccNode;
 }

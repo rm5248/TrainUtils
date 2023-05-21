@@ -66,3 +66,28 @@ int lcc_memory_read_single_transfer(struct lcc_context* ctx, int alias, uint8_t 
 
     return LCC_OK;
 }
+
+int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias, uint8_t space){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    struct lcc_can_frame frame;
+    memset(&frame, 0, sizeof(frame));
+
+    lcc_set_lcb_variable_field(&frame, ctx, alias);
+    lcc_set_lcb_can_frame_type(&frame, 1);
+
+    // The frame format is 0x1Adddsss
+    int real_id = frame.can_id & 0xFFFFFF;
+    real_id |= 0x1A000000;
+    frame.can_id = real_id;
+
+    frame.can_len = 3;
+    frame.data[0] = 0x20;
+    frame.data[1] = 0x84;
+    frame.data[2] = space;
+    ctx->write_function(ctx, &frame);
+
+    return LCC_OK;
+}

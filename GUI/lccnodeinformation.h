@@ -10,6 +10,7 @@ class LCCNodeInformation;
 }
 
 class LCCConnection;
+class LCCNode;
 
 class LCCNodeInformation : public QWidget
 {
@@ -30,6 +31,8 @@ private Q_SLOTS:
     void on_queryProtocolsSimpleNode_clicked();
 
     void on_queryEventsProducedConsumed_clicked();
+
+    void on_readCDI_clicked();
 
 private:
     void clearAllData();

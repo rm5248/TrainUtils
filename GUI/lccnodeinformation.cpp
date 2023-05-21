@@ -5,6 +5,12 @@
 #include "lcc.h"
 #include "lcc-network-info.h"
 #include "lcc-node-info.h"
+#include "lcc/lccnode.h"
+
+#include <log4cxx/logger.h>
+#include <fmt/format.h>
+
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.LCCNodeInformation" );
 
 static std::vector<QCheckBox*> get_checkboxes(Ui::LCCNodeInformation *ui){
     std::vector<QCheckBox*> checkboxes = {
@@ -216,3 +222,14 @@ void LCCNodeInformation::nodeUpdated(uint64_t node_id){
     updateAllValuesForNode();
 }
 
+
+void LCCNodeInformation::on_readCDI_clicked()
+{
+    std::shared_ptr<LCCNode> lccNode = m_connection->lccNodeForID(m_nodeId);
+
+    lccNode->readCDI();
+    connect(lccNode.get(), &LCCNode::cdiRead,
+            [lccNode](){
+        LOG4CXX_DEBUG_FMT(logger, "CDI for node: {}", lccNode->cdi().toStdString());
+    });
+}
