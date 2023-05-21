@@ -84,8 +84,26 @@ set(PROJECT_SOURCES
         lccmemorydisplay.ui
         lcc/lccnode.cpp
         lcc/lccnode.h
-        lcc/segment.cpp
-        lcc/segment.h
+        lcc/cdi/segment.cpp
+        lcc/cdi/segment.h
+        lcc/cdi/cdi.cpp
+        lcc/cdi/cdi.h
+        lcc/cdi/identification.cpp
+        lcc/cdi/identification.h
+        lcc/cdi/maptype.cpp
+        lcc/cdi/maptype.h
+        lcc/cdi/acdi.cpp
+        lcc/cdi/acdi.h
+        lcc/cdi/cdivariant.cpp
+        lcc/cdi/cdivariant.h
+        lcc/cdi/inttype.cpp
+        lcc/cdi/inttype.h
+        lcc/cdi/stringtype.cpp
+        lcc/cdi/stringtype.h
+        lcc/cdi/eventidtype.cpp
+        lcc/cdi/eventidtype.h
+        lcc/cdi/grouptype.cpp
+        lcc/cdi/grouptype.h
 )
 
 if(UNIX)

@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QByteArray>
 
+#include "cdi/cdi.h"
+
 struct lcc_node_info;
 struct lcc_context;
 
@@ -31,10 +33,17 @@ public:
     void readCDI();
 
     /**
-     * The CDI data of the node.
+     * The raw CDI XML data of the node.
      * @return
      */
-    QString cdi() const;
+    QString rawCDI() const;
+
+    /**
+     * The parsed CDI data.
+     *
+     * @return
+     */
+    CDI cdi() const;
 
 Q_SIGNALS:
     /**
@@ -54,9 +63,10 @@ private:
     lcc_context* m_lcc;
     lcc_node_info* m_nodeInfo;
     bool m_hasCDI;
-    QString m_cdi;
+    QString m_rawcdi;
     int m_cdiCurrentOffset;
     int m_cdiSize;
+    CDI m_cdi;
 };
 
 #endif // LCCNODE_H

@@ -17,6 +17,7 @@ private:
     int m_space;
     int m_origin;
     QString m_name;
+    QString m_description;
 };
 
 #endif // SEGMENT_H

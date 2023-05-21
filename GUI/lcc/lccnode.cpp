@@ -16,7 +16,7 @@ LCCNode::LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObj
     m_hasCDI(false),
     m_cdiSize(-1)
 {
-    m_cdi.reserve(1024);
+    m_rawcdi.reserve(1024);
     connect(conn, &LCCConnection::incomingDatagram,
             this, &LCCNode::datagramRx);
 }
@@ -90,7 +90,7 @@ void LCCNode::handleDatagramRead(QByteArray ba){
             if(c == 0){
                 continue;
             }
-            m_cdi.append(c);
+            m_rawcdi.append(c);
         }
 
         LOG4CXX_TRACE_FMT(logger, "total num bytes: {} size: {} starting byte: {}", totalNumBytes, ba.size(), starting_byte);
@@ -105,6 +105,9 @@ void LCCNode::handleDatagramRead(QByteArray ba){
             lcc_memory_read_single_transfer(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, bytesToTx);
         }else{
             m_hasCDI = true;
+            QXmlStreamReader reader;
+            reader.addData(m_rawcdi);
+            m_cdi = CDI::createFromXML(&reader);
             Q_EMIT cdiRead();
         }
     }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION && is_error){
@@ -151,6 +154,10 @@ void LCCNode::handleGetAddressSpaceInformationReply(QByteArray ba){
     }
 }
 
-QString LCCNode::cdi() const{
+QString LCCNode::rawCDI() const{
+    return m_rawcdi;
+}
+
+CDI LCCNode::cdi() const{
     return m_cdi;
 }

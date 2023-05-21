@@ -231,14 +231,11 @@ void LCCNodeInformation::on_readCDI_clicked()
     lccNode->readCDI();
     connect(lccNode.get(), &LCCNode::cdiRead,
             [lccNode](){
-        LOG4CXX_DEBUG_FMT(logger, "CDI for node: {}", lccNode->cdi().toStdString());
-        QXmlStreamReader rdr;
-        rdr.addData(lccNode->cdi());
-        while(!rdr.atEnd()){
-            rdr.readNext();
-        }
-        if(rdr.hasError()){
-            LOG4CXX_ERROR_FMT(logger, "XML error: {}", rdr.errorString().toStdString());
-        }
+        LOG4CXX_DEBUG_FMT(logger, "Raw CDI for node: {}", lccNode->rawCDI().toStdString());
+        LOG4CXX_DEBUG_FMT(logger, "manufactuter: {} model: {} hardwareversion: {} SW version: {}",
+                          lccNode->cdi().identification().manufacturer().toStdString(),
+                          lccNode->cdi().identification().model().toStdString(),
+                          lccNode->cdi().identification().hardwareVersion().toStdString(),
+                          lccNode->cdi().identification().softwareVersion().toStdString());
     });
 }
