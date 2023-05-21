@@ -15,6 +15,10 @@ add_compile_definitions(QT_NO_KEYWORDS)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets SerialPort Network REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets SerialPort Network REQUIRED)
 find_package(fmt)
+if(UNIX)
+    find_package(Threads)
+    find_package(dbus-cxx COMPONENTS qt)
+endif()
 
 set(PROJECT_SOURCES
         main.cpp
@@ -126,10 +130,6 @@ if(UNIX)
         mdns/mdnsavahi.h
         mdns/mdnsavahi.cpp
         )
-		
-	pkg_check_modules( train-required-dbus REQUIRED
-		dbus-cxx-qt-2.0
-	)
 endif(UNIX)
 
 if(WIN32)
@@ -183,7 +183,13 @@ target_include_directories(train-gui PRIVATE
     ../LocoNetCommunications
     ../LoconetTCPUtil
 )
+if(UNIX)
+    target_link_libraries(train-gui PRIVATE
+        dbus-cxx::dbus-cxx-qt
+        )
+endif()
 
 install(TARGETS train-gui
         RUNTIME DESTINATION bin
+        CONFIGURATIONS Release
 )

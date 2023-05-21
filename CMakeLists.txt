@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.13)
-project( TrainUtils )
+project( TrainUtils VERSION 0.0.1)
 
 include( CTest )
 include( GNUInstallDirs )
@@ -76,8 +76,14 @@ ENDIF( BUILD_CAB2LOCONET_COMPUTER )
 
 if(UNIX)
   install(FILES udev-rules/50-digitrax.rules
-          DESTINATION /lib/udev/rules.d)
+          DESTINATION ${CMAKE_INSTALL_LIBDIR}/udev/rules.d)
 endif(UNIX)
+
+set(CPACK_PACKAGE_VENDOR "Robert Middleton")
+set(CPACK_STRIP_FILES True)
+set(CPACK_GENERATOR "ZIP")
+include(InstallRequiredSystemLibraries)
+include(CPack)
 
 #
 # Output configuration information

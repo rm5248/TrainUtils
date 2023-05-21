@@ -1,6 +1,6 @@
 {
   "name":"dbus-cxx",
-  "version-string":"2.3.1",
+  "version-string":"2.4.0",
   "description":"A C++ library used to interacting with DBus",
   "dependencies":[
     "libsigcpp-3",
