@@ -87,6 +87,9 @@ void LCCNode::handleDatagramRead(QByteArray ba){
         int totalNumBytes = ba.size() - starting_byte;
         for(int x = 0; x < totalNumBytes; x++){
             char c = ba[starting_byte + x];
+            if(c == 0){
+                continue;
+            }
             m_cdi.append(c);
         }
 
@@ -94,7 +97,12 @@ void LCCNode::handleDatagramRead(QByteArray ba){
         if(totalNumBytes <= 64 && (m_cdiCurrentOffset < m_cdiSize)){
             m_cdiCurrentOffset += totalNumBytes;
             uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-            lcc_memory_read_single_transfer(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, 64);
+            int bytesRemaining = m_cdiSize - m_cdiCurrentOffset;
+            int bytesToTx = 64;
+            if(bytesRemaining < 64){
+                bytesToTx = bytesRemaining;
+            }
+            lcc_memory_read_single_transfer(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, bytesToTx);
         }else{
             m_hasCDI = true;
             Q_EMIT cdiRead();

@@ -9,6 +9,7 @@
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
+#include <QXmlStreamReader>
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.LCCNodeInformation" );
 
@@ -231,5 +232,13 @@ void LCCNodeInformation::on_readCDI_clicked()
     connect(lccNode.get(), &LCCNode::cdiRead,
             [lccNode](){
         LOG4CXX_DEBUG_FMT(logger, "CDI for node: {}", lccNode->cdi().toStdString());
+        QXmlStreamReader rdr;
+        rdr.addData(lccNode->cdi());
+        while(!rdr.atEnd()){
+            rdr.readNext();
+        }
+        if(rdr.hasError()){
+            LOG4CXX_ERROR_FMT(logger, "XML error: {}", rdr.errorString().toStdString());
+        }
     });
 }

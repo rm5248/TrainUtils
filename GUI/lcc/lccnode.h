@@ -25,7 +25,7 @@ public:
     bool hasCDI() const;
 
     /**
-     * Convenience function to read the entire CDI for this node.
+     * Read the entire CDI for this node.
      * Listen for the cdiRead signal to know when the CDI is available.
      */
     void readCDI();

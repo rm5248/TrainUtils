@@ -84,6 +84,8 @@ set(PROJECT_SOURCES
         lccmemorydisplay.ui
         lcc/lccnode.cpp
         lcc/lccnode.h
+        lcc/segment.cpp
+        lcc/segment.h
 )
 
 if(UNIX)
