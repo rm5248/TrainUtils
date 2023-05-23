@@ -177,7 +177,6 @@ target_link_libraries(train-gui PRIVATE
     log4cxx-qt
 )
 target_include_directories(train-gui PRIVATE
-    /usr/local/include/qtads
     ${train-required-dbus_INCLUDE_DIRS}
     ../LCC
     ../LocoNetCommunications
