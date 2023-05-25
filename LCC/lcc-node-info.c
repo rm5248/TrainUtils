@@ -5,16 +5,24 @@
 #include "lcc-network-internal.h"
 
 struct lcc_node_info* lcc_node_info_new(struct lcc_context* parent){
+#ifdef ARDUINO
+    static struct lcc_node_info inf;
+    memset(&inf, 0, sizeof(struct lcc_node_info));
+    return &inf;
+#else
     struct lcc_node_info* inf = malloc(sizeof(struct lcc_node_info));
 
     memset(inf, 0, sizeof(struct lcc_node_info));
     inf->parent_ctx = parent;
 
     return inf;
+#endif
 }
 
 void lcc_node_info_free(struct lcc_node_info* inf){
+#ifndef ARDUINO
     free(inf);
+#endif
 }
 
 uint64_t lcc_node_info_get_id(struct lcc_node_info* inf){

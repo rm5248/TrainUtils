@@ -98,6 +98,7 @@ struct lcc_simple_node_info {
 #define LCC_CAN_FRAME_TYPE_MASK 0x07000000
 #define LCC_VARIABLE_FIELD_MASK 0x00FFF000
 #define LCC_NID_ALIAS_MASK      0x00000FFF
+#define LCC_CAN_FRAME_ID_MASK   0x1FFFFFFF
 /** Assumes that our MTI is 16-bits */
 #define LCC_MTI_PRIORITY_MASK   (0x3 << 10)
 #define LCC_MTI_TYPE_WITHIN_PRIORITY_MASK (0xF << 5)

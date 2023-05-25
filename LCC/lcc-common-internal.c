@@ -4,15 +4,17 @@
 #include "lcc-common-internal.h"
 
 void lcc_set_lcb_variable_field(struct lcc_can_frame* frame, struct lcc_context* ctx, int variable_field){
+    uint32_t var_field_u32 = variable_field;
     frame->can_id = 0;
-    frame->can_id |= (0x01 << 28); /* reserved, set as 1 */
-    frame->can_id |= (0x01 << 27); /* openLCB frame type */
-    frame->can_id |= (variable_field << 12);
+    frame->can_id |= (0x01l << 28); /* reserved, set as 1 */
+    frame->can_id |= (0x01l << 27); /* openLCB frame type */
+    frame->can_id |= (var_field_u32 << 12);
     frame->can_id |= (ctx->node_alias & 0xFFF);
 }
 
 void lcc_set_lcb_can_frame_type(struct lcc_can_frame* frame, int type){
-    frame->can_id |= (type << 24);
+    uint32_t type_field_u32 = type;
+    frame->can_id |= (type_field_u32 << 24);
 }
 
 void lcc_set_nodeid_in_data(struct lcc_can_frame* frame, uint64_t node_id){

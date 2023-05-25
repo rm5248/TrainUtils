@@ -2,13 +2,20 @@
 #ifndef LIBLCC_COMMON_INT_H
 #define LIBLCC_COMMON_INT_H
 
+#ifndef ARDUINO
 #ifndef LIBLCC_BUILD
 #error "Internal header, do not use in client code!"
 #endif
+#endif /* ARDUINO */
 
 #include <stdint.h>
 
 #include "lcc-common.h"
+
+/* This is just an internal file, but arduino seems to use a C++ compiler so we need to make sure functions are C */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct event_list{
     uint64_t* event_array;
@@ -75,5 +82,9 @@ int event_list_has_event(struct event_list* list, uint64_t event_id);
  * @return
  */
 int lcc_send_events_produced(struct lcc_context* ctx);
+
+#ifdef __cplusplus
+} /* extern C */
+#endif
 
 #endif

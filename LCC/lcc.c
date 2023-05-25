@@ -32,6 +32,13 @@ static int is_datagram_frame(struct lcc_can_frame* frame){
 }
 
 struct lcc_context* lcc_context_new(){
+#ifdef ARDUINO
+    static struct lcc_context ctx;
+    memset(&ctx, 0, sizeof(struct lcc_context));
+
+    ctx.state = LCC_STATE_INHIBITED;
+    return &ctx;
+#else
     struct lcc_context* newctx = malloc(sizeof(struct lcc_context));
 
     if( !newctx ){
@@ -43,6 +50,7 @@ struct lcc_context* lcc_context_new(){
     newctx->state = LCC_STATE_INHIBITED;
 
     return newctx;
+#endif
 }
 
 void lcc_context_free(struct lcc_context* ctx){
@@ -50,7 +58,9 @@ void lcc_context_free(struct lcc_context* ctx){
         return;
     }
 
+#ifndef ARDUINO
     free(ctx);
+#endif
 }
 
 int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* frame){
@@ -170,21 +180,21 @@ int lcc_context_generate_alias(struct lcc_context* ctx){
     frame.res1 = 0;
     frame.res2 = 0;
 
-    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0xFFF000000000l) >> 36) | 0x7000);
+    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0xFFF000000000llu) >> 36) | 0x7000);
     // this is a CAN control frame, clear bit 27
-    frame.can_id &= (~(0x01 << 27));
+    frame.can_id &= (~(0x01l << 27));
     ctx->write_function(ctx, &frame);
 
-    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000FFF000000l) >> 24) | 0x6000);
-    frame.can_id &= (~(0x01 << 27));
+    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000FFF000000llu) >> 24) | 0x6000);
+    frame.can_id &= (~(0x01l << 27));
     ctx->write_function(ctx, &frame);
 
-    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000FFF000l) >> 12) | 0x5000);
-    frame.can_id &= (~(0x01 << 27));
+    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000FFF000llu) >> 12) | 0x5000);
+    frame.can_id &= (~(0x01l << 27));
     ctx->write_function(ctx, &frame);
 
-    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000000FFFl) >> 0) | 0x4000);
-    frame.can_id &= (~(0x01 << 27));
+    lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000000FFFllu) >> 0) | 0x4000);
+    frame.can_id &= (~(0x01l << 27));
     ctx->write_function(ctx, &frame);
 
     ctx->node_alias_state = LCC_NODE_ALIAS_SENT_CID;
@@ -213,12 +223,12 @@ int lcc_context_claim_alias(struct lcc_context* ctx){
 
     // RID frame
     lcc_set_lcb_variable_field(&frame, ctx, 0x700);
-    frame.can_id &= (~(0x01 << 27));
+    frame.can_id &= (~(0x01l << 27));
     ctx->write_function(ctx, &frame);
 
     // AMD frame
     lcc_set_lcb_variable_field(&frame, ctx, 0x701);
-    frame.can_id &= (~(0x01 << 27));
+    frame.can_id &= (~(0x01l << 27));
     lcc_set_nodeid_in_data(&frame, ctx->unique_id);
     ctx->write_function(ctx, &frame);
 
@@ -404,4 +414,16 @@ int lcc_context_set_datagram_functions(struct lcc_context* ctx,
     ctx->datagram_rejected_fn = datagram_rejected;
 
     return LCC_OK;
+}
+
+int lcc_context_current_state(struct lcc_context* ctx){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    if(ctx->state){
+        return LCC_STATE_INHIBITED;
+    }
+
+    return LCC_STATE_PERMITTED;
 }

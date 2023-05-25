@@ -198,6 +198,14 @@ int lcc_context_set_datagram_functions(struct lcc_context* ctx,
                                        lcc_datagram_received_ok_fn datagram_ok,
                                        lcc_datagram_rejected_fn datagram_rejected);
 
+/**
+ * Get the current state(permitted or inhibited)
+ *
+ * @param ctx
+ * @return
+ */
+int lcc_context_current_state(struct lcc_context* ctx);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif

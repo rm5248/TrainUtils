@@ -2,9 +2,11 @@
 #ifndef LCC_NETWORK_INT_H
 #define LCC_NETWORK_INT_H
 
+#ifndef ARDUINO
 #ifndef LIBLCC_BUILD
 #error "Internal header, do not use in client code!"
 #endif
+#endif /* ARDUINO */
 
 #include <stdint.h>
 #include "lcc-common.h"
