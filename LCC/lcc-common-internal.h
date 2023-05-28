@@ -104,6 +104,22 @@ int lcc_send_events_produced(struct lcc_context* ctx);
 
 int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame);
 
+/**
+ * Try to handle a datagram with the memory subsystem.
+ * Return 1 if it was handled, 0 if it was not.
+ */
+int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len);
+
+/**
+ * Read a uint32(in big-endian order) from data.  Data must be at least 4 bytes.
+ */
+uint32_t lcc_uint32_from_data(void* data);
+
+/**
+ * Write the uint32 to 'data' in big-endian order
+ */
+void lcc_uint32_to_data(void* data, uint32_t value);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif

@@ -152,3 +152,22 @@ int lcc_send_events_produced(struct lcc_context* ctx){
 
     return LCC_OK;
 }
+
+uint32_t lcc_uint32_from_data(void* data){
+    uint32_t retval = 0;
+    uint8_t* u8_data = data;
+
+    retval = (u8_data[0] << 24l) |
+            (u8_data[1] << 16l) |
+            (u8_data[2] << 8l) |
+            (u8_data[3]);
+    return retval;
+}
+
+void lcc_uint32_to_data(void* data, uint32_t value){
+    uint8_t* u8_data = data;
+    u8_data[0] = ((value & 0xFF000000) >> 24l) & 0xFF;
+    u8_data[1] = ((value & 0x00FF0000) >> 16l) & 0xFF;
+    u8_data[2] = ((value & 0x0000FF00) >> 8l) & 0xFF;
+    u8_data[3] = ((value & 0x000000FF) >> 0l) & 0xFF;
+}

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "lcc-memory.h"
 #include "lcc-common-internal.h"
@@ -48,10 +49,8 @@ int lcc_memory_read_single_transfer(struct lcc_context* ctx, int alias, uint8_t 
     }else{
         tx_data[6] = space;
     }
-    tx_data[2] = ((starting_address & 0xFF000000) >> 24) & 0xFF;
-    tx_data[3] = ((starting_address & 0x00FF0000) >> 16) & 0xFF;
-    tx_data[4] = ((starting_address & 0x0000FF00) >> 8) & 0xFF;
-    tx_data[5] = ((starting_address & 0x000000FF) >> 0) & 0xFF;
+    lcc_uint32_to_data(tx_data + 2, starting_address);
+
     tx_data[6] = read_count & 0xFF;
 
     lcc_datagram_load_and_send(ctx->datagram_context,
@@ -170,15 +169,9 @@ int lcc_memory_respond_information_query(struct lcc_memory_context* ctx,
         response[1] = 0x87;
     }
     response[2] = address_space;
-    response[3] = ((highest_address & 0xFF000000) >> 24) & 0xFF;
-    response[4] = ((highest_address & 0x00FF0000) >> 16) & 0xFF;
-    response[5] = ((highest_address & 0x0000FF00) >> 8) & 0xFF;
-    response[6] = ((highest_address & 0x000000FF) >> 0) & 0xFF;
+    lcc_uint32_to_data(response + 3, highest_address);
     response[7] = flags;
-    response[8] = ((lowest_address & 0xFF000000) >> 24) & 0xFF;
-    response[9] = ((lowest_address & 0x00FF0000) >> 16) & 0xFF;
-    response[10] = ((lowest_address & 0x0000FF00) >> 8) & 0xFF;
-    response[11] = ((lowest_address & 0x000000FF) >> 0) & 0xFF;
+    lcc_uint32_to_data(response + 9, lowest_address);
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
@@ -224,10 +217,8 @@ int lcc_memory_respond_read_reply_ok(struct lcc_memory_context* ctx,
         start = 7;
     }
 
-    response[2] = ((starting_address & 0xFF000000) >> 24) & 0xFF;
-    response[3] = ((starting_address & 0x00FF0000) >> 16) & 0xFF;
-    response[4] = ((starting_address & 0x0000FF00) >> 8) & 0xFF;
-    response[5] = ((starting_address & 0x000000FF) >> 0) & 0xFF;
+    printf("startgin address: %d\n", starting_address);
+    lcc_uint32_to_data(response + 2, starting_address);
 
     memcpy(response + start, data, data_len);
 
@@ -258,10 +249,7 @@ int lcc_memory_respond_read_reply_fail(struct lcc_memory_context* ctx,
         start = 7;
     }
 
-    response[2] = ((starting_address & 0xFF000000) >> 24) & 0xFF;
-    response[3] = ((starting_address & 0x00FF0000) >> 16) & 0xFF;
-    response[4] = ((starting_address & 0x0000FF00) >> 8) & 0xFF;
-    response[5] = ((starting_address & 0x000000FF) >> 0) & 0xFF;
+    lcc_uint32_to_data(response + 2, starting_address);
     response[start] = ((error_code & 0xFF00) >> 8);
     response[start + 1] = ((error_code & 0x00FF) >> 0);
 
@@ -278,4 +266,85 @@ int lcc_memory_respond_read_reply_fail(struct lcc_memory_context* ctx,
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
                                response, total_len);
+}
+
+static int lcc_memory_handle_datagram_cdi_memory_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
+    int cdi_len = strlen(ctx->cdi_data);
+
+    lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias);
+
+    int resp = lcc_memory_respond_information_query(ctx,
+                                                    alias,
+                                                    1,
+                                                    LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION,
+                                                    cdi_len,
+                                                    0,
+                                                    0);
+
+    if(resp == 0){
+        return 1;
+    }
+
+    return 0;
+}
+
+static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
+    if(data_len < 6 || data_len > 7){
+        return 0;
+    }
+
+    int space = 0;
+    int addr_offset = 6;
+    if(data[1] == 0x43){
+        space = LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION;
+    }else if(data[1] == 0x40){
+        space = data[6];
+        addr_offset = 7;
+    }
+
+    printf("space: 0x%02X\n", space);
+    fflush(stdout);
+
+    if(space != LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
+        return 0;
+    }
+
+    uint8_t num_bytes_to_read = data[addr_offset];
+    printf("reaed count: %d\n", num_bytes_to_read);
+    fflush(stdout);
+
+    // At this point, we have determined that we have a valid read command for the CDI
+    // that we can do something with.
+    // First respond with the OK datagram.
+    lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias);
+
+    // Let's go and read the data and return it.
+    uint32_t starting_address = lcc_uint32_from_data(data + 2);
+
+    int stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, ctx->cdi_data + starting_address, num_bytes_to_read);
+
+    if(stat == 0){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
+    if(ctx->cdi_data == NULL){
+        return 0;
+    }
+
+    if(data[0] != 0x20){
+        return 0;
+    }
+
+    if(data[1] == 0x84 &&
+            data[2] == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
+        return lcc_memory_handle_datagram_cdi_memory_space(ctx, alias, data, data_len);
+    }else{
+        return lcc_memory_handle_datagram_read_cdi_space(ctx, alias, data, data_len);
+    }
+
+    return 0;
 }

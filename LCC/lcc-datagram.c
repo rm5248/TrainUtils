@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "lcc-datagram.h"
 #include "lcc-common-internal.h"
 
@@ -94,6 +95,7 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
     if(data_len % 8 != 0){
         numPackets++;
     }
+    printf("num packets for %d byte message: %d\n", data_len, numPackets);
     for(int x = 0; x < numPackets; x++){
         lcc_set_lcb_variable_field(&frame, ctx->parent, alias);
         if(x == 0){
@@ -112,6 +114,8 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
         data_offset += numBytesToCopy;
         frame.can_len = numBytesToCopy;
 
+        printf("write packet\n");
+        fflush(stdout);
         ctx->parent->write_function(ctx->parent, &frame);
     }
 
@@ -142,10 +146,23 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
         // This is a datagram that is destined for us, append to our buffer
         lcc_datagram_append_bytes(&datagram_ctx->datagram_buffer, frame->data, frame->can_len);
 
-        if((can_frame_type == 5 || can_frame_type == 2) &&
-                datagram_ctx->datagram_received_fn){
+        if((can_frame_type == 5 || can_frame_type == 2)){
             // This is the last frame - call our callback function.
-            datagram_ctx->datagram_received_fn(datagram_ctx, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
+            // First we check to see if we handle it within the library(CDI).
+            // If we don't handle it within the library, call the callback function.
+            int handled = 0;
+            if(ctx->memory_context){
+                handled = lcc_memory_try_handle_datagram(ctx->memory_context, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
+            }
+            if(!handled && datagram_ctx->datagram_received_fn){
+                datagram_ctx->datagram_received_fn(datagram_ctx, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
+            }else if(!handled){
+                // There is no handler for this, reject it!
+                lcc_datagram_respond_rejected(datagram_ctx, source_alias);
+            }
+
+            // We have received a datagram, reset our buffer
+            datagram_ctx->datagram_buffer.offset = 0;
         }
     }
 

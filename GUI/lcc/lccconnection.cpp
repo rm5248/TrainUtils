@@ -5,6 +5,30 @@
 #include "lcc-datagram.h"
 #include "lccnode.h"
 
+const char* sample_xml = "<?xml version=\"1.0\"?>\
+<cdi\
+    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">\
+    <identification>\
+        <manufacturer>Robert M</manufacturer>\
+        <model>Foobar</model>\
+        <hardwareVersion>N/A</hardwareVersion>\
+        <softwareVersion>farts</softwareVersion>\
+    </identification>\
+    <acdi/>\
+        <segment space='251'>\
+            <name>Node ID</name>\
+            <group>\
+                <name>Your name and description for this node</name>\
+                <string size='63'>\
+                    <name>Node Name</name>\
+                </string>\
+                <string size='64' offset='1'>\
+                    <name>Node Description</name>\
+                </string>\
+            </group>\
+        </segment>\
+</cdi>";
+
 static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
     LCCConnection* conn = static_cast<LCCConnection*>(lcc_network_get_userdata(inf));
 
@@ -46,12 +70,17 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
+    struct lcc_memory_context* memory_ctx = lcc_memory_new(m_lcc);
+
+    lcc_memory_set_cdi(memory_ctx, (char*)sample_xml, 0);
 
     lcc_context_set_userdata(m_lcc, this);
     lcc_datagram_context_set_datagram_functions(datagram_ctx,
                                        incoming_datagram_cb,
                                        datagram_recevied_ok,
                                        datagram_rejected);
+
+
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);

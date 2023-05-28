@@ -38,8 +38,12 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         if(ctx->datagram_context){
             ret_frame.data[2] |= 0x40; /* Datagram protocol */
         }
-        ret_frame.data[3] = 0x10 /* Simple node information */
-                | 0x08 /* CDI protocol */;
+        ret_frame.data[3] = 0x10 /* Simple node information */;
+        if(ctx->memory_context){
+            // TODO this should maybe be a bit smarter(e.g. pass in CDI as configuration
+            // option to the lcc_context), but this suffices for now.
+            ret_frame.data[3] |= 0x08; /* CDI protocol */
+        }
         ret_frame.data[4] = 0;
         ret_frame.data[5] = 0;
         ret_frame.data[6] = 0;
