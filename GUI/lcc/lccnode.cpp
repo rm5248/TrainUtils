@@ -2,6 +2,7 @@
 #include "lccnode.h"
 #include "lcc-memory.h"
 #include "lcc-node-info.h"
+#include "lcc-datagram.h"
 #include "lccconnection.h"
 
 #include <log4cxx/logger.h>
@@ -38,7 +39,7 @@ void LCCNode::readCDI(){
     lcc_memory_get_address_space_information(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
 }
 
-void LCCNode::datagramRx(QByteArray ba){
+void LCCNode::datagramRx(uint16_t source_alias, QByteArray ba){
     uint8_t read_reply_b0 = ba[0];
     uint8_t status_byte = ba[1];
     uint32_t starting_address = (ba[2] << 24) |
@@ -51,6 +52,8 @@ void LCCNode::datagramRx(QByteArray ba){
         assert(false);
         return;
     }
+
+    lcc_datagram_respond_rxok(lcc_context_get_datagram_context(m_lcc), source_alias);
 
     if(status_byte == 0x86 ||
             status_byte == 0x87){

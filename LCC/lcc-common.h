@@ -13,6 +13,16 @@ extern "C" {
  */
 struct lcc_context;
 
+/**
+ * Opaque context used to hold data for datagrams
+ */
+struct lcc_datagram_context;
+
+/**
+ * Opaque context used to hold information for memory
+ */
+struct lcc_memory_context;
+
 struct lcc_can_frame;
 
 enum lcc_producer_state{
@@ -41,19 +51,42 @@ typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint64_t event_id)
 typedef enum lcc_producer_state(*lcc_query_producer_state_fn)(struct lcc_context* ctx, uint64_t event_id);
 
 /**
- * A function that will be called when a datagram is received from a node
+ * A function that will be called when a datagram is received from a node.
+ *
+ * Upon a receipt of a datagram, you must call either lcc_datagram_respond_rxok
+ * or lcc_datagram_respond_rejected in order to tell the sending node if we
+ * accepted or rejected the datagram.
  */
-typedef void(*lcc_incoming_datagram_fn)(struct lcc_context* ctx, void* datagram_data, int len);
+typedef void(*lcc_incoming_datagram_fn)(struct lcc_datagram_context* ctx, uint16_t alias, void* datagram_data, int len);
 
 /**
  * A function that will be called when a node responds with 'datagram received ok'
  */
-typedef void (*lcc_datagram_received_ok_fn)(struct lcc_context* ctx, uint8_t flags);
+typedef void (*lcc_datagram_received_ok_fn)(struct lcc_datagram_context* ctx, uint16_t alias, uint8_t flags);
 
 /**
  * A function that will be called when a node responds with 'Datagram Rejected'
  */
-typedef void (*lcc_datagram_rejected_fn)(struct lcc_context* ctx, uint16_t error_code, void* optional_data, int optional_len);
+typedef void (*lcc_datagram_rejected_fn)(struct lcc_datagram_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len);
+
+/**
+ * A function that will be called when a 'Get Address Space Information' command is received
+ */
+typedef void (*lcc_address_space_information_query)(struct lcc_memory_context* ctx, uint8_t address_space);
+
+/**
+ * A function that will be called when a Read command is received.
+ * The called function must call either lcc_memory_respond_read_reply_ok or
+ * lcc_memory_respond_read_reply_fail depending on the result.
+ */
+typedef void (*lcc_address_space_read)(struct lcc_memory_context* ctx, uint8_t address_space, uint32_t starting_address, uint8_t read_count);
+
+/**
+ * A function that will be called when a Write command is received.
+ * The called function must call either lcc_memory_respond_write_reply_ok or
+ * lcc_memory_respond_write_reply_fail depending on the result.
+ */
+typedef void (*lcc_address_space_write)(struct lcc_memory_context* ctx, uint8_t address_space, uint32_t starting_address, void* data, int data_len);
 
 /*
  * Error code definitions
@@ -68,6 +101,7 @@ typedef void (*lcc_datagram_rejected_fn)(struct lcc_context* ctx, uint16_t error
 /** A string provided to a function is too long(see spec for more details) */
 #define LCC_ERROR_STRING_TOO_LONG -7
 #define LCC_ERROR_EVENT_ID_INVALID -8
+#define LCC_ERROR_NO_DATAGRAM_HANDLING -9
 
 /**
  * Struct used to pass frames to/from the library.
@@ -148,6 +182,9 @@ struct lcc_simple_node_info {
 
 #define LCC_MTI_DATAGRAM_RECEIVED_OK 0xA28
 #define LCC_MTI_DATAGRAM_REJECTED 0xA48
+
+#define LCC_ADDRESS_SPACE_PRESENT 0x86
+#define LCC_ADDRESS_SPACE_NOT_PRESENT 0x87
 
 /**
  * Convert a node id to dotted format, putting the result in 'buffer'

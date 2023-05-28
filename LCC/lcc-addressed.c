@@ -35,7 +35,11 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         ret_frame.data[2] = 0x80 /* Simple protocol */
                 | 0x04 /* producer/consumer protocol */
                 | 0x02 /* identification protocol */;
-        ret_frame.data[3] = 0x10; /* Simple node information */
+        if(ctx->datagram_context){
+            ret_frame.data[2] |= 0x40; /* Datagram protocol */
+        }
+        ret_frame.data[3] = 0x10 /* Simple node information */
+                | 0x08 /* CDI protocol */;
         ret_frame.data[4] = 0;
         ret_frame.data[5] = 0;
         ret_frame.data[6] = 0;
@@ -144,57 +148,6 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         }
     }else if(mti == LCC_MTI_EVENT_IDENTIFY){
         return lcc_send_events_produced(ctx);
-    }
-
-    return LCC_OK;
-}
-
-int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
-    uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
-    uint16_t source_alias = (frame->can_id & LCC_NID_ALIAS_MASK);
-
-    // See if this is a datagram frame
-    if(can_frame_type == 2 ||
-            can_frame_type == 3 ||
-            can_frame_type == 4 ||
-            can_frame_type == 5){
-        // Check to see if this comes to us
-        if(mti != ctx->node_alias){
-            return LCC_OK;
-        }
-
-        // This is a datagram that is destined for us, append to our buffer
-        lcc_datagram_append_bytes(&ctx->incoming_datagram, frame->data, frame->can_len);
-
-        if((can_frame_type == 5 || can_frame_type == 2) &&
-                ctx->datagram_received_fn){
-            // tell the sending node that we received OK
-            struct lcc_can_frame frame;
-            memset(&frame, 0, sizeof(struct lcc_can_frame));
-
-            lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_DATAGRAM_RECEIVED_OK);
-            lcc_set_lcb_can_frame_type(&frame, 1);
-            lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, source_alias);
-            frame.can_len = 2;
-
-            ctx->write_function(ctx, &frame);            
-
-            // This is the last frame - call our callback function.
-            // This must happen after we send the OK response, because the callback could send a new
-            // memory read request.
-            ctx->datagram_received_fn(ctx, ctx->incoming_datagram.buffer, ctx->incoming_datagram.offset);
-        }
-    }
-
-    if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
-        if(ctx->datagram_received_fn){
-            ctx->datagram_ok_fn(ctx, frame->data[0]);
-        }
-    }else if(mti == LCC_MTI_DATAGRAM_REJECTED){
-        if(ctx->datagram_rejected_fn){
-            ctx->datagram_rejected_fn(ctx, frame->data[2] << 8 | frame->data[3], NULL, 0);
-        }
     }
 
     return LCC_OK;

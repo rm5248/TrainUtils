@@ -53,7 +53,7 @@ Q_SIGNALS:
     void cdiReadFailure(uint16_t error_code, QString error_string);
 
 private Q_SLOTS:
-    void datagramRx(QByteArray data);
+    void datagramRx(uint16_t source_alias, QByteArray data);
 
 private:
     void handleDatagramRead(QByteArray ba);

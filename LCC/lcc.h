@@ -185,26 +185,16 @@ int lcc_context_produce_event(struct lcc_context* ctx,
                               uint64_t event_id);
 
 /**
- * Set a function that will be called during datagram transfers.
- * This needs to be setup before doing something that requires datagrams, for example
- * reading the CDI or memory.
- *
- * @param ctx
- * @param incoming_datagram
- * @return
- */
-int lcc_context_set_datagram_functions(struct lcc_context* ctx,
-                                       lcc_incoming_datagram_fn incoming_datagram,
-                                       lcc_datagram_received_ok_fn datagram_ok,
-                                       lcc_datagram_rejected_fn datagram_rejected);
-
-/**
  * Get the current state(permitted or inhibited)
  *
  * @param ctx
  * @return
  */
 int lcc_context_current_state(struct lcc_context* ctx);
+
+struct lcc_datagram_context* lcc_context_get_datagram_context(struct lcc_context* ctx);
+
+struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ctx);
 
 #ifdef __cplusplus
 } /* extern C */

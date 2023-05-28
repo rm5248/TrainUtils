@@ -80,7 +80,7 @@ void lccmemorydisplay::on_memorySpaceCombo_activated(int index)
     }
 }
 
-void lccmemorydisplay::incomingDatagram(QByteArray datagramData){
+void lccmemorydisplay::incomingDatagram(uint16_t source_alias, QByteArray datagramData){
     LOG4CXX_DEBUG_FMT(logger, "Got a datagram of {} bytes", datagramData.length());
 
     // TODO display the data as a hexdump
@@ -91,10 +91,10 @@ void lccmemorydisplay::incomingDatagram(QByteArray datagramData){
     LOG4CXX_DEBUG_FMT(logger, "{}", data);
 }
 
-void lccmemorydisplay::datagramReceivedOK(uint8_t flags){
+void lccmemorydisplay::datagramReceivedOK(uint16_t source_alias, uint8_t flags){
     LOG4CXX_DEBUG_FMT(logger, "Datagram RX OK!");
 }
 
-void lccmemorydisplay::datagramRejected(uint16_t error_code, QByteArray optional_data){
+void lccmemorydisplay::datagramRejected(uint16_t source_alias, uint16_t error_code, QByteArray optional_data){
     LOG4CXX_DEBUG_FMT(logger, "Datagram Rejected!  code: 0x{:X}", error_code);
 }

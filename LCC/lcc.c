@@ -13,9 +13,6 @@ static int is_datagram_frame(struct lcc_can_frame* frame){
     int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
 
-    fprintf(stderr,"can frame type: %d\n", can_frame_type);
-    fflush(stdout);
-
     if(can_frame_type == 2 ||
             can_frame_type == 3 ||
             can_frame_type == 4 ||
@@ -59,6 +56,12 @@ void lcc_context_free(struct lcc_context* ctx){
     }
 
 #ifndef ARDUINO
+    if(ctx->datagram_context){
+        free(ctx->datagram_context);
+    }
+    if(ctx->memory_context){
+        free(ctx->memory_context);
+    }
     free(ctx);
 #endif
 }
@@ -401,21 +404,6 @@ int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len)
     return LCC_OK;
 }
 
-int lcc_context_set_datagram_functions(struct lcc_context* ctx,
-                                         lcc_incoming_datagram_fn incoming_datagram,
-                                         lcc_datagram_received_ok_fn datagram_ok,
-                                         lcc_datagram_rejected_fn datagram_rejected){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    ctx->datagram_received_fn = incoming_datagram;
-    ctx->datagram_ok_fn = datagram_ok;
-    ctx->datagram_rejected_fn = datagram_rejected;
-
-    return LCC_OK;
-}
-
 int lcc_context_current_state(struct lcc_context* ctx){
     if(!ctx){
         return LCC_ERROR_INVALID_ARG;
@@ -427,3 +415,21 @@ int lcc_context_current_state(struct lcc_context* ctx){
 
     return LCC_STATE_PERMITTED;
 }
+
+
+struct lcc_datagram_context* lcc_context_get_datagram_context(struct lcc_context* ctx){
+    if(!ctx){
+        return NULL;
+    }
+
+    return ctx->datagram_context;
+}
+
+struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ctx){
+    if(!ctx){
+        return NULL;
+    }
+
+    return ctx->memory_context;
+}
+

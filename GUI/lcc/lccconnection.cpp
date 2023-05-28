@@ -2,6 +2,7 @@
 #include "lccconnection.h"
 #include "lcc-node-info.h"
 #include "lcc-memory.h"
+#include "lcc-datagram.h"
 #include "lccnode.h"
 
 static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
@@ -16,34 +17,38 @@ static void node_updated_cb(struct lcc_network_info* inf, struct lcc_node_info* 
     Q_EMIT conn->nodeInformationUpdated(lcc_node_info_get_id(new_node));
 }
 
-static void incoming_datagram_cb(struct lcc_context* ctx, void* datagram_data, int len){
+static void incoming_datagram_cb(struct lcc_datagram_context* ctx, uint16_t source_alias, void* datagram_data, int len){
     QByteArray ba = QByteArray::fromRawData((const char*)datagram_data, len);
+    lcc_context* pctx = lcc_datagram_context_parent(ctx);
 
-    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
 
-    Q_EMIT conn->incomingDatagram(ba);
+    Q_EMIT conn->incomingDatagram(source_alias, ba);
 }
 
-static void datagram_recevied_ok(struct lcc_context* ctx, uint8_t flags){
-    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+static void datagram_recevied_ok(struct lcc_datagram_context* ctx, uint16_t source_alias, uint8_t flags){
+    lcc_context* pctx = lcc_datagram_context_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
 
-    Q_EMIT conn->datagramReceivedOK(flags);
+    Q_EMIT conn->datagramReceivedOK(source_alias, flags);
 }
 
-static void datagram_rejected(struct lcc_context* ctx, uint16_t error_code, void* optional_data, int optional_len){
-    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+static void datagram_rejected(struct lcc_datagram_context* ctx, uint16_t source_alias, uint16_t error_code, void* optional_data, int optional_len){
+    lcc_context* pctx = lcc_datagram_context_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
     QByteArray ba = QByteArray::fromRawData((const char*)optional_data, optional_len);
 
-    Q_EMIT conn->datagramRejected(error_code, ba);
+    Q_EMIT conn->datagramRejected(source_alias, error_code, ba);
 }
 
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
+    struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
 
     lcc_context_set_userdata(m_lcc, this);
-    lcc_context_set_datagram_functions(m_lcc,
+    lcc_datagram_context_set_datagram_functions(datagram_ctx,
                                        incoming_datagram_cb,
                                        datagram_recevied_ok,
                                        datagram_rejected);

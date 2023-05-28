@@ -28,6 +28,23 @@ struct lcc_datagram_buffer{
     uint8_t buffer[72];
 };
 
+struct lcc_datagram_context{
+    struct lcc_context* parent;
+    struct lcc_datagram_buffer datagram_buffer;
+    lcc_incoming_datagram_fn datagram_received_fn;
+    lcc_datagram_received_ok_fn datagram_ok_fn;
+    lcc_datagram_rejected_fn datagram_rejected_fn;
+};
+
+struct lcc_memory_context{
+    struct lcc_context* parent;
+    void* cdi_data;
+    int cdi_flags;
+    lcc_address_space_information_query query_fn;
+    lcc_address_space_read read_fn;
+    lcc_address_space_write write_fn;
+};
+
 struct lcc_context{
     uint64_t unique_id;
     union{
@@ -36,20 +53,22 @@ struct lcc_context{
     };
     int16_t node_alias;
     lcc_write_fn write_function;
-    lcc_incoming_event_fn incoming_event;
-    struct event_list events_consumed;
-    struct event_list events_produced;
-    lcc_query_producer_state_fn producer_state_fn;
     void* user_data;
 
     // Simple node information
     struct lcc_simple_node_info simple_info;
 
+    // event producer/consumer
+    lcc_incoming_event_fn incoming_event;
+    struct event_list events_consumed;
+    struct event_list events_produced;
+    lcc_query_producer_state_fn producer_state_fn;
+
     // Datagram handling
-    struct lcc_datagram_buffer incoming_datagram;
-    lcc_incoming_datagram_fn datagram_received_fn;
-    lcc_datagram_received_ok_fn datagram_ok_fn;
-    lcc_datagram_rejected_fn datagram_rejected_fn;
+    struct lcc_datagram_context* datagram_context;
+
+    // Memory handling
+    struct lcc_memory_context* memory_context;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0
@@ -82,6 +101,8 @@ int event_list_has_event(struct event_list* list, uint64_t event_id);
  * @return
  */
 int lcc_send_events_produced(struct lcc_context* ctx);
+
+int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame);
 
 #ifdef __cplusplus
 } /* extern C */
