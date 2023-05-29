@@ -6,7 +6,8 @@
 #include "lcc-common-internal.h"
 
 static int lcc_handle_producer_query(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    if(!ctx->write_function){
+    if(!ctx->write_function ||
+            !ctx->event_context){
         return LCC_OK;
     }
 
@@ -17,11 +18,11 @@ static int lcc_handle_producer_query(struct lcc_context* ctx, struct lcc_can_fra
     uint64_t event_id = lcc_get_eventid_from_data(frame);
     enum lcc_producer_state state = LCC_PRODUCER_UNKNOWN;
 
-    if(event_list_has_event(&ctx->events_consumed, event_id)){
+    if(event_list_has_event(&ctx->event_context->events_consumed, event_id)){
         struct lcc_can_frame frame;
 
-        if(ctx->producer_state_fn){
-            state = ctx->producer_state_fn(ctx, event_id);
+        if(ctx->event_context->producer_state_fn){
+            state = ctx->event_context->producer_state_fn(ctx, event_id);
         }
 
         memset(&frame, 0, sizeof(frame));
@@ -46,7 +47,8 @@ static int lcc_handle_producer_query(struct lcc_context* ctx, struct lcc_can_fra
 }
 
 static int lcc_handle_consumer_query(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    if(!ctx->write_function){
+    if(!ctx->write_function ||
+            !ctx->event_context){
         return LCC_OK;
     }
 
@@ -56,7 +58,7 @@ static int lcc_handle_consumer_query(struct lcc_context* ctx, struct lcc_can_fra
 
     uint64_t event_id = lcc_get_eventid_from_data(frame);
 
-    if(event_list_has_event(&ctx->events_consumed, event_id)){
+    if(event_list_has_event(&ctx->event_context->events_consumed, event_id)){
         /*
          * Currently valid – the internal state of the consumer & associated devices is known to be the same as if this was the last event consumed
          * Currently invalid – the internal state of the consumer & associated devices is known to not be the same as if this was the last event consumed
@@ -76,7 +78,7 @@ static int lcc_handle_consumer_query(struct lcc_context* ctx, struct lcc_can_fra
 }
 
 static int lcc_handle_producer_consumer(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    if(!ctx->incoming_event){
+    if(!ctx->event_context->incoming_event){
         // There's no method to call, let's bail immediately
         return LCC_OK;
     }
@@ -88,10 +90,10 @@ static int lcc_handle_producer_consumer(struct lcc_context* ctx, struct lcc_can_
     uint64_t event_id = lcc_get_eventid_from_data(frame);
 
     if(ctx->listen_all_events){
-        ctx->incoming_event(ctx, event_id);
+        ctx->event_context->incoming_event(ctx, event_id);
     }
-    if(event_list_has_event(&ctx->events_consumed, event_id)){
-        ctx->incoming_event(ctx, event_id);
+    if(event_list_has_event(&ctx->event_context->events_consumed, event_id)){
+        ctx->event_context->incoming_event(ctx, event_id);
     }
 
     return LCC_OK;

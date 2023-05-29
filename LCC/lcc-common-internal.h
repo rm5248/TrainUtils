@@ -18,7 +18,11 @@ extern "C" {
 #endif
 
 struct event_list{
+#if defined(LIBLCC_EVENT_LIST_STATIC_SIZE)
+    uint64_t event_array[LIBLCC_EVENT_LIST_STATIC_SIZE];
+#else
     uint64_t* event_array;
+#endif
     int size;
     int len;
 };
@@ -45,11 +49,19 @@ struct lcc_memory_context{
     lcc_address_space_write write_fn;
 };
 
+struct lcc_event_context{
+    struct lcc_context* parent;
+    lcc_incoming_event_fn incoming_event;
+    struct event_list events_consumed;
+    struct event_list events_produced;
+    lcc_query_producer_state_fn producer_state_fn;
+};
+
 struct lcc_context{
     uint64_t unique_id;
     union{
-        int16_t flags;
-        int16_t reserved : 12, listen_all_events: 1, node_alias_state : 2, state : 1;
+        uint16_t flags;
+        uint16_t reserved : 12, listen_all_events: 1, node_alias_state : 2, state : 1;
     };
     int16_t node_alias;
     lcc_write_fn write_function;
@@ -59,10 +71,7 @@ struct lcc_context{
     struct lcc_simple_node_info simple_info;
 
     // event producer/consumer
-    lcc_incoming_event_fn incoming_event;
-    struct event_list events_consumed;
-    struct event_list events_produced;
-    lcc_query_producer_state_fn producer_state_fn;
+    struct lcc_event_context* event_context;
 
     // Datagram handling
     struct lcc_datagram_context* datagram_context;

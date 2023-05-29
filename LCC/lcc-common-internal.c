@@ -82,6 +82,13 @@ static int event_list_compare(const void * arg1, const void * arg2){
 }
 
 void event_list_add_event(struct event_list* list, uint64_t event_id){
+#if defined(LIBLCC_EVENT_LIST_STATIC_SIZE)
+    if(list->len > list->size){
+        return;
+    }
+    list->event_array[list->len] = event_id;
+    list->len++;
+#else
     if(list->event_array == NULL){
         list->event_array = malloc(sizeof(int64_t) * 10);
         list->size = 10;
@@ -98,6 +105,7 @@ void event_list_add_event(struct event_list* list, uint64_t event_id){
         list->event_array = new_array;
         list->size = newSize;
     }
+#endif
 
     // Sort all of the event IDs to make the search(when they come in) easier
     qsort(list->event_array, list->len, sizeof(int64_t), event_list_compare);
@@ -121,15 +129,16 @@ int lcc_send_events_produced(struct lcc_context* ctx){
     enum lcc_producer_state state = LCC_PRODUCER_UNKNOWN;
     uint64_t event_id;
 
-    if(!ctx->write_function){
+    if(!ctx->write_function ||
+            !ctx->event_context){
         return LCC_OK;
     }
 
-    for(int x = 0; x < ctx->events_produced.len; x++){
+    for(int x = 0; x < ctx->event_context->events_produced.len; x++){
         state = LCC_PRODUCER_UNKNOWN;
-        event_id = ctx->events_produced.event_array[x];
-        if(ctx->producer_state_fn){
-            state = ctx->producer_state_fn(ctx, event_id);
+        event_id = ctx->event_context->events_produced.event_array[x];
+        if(ctx->event_context->producer_state_fn){
+            state = ctx->event_context->producer_state_fn(ctx, event_id);
         }
 
         memset(&frame, 0, sizeof(frame));

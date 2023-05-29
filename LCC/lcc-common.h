@@ -23,6 +23,11 @@ struct lcc_datagram_context;
  */
 struct lcc_memory_context;
 
+/**
+ * Opaque context used to hold information for events
+ */
+struct lcc_event_context;
+
 struct lcc_can_frame;
 
 enum lcc_producer_state{

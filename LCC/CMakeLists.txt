@@ -31,6 +31,8 @@ add_library(lcc STATIC
     lcc-datagram.h
     lcc-memory.c
     lcc-memory.h
+    lcc-event.c
+    lcc-event.h
 )
 target_compile_definitions(lcc PRIVATE LIBLCC_BUILD)
 

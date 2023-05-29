@@ -241,6 +241,9 @@ int lcc_context_claim_alias(struct lcc_context* ctx){
     lcc_set_nodeid_in_data(&frame, ctx->unique_id);
     ctx->write_function(ctx, &frame);
 
+    // Send out our list of events that we produce
+    lcc_send_events_produced(ctx);
+
     return LCC_OK;
 }
 
@@ -309,85 +312,6 @@ int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
     return LCC_OK;
 }
 
-int lcc_context_set_incoming_event_function(struct lcc_context* ctx,
-                                            lcc_incoming_event_fn fn){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    ctx->incoming_event = fn;
-    return LCC_OK;
-}
-
-int lcc_context_add_event_consumed(struct lcc_context* ctx,
-                                   uint64_t event_id){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    event_list_add_event(&ctx->events_consumed, event_id);
-
-    return LCC_OK;
-}
-
-int lcc_context_add_event_produced(struct lcc_context* ctx,
-                                   uint64_t event_id){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    event_list_add_event(&ctx->events_produced, event_id);
-
-    return LCC_OK;
-}
-
-int lcc_context_set_listen_all_events(struct lcc_context* ctx,
-                                      int listen_all){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    if(listen_all){
-        ctx->listen_all_events = 1;
-    }else{
-        ctx->listen_all_events = 0;
-    }
-
-    return LCC_OK;
-}
-
-int lcc_context_add_event_produced_query_fn(struct lcc_context* ctx,
-                                            lcc_query_producer_state_fn producer_state){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    ctx->producer_state_fn = producer_state;
-
-    return LCC_OK;
-}
-
-int lcc_context_produce_event(struct lcc_context* ctx,
-                              uint64_t event_id){
-    if(!ctx){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    if(!ctx->write_function){
-        return LCC_OK;
-    }
-
-    struct lcc_can_frame frame;
-    memset(&frame, 0, sizeof(frame));
-
-    lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_PRODUCER_CONSUMER_EVENT_REPORT | LCC_MTI_SIMPLE | LCC_MTI_EVENT_NUM_PRESENT);
-    lcc_set_lcb_can_frame_type(&frame, 1);
-    lcc_set_eventid_in_data(&frame, event_id);
-    ctx->write_function(ctx, &frame);
-
-    return LCC_OK;
-}
-
 int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len){
     if(buffer_len < 20){
         return LCC_ERROR_BUFFER_SIZE_INCORRECT;
@@ -431,5 +355,13 @@ struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ct
     }
 
     return ctx->memory_context;
+}
+
+struct lcc_event_context* lcc_context_get_event_context(struct lcc_context* ctx){
+    if(!ctx){
+        return NULL;
+    }
+
+    return ctx->event_context;
 }
 

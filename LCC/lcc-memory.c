@@ -17,6 +17,14 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx){
         return NULL;
     }
 
+#ifdef ARDUINO
+    static struct lcc_memory_context mem_ctx;
+    memset(&mem_ctx, 0, sizeof(mem_ctx));
+    mem_ctx.parent = ctx;
+    ctx->memory_context = &mem_ctx;
+
+    return &mem_ctx;
+#else
     struct lcc_memory_context* memory = malloc(sizeof(struct lcc_memory_context));
 
     memset(memory, 0, sizeof(struct lcc_memory_context));
@@ -24,6 +32,7 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx){
     ctx->memory_context = memory;
 
     return memory;
+#endif
 }
 
 int lcc_memory_read_single_transfer(struct lcc_context* ctx, int alias, uint8_t space, uint32_t starting_address, int read_count){

@@ -3,6 +3,7 @@
 #include "lcc-node-info.h"
 #include "lcc-memory.h"
 #include "lcc-datagram.h"
+#include "lcc-event.h"
 #include "lccnode.h"
 
 #include <log4cxx/logger.h>
@@ -68,6 +69,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
     m_lccNetwork = lcc_network_new(m_lcc);
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(m_lcc);
+    lcc_event_new(m_lcc);
 
     lcc_context_set_userdata(m_lcc, this);
     lcc_datagram_context_set_datagram_functions(datagram_ctx,
@@ -121,7 +123,8 @@ void LCCConnection::setSimpleNodeNameDescription(QString nodeName,
 }
 
 void LCCConnection::sendEvent(uint64_t event_id){
-    lcc_context_produce_event(m_lcc, event_id);
+    lcc_event_context* ctx = lcc_context_get_event_context(m_lcc);
+    lcc_event_produce_event(ctx, event_id);
 }
 
 void LCCConnection::refreshNetwork(){
