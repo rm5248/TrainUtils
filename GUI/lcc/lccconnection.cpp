@@ -5,29 +5,10 @@
 #include "lcc-datagram.h"
 #include "lccnode.h"
 
-const char* sample_xml = "<?xml version=\"1.0\"?>\
-<cdi\
-    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">\
-    <identification>\
-        <manufacturer>Robert M</manufacturer>\
-        <model>Foobar</model>\
-        <hardwareVersion>N/A</hardwareVersion>\
-        <softwareVersion>farts</softwareVersion>\
-    </identification>\
-    <acdi/>\
-        <segment space='251'>\
-            <name>Node ID</name>\
-            <group>\
-                <name>Your name and description for this node</name>\
-                <string size='63'>\
-                    <name>Node Name</name>\
-                </string>\
-                <string size='64' offset='1'>\
-                    <name>Node Description</name>\
-                </string>\
-            </group>\
-        </segment>\
-</cdi>";
+#include <log4cxx/logger.h>
+#include <fmt/format.h>
+
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.LCCConnection" );
 
 static void new_node_cb(struct lcc_network_info* inf, struct lcc_node_info* new_node){
     LCCConnection* conn = static_cast<LCCConnection*>(lcc_network_get_userdata(inf));
@@ -65,14 +46,28 @@ static void datagram_rejected(struct lcc_datagram_context* ctx, uint16_t source_
     Q_EMIT conn->datagramRejected(source_alias, error_code, ba);
 }
 
+static void memory_space_info_query_cb(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space){
+    LOG4CXX_DEBUG_FMT(logger, "Query info for memory space 0x{:X}", address_space);
+}
+
+static void memory_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint8_t read_count){
+    LOG4CXX_DEBUG_FMT(logger, "Read space 0x{:X} starting at {}", address_space, starting_address);
+
+    lcc_memory_respond_read_reply_fail(ctx, alias, address_space, starting_address, 0, nullptr);
+}
+
+static void memory_space_write(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len){
+    LOG4CXX_DEBUG_FMT(logger, "Write space 0x{:X} starting at {} length of {}", address_space, starting_address, data_len);
+
+    lcc_memory_respond_write_reply_fail(ctx, alias, address_space, starting_address, 0, nullptr);
+}
+
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(m_lcc);
-
-    lcc_memory_set_cdi(memory_ctx, (char*)sample_xml, 0);
 
     lcc_context_set_userdata(m_lcc, this);
     lcc_datagram_context_set_datagram_functions(datagram_ctx,
@@ -81,6 +76,10 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
                                        datagram_rejected);
 
 
+    lcc_memory_set_memory_functions(memory_ctx,
+                                    memory_space_info_query_cb,
+                                    memory_space_read,
+                                    memory_space_write);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);
@@ -165,4 +164,10 @@ std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){
     }
 
     return lccNode;
+}
+
+void LCCConnection::setCDI(QString cdi){
+    m_cdi = cdi.toUtf8();
+    lcc_memory_context* ctx = lcc_context_get_memory_context(m_lcc);
+    lcc_memory_set_cdi(ctx, m_cdi.data(), 0);
 }

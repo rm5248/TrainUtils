@@ -182,13 +182,74 @@ int lcc_memory_respond_write_reply_ok(struct lcc_memory_context* ctx,
                                       uint16_t alias,
                                    uint8_t space,
                                       uint32_t starting_address){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
 
+    uint8_t response[12];
+    response[0] = 0x20;
+    int len = 6;
+    if(space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE){
+        response[1] = 0x11;
+    }else if(space == LCC_MEMORY_SPACE_ALL_MEMORY){
+        response[1] = 0x12;
+    }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
+        response[1] = 0x13;
+    }else{
+        response[1] = 0x10;
+        response[6] = space;
+        len = 7;
+    }
+
+    lcc_uint32_to_data(response + 2, starting_address);
+
+    return lcc_datagram_load_and_send(ctx->parent->datagram_context,
+                               alias,
+                               response, len);
 }
 
 int lcc_memory_respond_write_reply_fail(struct lcc_memory_context* ctx,
                                         uint16_t alias,
                                    uint8_t space,
-                                        uint32_t starting_address){
+                                        uint32_t starting_address,
+                                        uint16_t error_code,
+                                        const char* message){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    uint8_t response[72];
+    response[0] = 0x20;
+    int start = 6;
+    if(space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE){
+        response[1] = 0x11;
+    }else if(space == LCC_MEMORY_SPACE_ALL_MEMORY){
+        response[1] = 0x12;
+    }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
+        response[1] = 0x13;
+    }else{
+        response[1] = 0x10;
+        response[6] = space;
+        start = 7;
+    }
+
+    lcc_uint32_to_data(response + 2, starting_address);
+    response[start] = ((error_code & 0xFF00) >> 8);
+    response[start + 1] = ((error_code & 0x00FF) >> 0);
+
+    int total_len = start + 2;
+    if(message){
+        int msg_len = strlen(message);
+        if(msg_len <= 62){
+            memcpy(response + total_len, message, msg_len);
+            total_len += msg_len;
+            response[total_len] = 0;
+        }
+    }
+
+    return lcc_datagram_load_and_send(ctx->parent->datagram_context,
+                               alias,
+                               response, total_len);
 
 }
 
@@ -217,7 +278,6 @@ int lcc_memory_respond_read_reply_ok(struct lcc_memory_context* ctx,
         start = 7;
     }
 
-    printf("startgin address: %d\n", starting_address);
     lcc_uint32_to_data(response + 2, starting_address);
 
     memcpy(response + start, data, data_len);
@@ -302,16 +362,11 @@ static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* 
         addr_offset = 7;
     }
 
-    printf("space: 0x%02X\n", space);
-    fflush(stdout);
-
     if(space != LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
         return 0;
     }
 
     uint8_t num_bytes_to_read = data[addr_offset];
-    printf("reaed count: %d\n", num_bytes_to_read);
-    fflush(stdout);
 
     // At this point, we have determined that we have a valid read command for the CDI
     // that we can do something with.
@@ -342,8 +397,42 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
     if(data[1] == 0x84 &&
             data[2] == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
         return lcc_memory_handle_datagram_cdi_memory_space(ctx, alias, data, data_len);
+    }
+
+    int handled = 0;
+    handled = lcc_memory_handle_datagram_read_cdi_space(ctx, alias, data, data_len);
+    if(handled == 1) return 1;
+
+    // Determine if this is a read command or a write command and call the appropriate callback
+    int space = 0;
+    int is_read = 0;
+    uint32_t starting_address = lcc_uint32_from_data(data + 2);
+    int count = data[6];
+    int data_offset = 6;
+    if(data[1] == 0x43){
+        space = LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION;
+        is_read = 1;
+    }else if(data[1] == 0x42){
+        space = LCC_MEMORY_SPACE_ALL_MEMORY;
+        is_read = 1;
+    }else if(data[1] == 0x41){
+        space = LCC_MEMORY_SPACE_CONFIGURATION_SPACE;
+        is_read = 1;
+    }else if(data[1] == 0x40){
+        space = data[6];
+        is_read = 1;
+        count = data[7];
+        data_offset = 7;
+    }
+
+    if(is_read && ctx->read_fn){
+        ctx->read_fn(ctx, alias, space, starting_address, count);
+    }else if(!is_read && ctx->write_fn){
+        ctx->write_fn(ctx, alias, space, starting_address, data + data_offset, data_len - data_offset);
     }else{
-        return lcc_memory_handle_datagram_read_cdi_space(ctx, alias, data, data_len);
+        // Unable to handle, send rejection back
+        lcc_datagram_respond_rejected(ctx->parent->datagram_context, alias);
+        return 1;
     }
 
     return 0;

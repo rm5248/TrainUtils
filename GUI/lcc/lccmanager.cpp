@@ -1,10 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <QFile>
 #include "lccmanager.h"
 #include "lccnetworkconnection.h"
 #include "lccserialconnection.h"
 
 static void setHardcodedInformation(std::shared_ptr<LCCConnection> conn){
     conn->setSimpleNodeInformation("TrainUtils", "TrainUtilsGUI", "0", "0");
+
+    QFile f(":/sample-cdi.xml");
+    if(f.open(QIODevice::ReadOnly)){
+        QString cdiStr = f.readAll();
+        conn->setCDI(cdiStr);
+    }
 }
 
 LCCManager::LCCManager(QObject *parent) : QObject(parent)

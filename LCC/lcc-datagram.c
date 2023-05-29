@@ -95,7 +95,6 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
     if(data_len % 8 != 0){
         numPackets++;
     }
-    printf("num packets for %d byte message: %d\n", data_len, numPackets);
     for(int x = 0; x < numPackets; x++){
         lcc_set_lcb_variable_field(&frame, ctx->parent, alias);
         if(x == 0){
@@ -114,8 +113,6 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
         data_offset += numBytesToCopy;
         frame.can_len = numBytesToCopy;
 
-        printf("write packet\n");
-        fflush(stdout);
         ctx->parent->write_function(ctx->parent, &frame);
     }
 

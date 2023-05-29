@@ -72,21 +72,21 @@ typedef void (*lcc_datagram_rejected_fn)(struct lcc_datagram_context* ctx, uint1
 /**
  * A function that will be called when a 'Get Address Space Information' command is received
  */
-typedef void (*lcc_address_space_information_query)(struct lcc_memory_context* ctx, uint8_t address_space);
+typedef void (*lcc_address_space_information_query)(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space);
 
 /**
  * A function that will be called when a Read command is received.
  * The called function must call either lcc_memory_respond_read_reply_ok or
  * lcc_memory_respond_read_reply_fail depending on the result.
  */
-typedef void (*lcc_address_space_read)(struct lcc_memory_context* ctx, uint8_t address_space, uint32_t starting_address, uint8_t read_count);
+typedef void (*lcc_address_space_read)(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint8_t read_count);
 
 /**
  * A function that will be called when a Write command is received.
  * The called function must call either lcc_memory_respond_write_reply_ok or
  * lcc_memory_respond_write_reply_fail depending on the result.
  */
-typedef void (*lcc_address_space_write)(struct lcc_memory_context* ctx, uint8_t address_space, uint32_t starting_address, void* data, int data_len);
+typedef void (*lcc_address_space_write)(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len);
 
 /*
  * Error code definitions

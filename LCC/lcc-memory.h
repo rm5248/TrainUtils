@@ -88,7 +88,9 @@ int lcc_memory_respond_write_reply_ok(struct lcc_memory_context* ctx,
 int lcc_memory_respond_write_reply_fail(struct lcc_memory_context* ctx,
                                         uint16_t alias,
                                    uint8_t space,
-                                   uint32_t starting_address);
+                                   uint32_t starting_address,
+                                        uint16_t error_code,
+                                        const char* message);
 
 int lcc_memory_respond_read_reply_ok(struct lcc_memory_context* ctx,
                                      uint16_t alias,

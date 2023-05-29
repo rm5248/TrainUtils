@@ -108,6 +108,7 @@ set(PROJECT_SOURCES
         lcc/cdi/eventidtype.h
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
+        trainutils.qrc
 )
 
 if(UNIX)

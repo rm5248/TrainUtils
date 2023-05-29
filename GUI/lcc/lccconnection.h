@@ -46,6 +46,8 @@ public:
 
     std::shared_ptr<LCCNode> lccNodeForID(uint64_t node_id);
 
+    void setCDI(QString cdi);
+
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
     void incomingEvent(uint64_t event_id);
@@ -59,6 +61,7 @@ protected:
     struct lcc_context* m_lcc;
     struct lcc_network_info* m_lccNetwork;
     QMap<uint64_t,std::shared_ptr<LCCNode>> m_nodes;
+    QByteArray m_cdi;
 };
 
 #endif // LCCCONNECTION_H
