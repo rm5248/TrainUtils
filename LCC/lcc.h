@@ -129,10 +129,28 @@ int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
  */
 int lcc_context_current_state(struct lcc_context* ctx);
 
+/**
+ * Get the current datagram context(if it exists).
+ *
+ * @param ctx
+ * @return
+ */
 struct lcc_datagram_context* lcc_context_get_datagram_context(struct lcc_context* ctx);
 
+/**
+ * Get the current memory context(if it exists).
+ *
+ * @param ctx
+ * @return
+ */
 struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ctx);
 
+/**
+ * Get the current event context(if it exists).
+ *
+ * @param ctx
+ * @return
+ */
 struct lcc_event_context* lcc_context_get_event_context(struct lcc_context* ctx);
 
 #ifdef __cplusplus
