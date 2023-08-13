@@ -54,17 +54,10 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         return LCC_OK;
     }else if(mti == LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST){
         // Respond with our simple information
-        char max_simple_data[1/*type*/
-                + 41/*manf. name*/
-                + 41/*model*/
-                + 21/*hardware version*/
-                + 21/*sw version*/
-                + 1/*name/description version*/
-                + 63/*node name*/
-                + 64/*node description*/ ];
+        char max_simple_data[sizeof(struct lcc_simple_node_info) + 2];
         int manufacturer_string_len = strlen(ctx->simple_info.manufacturer_name);
         int model_string_len = strlen(ctx->simple_info.model_name);
-        int hardware_string_len =strlen(ctx->simple_info.hw_version);
+        int hardware_string_len = strlen(ctx->simple_info.hw_version);
         int software_string_len = strlen(ctx->simple_info.sw_version);
         int node_name_len = strlen(ctx->simple_info.node_name);
         int node_description_len = strlen(ctx->simple_info.node_description);
