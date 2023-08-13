@@ -11,7 +11,8 @@
 #define LCC_MEMORY_SPACE_CONFIGURATION_SPACE 0xFD
 
 #define LCC_MEMORY_CDI_FLAG_NONE    0
-#define LCC_MEMORY_CDI_FLAG_COMPRESSED (0x01 << 0)
+//#define LCC_MEMORY_CDI_FLAG_COMPRESSED (0x01 << 0)
+#define LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM (0x01 << 1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,10 +63,11 @@ int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias,
  *
  * @param ctx
  * @param cdi_data the raw CDI data
+ * @param cdi_len The length of the CDI data.
  * @param flags Flags for the data.
  * @return
  */
-int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int flags);
+int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_len, int flags);
 
 int lcc_memory_set_memory_functions(struct lcc_memory_context* ctx,
                                     lcc_address_space_information_query query_fn,

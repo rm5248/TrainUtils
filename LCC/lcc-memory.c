@@ -8,9 +8,23 @@
 #include "lcc-common-internal.h"
 #include "lcc-datagram.h"
 
-//static void lcc_memory_datagram_finished(struct lcc_context* ctx, void* datagram_data, int len){
+#ifdef ARDUINO
+#include <avr/pgmspace.h>
 
-//}
+static uint8_t lcc_memory_byte_from_data(void* data, int offset, int flags){
+    uint8_t* u8_data = data;
+    if(flags & LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM){
+        return pgm_read_byte(u8_data + offset);
+    }else{
+        return u8_data[offset];
+    }
+}
+#else
+static uint8_t lcc_memory_byte_from_data(void* data, int offset, int flags){
+    uint8_t* u8_data = data;
+    return u8_data[offset];
+}
+#endif /* ARDUINO */
 
 struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx){
     if(ctx->datagram_context == NULL){
@@ -133,13 +147,14 @@ int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias,
     return LCC_OK;
 }
 
-int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int flags){
+int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_len, int flags){
     if(ctx == NULL){
         return LCC_ERROR_INVALID_ARG;
     }
 
     ctx->cdi_data = cdi_data;
     ctx->cdi_flags = flags;
+    ctx->cdi_length = cdi_len;
 
     return LCC_OK;
 }
@@ -289,7 +304,15 @@ int lcc_memory_respond_read_reply_ok(struct lcc_memory_context* ctx,
 
     lcc_uint32_to_data(response + 2, starting_address);
 
-    memcpy(response + start, data, data_len);
+    if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
+        // Use our (somewhat inefficient) method for getting bytes from the CDI
+        // so we can read from PROGMEM on Arduino
+        for(int x = 0; x < data_len; x++ ){
+            response[start + x] = lcc_memory_byte_from_data(data, x, ctx->cdi_flags);
+        }
+    }else{
+        memcpy(response + start, data, data_len);
+    }
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
@@ -338,15 +361,13 @@ int lcc_memory_respond_read_reply_fail(struct lcc_memory_context* ctx,
 }
 
 static int lcc_memory_handle_datagram_cdi_memory_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
-    int cdi_len = strlen(ctx->cdi_data);
-
     lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias);
 
     int resp = lcc_memory_respond_information_query(ctx,
                                                     alias,
                                                     1,
                                                     LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION,
-                                                    cdi_len,
+                                                    ctx->cdi_length,
                                                     0,
                                                     0);
 

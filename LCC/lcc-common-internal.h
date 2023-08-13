@@ -44,6 +44,7 @@ struct lcc_memory_context{
     struct lcc_context* parent;
     void* cdi_data;
     int cdi_flags;
+    int cdi_length;
     lcc_address_space_information_query query_fn;
     lcc_address_space_read read_fn;
     lcc_address_space_write write_fn;
