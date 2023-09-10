@@ -75,7 +75,7 @@ int lcc_canframe_to_gridconnect(struct lcc_can_frame* frame, char* output, int o
 
     data_bytes[null_spot] = 0;
 
-    snprintf(output, out_len, ":X%XN%s;", frame->can_id, data_bytes);
+    snprintf(output, out_len, ":X%lXN%s;", frame->can_id, data_bytes);
 
     return LCC_OK;
 }
