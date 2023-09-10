@@ -176,6 +176,7 @@ int lcc_context_generate_alias(struct lcc_context* ctx){
         ctx->node_alias++;
     }
 
+    int write_ret = LCC_OK;
     // Send our four CID frames
     struct lcc_can_frame frame;
     frame.can_len = 0;
@@ -186,23 +187,36 @@ int lcc_context_generate_alias(struct lcc_context* ctx){
     lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0xFFF000000000llu) >> 36) | 0x7000);
     // this is a CAN control frame, clear bit 27
     frame.can_id &= (~(0x01l << 27));
-    ctx->write_function(ctx, &frame);
+    write_ret = ctx->write_function(ctx, &frame);
+    if(write_ret != LCC_OK){
+        goto write_err;
+    }
 
     lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000FFF000000llu) >> 24) | 0x6000);
     frame.can_id &= (~(0x01l << 27));
-    ctx->write_function(ctx, &frame);
+    write_ret = ctx->write_function(ctx, &frame);
+    if(write_ret != LCC_OK){
+        goto write_err;
+    }
 
     lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000FFF000llu) >> 12) | 0x5000);
     frame.can_id &= (~(0x01l << 27));
-    ctx->write_function(ctx, &frame);
+    write_ret = ctx->write_function(ctx, &frame);
+    if(write_ret != LCC_OK){
+        goto write_err;
+    }
 
     lcc_set_lcb_variable_field(&frame, ctx, ((ctx->unique_id & 0x000000000FFFllu) >> 0) | 0x4000);
     frame.can_id &= (~(0x01l << 27));
-    ctx->write_function(ctx, &frame);
+    write_ret = ctx->write_function(ctx, &frame);
+    if(write_ret != LCC_OK){
+        goto write_err;
+    }
 
     ctx->node_alias_state = LCC_NODE_ALIAS_SENT_CID;
 
-    return LCC_OK;
+write_err:
+    return write_ret;
 }
 
 int lcc_context_claim_alias(struct lcc_context* ctx){

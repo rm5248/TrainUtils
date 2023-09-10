@@ -40,7 +40,7 @@ static int lcc_handle_producer_query(struct lcc_context* ctx, struct lcc_can_fra
 
         lcc_set_lcb_can_frame_type(&frame, 1);
         lcc_set_eventid_in_data(&frame, event_id);
-        ctx->write_function(ctx, &frame);
+        return ctx->write_function(ctx, &frame);
     }
 
     return LCC_OK;
@@ -71,7 +71,7 @@ static int lcc_handle_consumer_query(struct lcc_context* ctx, struct lcc_can_fra
         lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN | LCC_MTI_EVENT_NUM_PRESENT);
         lcc_set_lcb_can_frame_type(&frame, 1);
         lcc_set_eventid_in_data(&frame, event_id);
-        ctx->write_function(ctx, &frame);
+        return ctx->write_function(ctx, &frame);
     }
 
     return LCC_OK;

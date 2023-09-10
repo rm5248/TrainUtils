@@ -25,7 +25,7 @@ int inputValue = 0;
 /**
  * This is a callback function that is called by liblcc in order to write a frame out to the CAN bus.
  */
-void lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
+int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
   frame.id = lcc_frame->can_id;
   frame.len = lcc_frame->can_len;
   frame.rtr = false;
@@ -34,7 +34,10 @@ void lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
   if(can.tryToSend (frame)){
     Serial.println(F("Send frame OK"));
     Serial.println(frame.id, HEX);
+    return LCC_OK;
   }
+
+  return LCC_ERROR_TX;
 }
 
 void setup () {

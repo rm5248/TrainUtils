@@ -102,7 +102,5 @@ int lcc_event_produce_event(struct lcc_event_context* ctx,
     lcc_set_lcb_variable_field(&frame, ctx->parent, LCC_MTI_PRODUCER_CONSUMER_EVENT_REPORT | LCC_MTI_SIMPLE | LCC_MTI_EVENT_NUM_PRESENT);
     lcc_set_lcb_can_frame_type(&frame, 1);
     lcc_set_eventid_in_data(&frame, event_id);
-    ctx->parent->write_function(ctx->parent, &frame);
-
-    return LCC_OK;
+    return ctx->parent->write_function(ctx->parent, &frame);
 }

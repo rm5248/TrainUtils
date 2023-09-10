@@ -87,9 +87,7 @@ int lcc_node_refresh_simple_info(struct lcc_node_info* inf){
     frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
     frame.data[1] = (inf->node_alias & 0x00FF);
 
-    inf->parent_ctx->write_function(inf->parent_ctx, &frame);
-
-    return LCC_OK;
+    return inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 }
 
 int lcc_node_refresh_events_produced(struct lcc_node_info* inf){
@@ -103,9 +101,7 @@ int lcc_node_refresh_events_produced(struct lcc_node_info* inf){
     frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
     frame.data[1] = (inf->node_alias & 0x00FF);
 
-    inf->parent_ctx->write_function(inf->parent_ctx, &frame);
-
-    return LCC_OK;
+    return inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 }
 
 int lcc_node_refresh_events_consumed(struct lcc_node_info* inf){
@@ -119,9 +115,7 @@ int lcc_node_refresh_events_consumed(struct lcc_node_info* inf){
     frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
     frame.data[1] = (inf->node_alias & 0x00FF);
 
-    inf->parent_ctx->write_function(inf->parent_ctx, &frame);
-
-    return LCC_OK;
+    return inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 }
 
 int lcc_node_refresh_protocol_support(struct lcc_node_info* inf){
@@ -135,7 +129,5 @@ int lcc_node_refresh_protocol_support(struct lcc_node_info* inf){
     frame.data[0] = (inf->node_alias & 0xFF00) >> 8;
     frame.data[1] = (inf->node_alias & 0x00FF);
 
-    inf->parent_ctx->write_function(inf->parent_ctx, &frame);
-
-    return LCC_OK;
+    return inf->parent_ctx->write_function(inf->parent_ctx, &frame);
 }

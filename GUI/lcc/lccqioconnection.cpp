@@ -49,25 +49,29 @@ void LCCQIoConnection::incomingData(){
     }
 }
 
-void LCCQIoConnection::writeLCCFrameCB(lcc_context* context, lcc_can_frame* frame){
+int LCCQIoConnection::writeLCCFrameCB(lcc_context* context, lcc_can_frame* frame){
     LCCQIoConnection* conn = static_cast<LCCQIoConnection*>(lcc_context_user_data(context));
-    conn->writeLCCFrame(frame);
+    return conn->writeLCCFrame(frame);
 }
 
-void LCCQIoConnection::writeLCCFrame(lcc_can_frame* frame){
+int LCCQIoConnection::writeLCCFrame(lcc_can_frame* frame){
     char out_buffer[128];
 
     int ret = lcc_canframe_to_gridconnect(frame, out_buffer, sizeof(out_buffer));
     LOG4CXX_DEBUG_FMT(logger, "Write the following frame: {}", out_buffer);
     if(ret != LCC_OK){
         LOG4CXX_ERROR_FMT(logger, "LCC error: {}", ret);
-        return;
+        return ret;
     }
 
     QByteArray ba(out_buffer);
     ba.append('\n');
 
-    m_ioDevice->write(ba);
+    if(m_ioDevice->write(ba) < 0){
+        return LCC_ERROR_TX;
+    }
+
+    return LCC_OK;
 }
 
 void LCCQIoConnection::gridconnectLCCFrameParsedCB(lcc_gridconnect* context, lcc_can_frame* frame){

@@ -382,9 +382,7 @@ int lcc_network_refresh_nodes(struct lcc_network_info* inf){
 
     lcc_set_lcb_variable_field(&frame, inf->parent, LCC_MTI_BASIC_VERIFY_NODE_ID_NUM_GLOBAL);
     lcc_set_lcb_can_frame_type(&frame, 1);
-    inf->parent->write_function(inf->parent, &frame);
-
-    return LCC_OK;
+    return inf->parent->write_function(inf->parent, &frame);
 }
 
 int lcc_network_set_new_node_callback(struct lcc_network_info* inf, lcc_discovered_new_node fn){

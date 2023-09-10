@@ -156,7 +156,10 @@ int lcc_send_events_produced(struct lcc_context* ctx){
 
         lcc_set_lcb_can_frame_type(&frame, 1);
         lcc_set_eventid_in_data(&frame, event_id);
-        ctx->write_function(ctx, &frame);
+        int write_ret = ctx->write_function(ctx, &frame);
+        if(write_ret != LCC_OK){
+            return write_ret;
+        }
     }
 
     return LCC_OK;

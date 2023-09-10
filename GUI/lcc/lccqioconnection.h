@@ -30,8 +30,8 @@ protected:
     void generateAlias();
 
 private:
-    static void writeLCCFrameCB(lcc_context* context, lcc_can_frame* frame);
-    void writeLCCFrame(lcc_can_frame* frame);
+    static int writeLCCFrameCB(lcc_context* context, lcc_can_frame* frame);
+    int writeLCCFrame(lcc_can_frame* frame);
     static void gridconnectLCCFrameParsedCB(lcc_gridconnect* context, lcc_can_frame* frame);
     void gridconnectLCCFrameParsed(lcc_can_frame* frame);
 

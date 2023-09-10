@@ -39,8 +39,12 @@ enum lcc_producer_state{
 /**
  * A function that will be called in order to write the specified CAN frame out
  * to the bus in an implementation-specific manner
+ *
+ * @return LCC_OK if the frame was able to be sent to the bus(queued up is OK).
+ * If there was an error(for example, the queue to send data to the bus is full),
+ * this function should return LCC_ERROR_TX.
  */
-typedef void(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
+typedef int(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
 
 /**
  * A function that will be called when an event that we are interested in comes in.
@@ -107,6 +111,8 @@ typedef void (*lcc_address_space_write)(struct lcc_memory_context* ctx, uint16_t
 #define LCC_ERROR_STRING_TOO_LONG -7
 #define LCC_ERROR_EVENT_ID_INVALID -8
 #define LCC_ERROR_NO_DATAGRAM_HANDLING -9
+/** Data was unable to be transmitted.  For example, a queue may be full */
+#define LCC_ERROR_TX -10
 
 /**
  * Struct used to pass frames to/from the library.

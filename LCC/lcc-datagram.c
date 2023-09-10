@@ -85,9 +85,7 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
         memcpy(frame.data, data, data_len);
         frame.can_len = data_len;
 
-        ctx->parent->write_function(ctx->parent, &frame);
-
-        return LCC_OK;
+        return ctx->parent->write_function(ctx->parent, &frame);
     }
 
     int data_offset = 0;
@@ -113,7 +111,10 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
         data_offset += numBytesToCopy;
         frame.can_len = numBytesToCopy;
 
-        ctx->parent->write_function(ctx->parent, &frame);
+        int write_ret = ctx->parent->write_function(ctx->parent, &frame);
+        if(write_ret != LCC_OK){
+            return write_ret;
+        }
     }
 
     return LCC_OK;
@@ -188,9 +189,7 @@ int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
     lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, alias);
     frame.can_len = 2;
 
-    ctx->parent->write_function(ctx->parent, &frame);
-
-    return LCC_OK;
+    return ctx->parent->write_function(ctx->parent, &frame);
 }
 
 int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
@@ -204,7 +203,5 @@ int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
     lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, alias);
     frame.can_len = 2;
 
-    ctx->parent->write_function(ctx->parent, &frame);
-
-    return LCC_OK;
+    return ctx->parent->write_function(ctx->parent, &frame);
 }

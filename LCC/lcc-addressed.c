@@ -23,8 +23,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         lcc_set_lcb_variable_field(&ret_frame, ctx, LCC_MTI_BASIC_VERIFIED_NODE_ID_NUM | LCC_MTI_SIMPLE);
         lcc_set_lcb_can_frame_type(&ret_frame, 1);
         lcc_set_nodeid_in_data(&ret_frame, ctx->unique_id);
-        ctx->write_function(ctx, &ret_frame);
-        return LCC_OK;
+        return ctx->write_function(ctx, &ret_frame);
     }else if(mti == LCC_MTI_PROTOCOL_SUPPORT_INQUIRE){
         // Respond with protocol support reply
         // Note: JMRI does not like less than 8 bytes here, even though technically it is in-spec
@@ -50,8 +49,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
         ret_frame.data[7] = 0;
         lcc_set_lcb_variable_field(&ret_frame, ctx, LCC_MTI_PROTOCOL_SUPPORT_REPLY | LCC_MTI_ADDRESSED);
         lcc_set_lcb_can_frame_type(&ret_frame, 1);
-        ctx->write_function(ctx, &ret_frame);
-        return LCC_OK;
+        return ctx->write_function(ctx, &ret_frame);
     }else if(mti == LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST){
         // Respond with our simple information
         char max_simple_data[sizeof(struct lcc_simple_node_info) + 2];
@@ -139,7 +137,10 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
             memcpy(&ret_frame.data[2], max_simple_data + data_offset, numBytesToCopy);
             ret_frame.can_len = 2 + numBytesToCopy;
-            ctx->write_function(ctx, &ret_frame);
+            int write_ret = ctx->write_function(ctx, &ret_frame);
+            if(write_ret != LCC_OK){
+                return write_ret;
+            }
 
             data_offset += 6;
         }
