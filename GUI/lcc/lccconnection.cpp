@@ -172,5 +172,5 @@ std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){
 void LCCConnection::setCDI(QString cdi){
     m_cdi = cdi.toUtf8();
     lcc_memory_context* ctx = lcc_context_get_memory_context(m_lcc);
-    lcc_memory_set_cdi(ctx, m_cdi.data(), 0);
+    lcc_memory_set_cdi(ctx, m_cdi.data(), m_cdi.length(), 0);
 }
