@@ -156,7 +156,7 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
                 datagram_ctx->datagram_received_fn(datagram_ctx, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
             }else if(!handled){
                 // There is no handler for this, reject it!
-                lcc_datagram_respond_rejected(datagram_ctx, source_alias);
+                lcc_datagram_respond_rejected(datagram_ctx, source_alias, 0, NULL);
             }
 
             // We have received a datagram, reset our buffer
@@ -178,7 +178,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
 }
 
 int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
-                              uint16_t alias){
+                              uint16_t alias,
+                              int flags){
 
     // tell the sending node that we received OK
     struct lcc_can_frame frame;
@@ -187,13 +188,16 @@ int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
     lcc_set_lcb_variable_field(&frame, ctx->parent, LCC_MTI_DATAGRAM_RECEIVED_OK);
     lcc_set_lcb_can_frame_type(&frame, 1);
     lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, alias);
-    frame.can_len = 2;
+    frame.can_len = 3;
+    frame.data[2] = flags;
 
     return ctx->parent->write_function(ctx->parent, &frame);
 }
 
 int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
-                                  uint16_t alias){
+                                  uint16_t alias,
+                                  uint16_t error_code,
+                                  const char* optional_info){
     // tell the sending node that we rejected the datagram
     struct lcc_can_frame frame;
     memset(&frame, 0, sizeof(struct lcc_can_frame));
@@ -202,6 +206,8 @@ int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
     lcc_set_lcb_can_frame_type(&frame, 1);
     lcc_set_flags_and_dest_alias(&frame, LCC_FLAG_FRAME_ONLY, alias);
     frame.can_len = 2;
+    frame.data[0] = (error_code & 0xFF00) >> 8;
+    frame.data[1] = error_code & 0xFF;
 
     return ctx->parent->write_function(ctx->parent, &frame);
 }

@@ -209,6 +209,8 @@ struct lcc_simple_node_info {
 #define LCC_ADDRESS_SPACE_PRESENT 0x86
 #define LCC_ADDRESS_SPACE_NOT_PRESENT 0x87
 
+#define LCC_DATAGRAM_REPLY_PENDING 0x80
+
 /**
  * Convert a node id to dotted format, putting the result in 'buffer'
  *

@@ -51,7 +51,8 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
  * @return
  */
 int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
-                              uint16_t alias);
+                              uint16_t alias,
+                              int flags);
 
 /**
  * When we receive a datagram, call this function to respond back
@@ -62,7 +63,9 @@ int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
  * @return
  */
 int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
-                                  uint16_t alias);
+                                  uint16_t alias,
+                                  uint16_t error_code,
+                                  const char* optional_info);
 
 #ifdef __cplusplus
 } /* extern C */

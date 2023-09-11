@@ -53,7 +53,7 @@ void LCCNode::datagramRx(uint16_t source_alias, QByteArray ba){
         return;
     }
 
-    lcc_datagram_respond_rxok(lcc_context_get_datagram_context(m_lcc), source_alias);
+    lcc_datagram_respond_rxok(lcc_context_get_datagram_context(m_lcc), source_alias, LCC_DATAGRAM_REPLY_PENDING);
 
     if(status_byte == 0x86 ||
             status_byte == 0x87){
