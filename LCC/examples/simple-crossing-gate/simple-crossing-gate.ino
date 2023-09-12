@@ -322,6 +322,9 @@ void setup() {
   pinMode(A2, INPUT);
   pinMode(A3, INPUT);
 
+  // Heartbeat LED
+  pinMode(6, OUTPUT);
+
   // Define a unique ID for your node.  The generation of this unique ID can be
   // found in the LCC specifications, specifically the unique identifiers standard
   uint64_t unique_id;
@@ -419,11 +422,11 @@ void loop() {
     check_for_train();
   }
 
-  if (currentMillis - blink_led_time >= 1000) {
+  if ((currentMillis - blink_led_time) >= 1000) {
     // save the last time you blinked the LED
     blink_led_time = currentMillis;
 
-    digitalWrite(LED_BUILTIN, blink_val);
+    digitalWrite(6, blink_val);
     blink_val = !blink_val;
   }
 }
