@@ -391,6 +391,8 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+
   if (can.available ()) {
     // If we have an incoming CAN frame, turn it into an LCC frame and push it to liblcc
     can.receive (frame) ;
@@ -400,13 +402,7 @@ void loop() {
     lcc_context_incoming_frame(ctx, &lcc_frame);
   }
 
-  if (blink_led_time < millis ()) {
-    blink_led_time += 1000 ;
-    digitalWrite (LED_BUILTIN, blink_val) ;
-    blink_val = !blink_val;
-  }
-
-  if(millis() >= claim_alias_time &&
+  if(currentMillis >= claim_alias_time &&
     lcc_context_current_state(ctx) == LCC_STATE_INHIBITED){
     int stat = lcc_context_claim_alias(ctx);
     if(stat != LCC_OK){
@@ -421,5 +417,13 @@ void loop() {
 
   if(lcc_context_current_state(ctx) != LCC_STATE_INHIBITED){
     check_for_train();
+  }
+
+  if (currentMillis - blink_led_time >= 1000) {
+    // save the last time you blinked the LED
+    blink_led_time = currentMillis;
+
+    digitalWrite(LED_BUILTIN, blink_val);
+    blink_val = !blink_val;
   }
 }

@@ -24,6 +24,8 @@ char gridconnect_in[32];
 int gridconnect_in_pos = 0;
 unsigned long d5_off_millis = 0;
 unsigned long d6_off_millis = 0;
+unsigned long blink_led_time = 0;
+int blink_val = 0;
 
 static const uint32_t QUARTZ_FREQUENCY = 16UL * 1000UL * 1000UL ; // 16 MHz
 
@@ -72,6 +74,8 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+
   if (can.available ()) {
     // If we have an incoming CAN frame, turn it into an LCC frame and write it out to
     // our serial port as a gridconnect frame
@@ -119,5 +123,13 @@ void loop() {
   }
   if(millis() >= d6_off_millis){
     digitalWrite(6, 0);
+  }
+
+  if (currentMillis - blink_led_time >= 1000) {
+    // save the last time you blinked the LED
+    blink_led_time = currentMillis;
+
+    digitalWrite(LED_BUILTIN, blink_val);
+    blink_val = !blink_val;
   }
 }
