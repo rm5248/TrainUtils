@@ -23,7 +23,6 @@ char gridconnect_out[32];
 char gridconnect_in[32];
 int gridconnect_in_pos = 0;
 unsigned long d5_off_millis = 0;
-unsigned long d6_off_millis = 0;
 unsigned long blink_led_time = 0;
 int blink_val = 0;
 
@@ -42,10 +41,6 @@ void lcc_frame_write(struct lcc_can_frame* lcc_frame){
     // Wink D5
     d5_off_millis = millis() + 20;
     digitalWrite(5, 1);
-  }else{
-    // We were not able to send this - wink D6 LED for a long period of time
-    d6_off_millis = millis() + 200;
-    digitalWrite(6, 1);
   }
 }
 
@@ -121,15 +116,12 @@ void loop() {
   if(millis() >= d5_off_millis){
     digitalWrite(5, 0);
   }
-  if(millis() >= d6_off_millis){
-    digitalWrite(6, 0);
-  }
 
   if (currentMillis - blink_led_time >= 1000) {
     // save the last time you blinked the LED
     blink_led_time = currentMillis;
 
-    digitalWrite(LED_BUILTIN, blink_val);
+    digitalWrite(6, blink_val);
     blink_val = !blink_val;
   }
 }
