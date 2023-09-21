@@ -61,6 +61,16 @@ void setup() {
   // For the computer interface, we need to increase our buffer sizes so that we can be assured we get all of the data
   settings.mReceiveBufferSize = 16;
   settings.mTransmitBuffer0Size = 16;
+  // OpenLCB uses the following CAN propogation settings with the MCP2515:
+  // CFN3 = 0x02
+  // CFN2 = 0x90
+  // CFN1 = 0x07
+  settings.mPropagationSegment = 1;
+  settings.mPhaseSegment1 = 3;
+  settings.mPhaseSegment2 = 3;
+  settings.mSJW = 1;
+  settings.mTripleSampling = false;
+  settings.mBitRatePrescaler = 8;
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;
@@ -101,7 +111,7 @@ void loop() {
       gridconnect_in_pos = 0;
     }
 
-    if(byte == ';' && byte > 0){
+    if(byte == ';' && gridconnect_in_pos > 0){
       // We have a full frame.  Parse and send out to the CAN bus
       int stat = lcc_gridconnect_to_canframe(gridconnect_in, &lcc_frame_in);
       gridconnect_in_pos = 0;
@@ -113,7 +123,7 @@ void loop() {
     }
   }
 
-  if(millis() >= d5_off_millis){
+  if(currentMillis >= d5_off_millis){
     digitalWrite(5, 0);
   }
 

@@ -375,6 +375,16 @@ void setup() {
   // the ACAN2515 library will allocate too much memory
   settings.mReceiveBufferSize = 4;
   settings.mTransmitBuffer0Size = 10;
+  // OpenLCB uses the following CAN propogation settings with the MCP2515:
+  // CFN3 = 0x02
+  // CFN2 = 0x90
+  // CFN1 = 0x07
+  settings.mPropagationSegment = 1;
+  settings.mPhaseSegment1 = 3;
+  settings.mPhaseSegment2 = 3;
+  settings.mSJW = 1;
+  settings.mTripleSampling = false;
+  settings.mBitRatePrescaler = 8;
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;
