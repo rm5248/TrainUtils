@@ -59,7 +59,7 @@ void setup() {
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   // For the computer interface, we need to increase our buffer sizes so that we can be assured we get all of the data
-  settings.mReceiveBufferSize = 16;
+  settings.mReceiveBufferSize = 64;
   settings.mTransmitBuffer0Size = 16;
   // OpenLCB uses the following CAN propogation settings with the MCP2515:
   // CFN3 = 0x02
@@ -90,7 +90,8 @@ void loop() {
     memcpy(&lcc_frame.data, frame.data, 8);
 
     if(lcc_canframe_to_gridconnect(&lcc_frame, gridconnect_out, sizeof(gridconnect_out)) == LCC_OK){
-      Serial.println(gridconnect_out);
+      Serial.print(gridconnect_out);
+      Serial.print("\n\n");
     }
   }
 
