@@ -6,4 +6,7 @@
 
 input_file=$1
 
-XMLLINT_INDENT="" xmllint --format  $1 | tr -d '\n' | sed "s/\"/'/g"
+#XMLLINT_INDENT="" xmllint --format  $1 | tr -d '\n' | sed "s/\"/'/g"
+XMLLINT_INDENT="" xmllint --format  $1 | sed "s/\"/'/g" | sed -E 's/^(.*)$/\1 \\/g'
+echo ""
+
