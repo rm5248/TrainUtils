@@ -15,28 +15,72 @@
 #include <lcc-event.h>
 #include <lcc-memory.h>
 
-const char cdi[] PROGMEM = { "<?xml version=\"1.0\"?>\
-<cdi\
-    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">\
-    <identification>\
-        <manufacturer>Snowball Creek</manufacturer>\
-        <model>Crossing Gate Controller</model>\
-        <hardwareVersion>1.0</hardwareVersion>\
-        <softwareVersion>0.1</softwareVersion>\
-    </identification>\
-    <acdi/>\
-        <segment space='251'>\
-            <name>Node ID</name>\
-            <group>\
-                <name>Your name and description for this node</name>\
-                <string size='63'>\
-                    <name>Node Name</name>\
-                </string>\
-                <string size='64' offset='1'>\
-                    <name>Node Description</name>\
-                </string>\
-            </group>\
-        </segment>\
+// Segment spaces:
+// 0xFF = 255 = CDI
+// 0xFE = 254 = 'all memory'
+// 0xFD = 253 = basic config space
+const char cdi[] PROGMEM = { "<?xml version='1.0'?> \
+<cdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/schema/cdi/1/1/cdi.xsd'> \
+<identification> \
+<manufacturer>Snowball Creek</manufacturer> \
+<model>Crossing Gate Controller</model> \
+<hardwareVersion>1.0</hardwareVersion> \
+<softwareVersion>0.1</softwareVersion> \
+</identification> \
+<acdi/> \
+<segment space='253'> \
+<name>Occupation Events</name> \
+<group> \
+<name>Occupation events(left-to-right)</name> \
+<eventid> \
+<name>Occupation pre-island LTR event</name> \
+<description>When a train enters the block before the island(left-to-right)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation island LTR event</name> \
+<description>When a train enters the island(left-to-right)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation post-island LTR event</name> \
+<description>When a train enters the leaves(left-to-right)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation Unoccupied LTR event</name> \
+<description>When track is now unoccupied, this event is sent(left-to-right)</description> \
+</eventid> \
+</group> \
+<group> \
+<name>Occupation events(right-to-left)</name> \
+<eventid> \
+<name>Occupation pre-island RTL event</name> \
+<description>When a train enters the block before the island(right-to-left)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation island RTL event</name> \
+<description>When a train enters the island(right-to-left)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation post-island RTL event</name> \
+<description>When a train enters the leaves(right-to-left)</description> \
+</eventid> \
+<eventid> \
+<name>Occupation Unoccupied RTL event</name> \
+<description>When track is now unoccupied, this event is sent(right-to-left)</description> \
+</eventid> \
+</group> \
+</segment> \
+<segment space='251'> \
+<name>Node ID</name> \
+<group> \
+<name>Your name and description for this node</name> \
+<string size='63'> \
+<name>Node Name</name> \
+</string> \
+<string size='64' offset='1'> \
+<name>Node Description</name> \
+</string> \
+</group> \
+</segment> \
 </cdi>" };
 
 enum TrackState{
@@ -66,7 +110,10 @@ static const byte EEPROM_READ_MEMORY_ARRAY = 0x3;
 static const byte EEPROM_WRITE_MEMORY_ARRAY = 0x2;
 static const byte EEPROM_WRITE_DISABLE = 0x4;
 
+// Address in EEPROM of various important pieces of data
 static const int LCC_UNIQUE_ID_ADDR = 0x6000;
+static const int CROSSING_EVENTS_ADDR = 0x0;
+static const int NODE_NAME_DESCRIPTION_ADDR = 0x1000;
 
 // The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
@@ -84,8 +131,18 @@ unsigned long incoming_train_time = 0;
 int blink_val = 0;
 enum TrackState current_state = TRACK_UNOCCUPIED;
 enum Direction current_direction = DIRECTION_UNKNOWN;
-uint64_t crossing_active_event = 0;
-uint64_t crossing_inactive_event = 0;
+
+struct occupation {
+  uint64_t pre_island;
+  uint64_t island_occupied;
+  uint64_t post_island;
+  uint64_t unoccupied;
+};
+
+struct occupation_events {
+  struct occupation ltr_events;
+  struct occupation rtl_events;
+} events;
 
 void eeprom_read(int offset, void* data, int numBytes){
   digitalWrite(EEPROM_CS, LOW);
@@ -100,7 +157,6 @@ void eeprom_read(int offset, void* data, int numBytes){
     *u8_data = SPI.transfer(0xFF); // dummy byte
     u8_data++;
   }
-  Serial.println();
 
   digitalWrite(EEPROM_CS, HIGH);
 }
@@ -153,6 +209,8 @@ void handle_ltr(int left_input, int left_island_input, int right_island_input, i
     current_state == ISLAND_OCCUPIED_INCOMING){
     current_state = ISLAND_OCCUPIED;
     Serial.println(F("island occupied"));
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.ltr_events.island_occupied);
   }else if(right_island_input == 0 &&
     current_state == ISLAND_OCCUPIED){
     current_state = POST_ISLAND_OCCUPIED_INCOMING;
@@ -162,11 +220,15 @@ void handle_ltr(int left_input, int left_island_input, int right_island_input, i
     current_state == POST_ISLAND_OCCUPIED_INCOMING){
     current_state = POST_ISLAND_OCCUPIED;
     Serial.println(F("post island occupied"));
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.ltr_events.post_island);
   }else if(right_input == 0 &&
     current_state == POST_ISLAND_OCCUPIED){
     Serial.println(F("train out LTR"));
     current_state = TRACK_UNOCCUPIED;
     current_direction = DIRECTION_UNKNOWN;
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.ltr_events.unoccupied);
   }
 }
 
@@ -179,6 +241,8 @@ void handle_rtl(int left_input, int left_island_input, int right_island_input, i
     current_state == ISLAND_OCCUPIED_INCOMING){
     current_state = ISLAND_OCCUPIED;
     Serial.println(F("island occupied"));
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.rtl_events.island_occupied);
   }else if(left_island_input == 0 &&
     current_state == ISLAND_OCCUPIED){
     current_state = POST_ISLAND_OCCUPIED_INCOMING;
@@ -188,30 +252,26 @@ void handle_rtl(int left_input, int left_island_input, int right_island_input, i
     current_state == POST_ISLAND_OCCUPIED_INCOMING){
     current_state = POST_ISLAND_OCCUPIED;
     Serial.println(F("post island occupied"));
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.rtl_events.post_island);
   }else if(left_input == 0 &&
     current_state == POST_ISLAND_OCCUPIED){
     Serial.println(F("train out RTL"));
     current_state = TRACK_UNOCCUPIED;
     current_direction = DIRECTION_UNKNOWN;
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.rtl_events.unoccupied);
   }
 }
 
 void set_output_active(){
   // A train has come in - set our output to be active
   digitalWrite(CROSSING_OCCUPIED_OUTPUT, 1);
-
-  // Send the event to notify the LCC bus
-  struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
-  lcc_event_produce_event(evt_ctx, crossing_active_event);
 }
 
 void set_output_inactive(){
   // A train has left - set our output to be inactive
   digitalWrite(CROSSING_OCCUPIED_OUTPUT, 0);
-
-  // Send the event to notify the LCC bus
-  struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
-  lcc_event_produce_event(evt_ctx, crossing_inactive_event);
 }
 
 void check_for_train(){
@@ -229,6 +289,8 @@ void check_for_train(){
     incoming_train_time = millis();
     Serial.println(F("Incoming train LTR"));
     set_output_active();
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.ltr_events.pre_island);
     return;
   }else if(right_input == 1 && current_state == TRACK_UNOCCUPIED){
     // Incoming train, right to left
@@ -237,6 +299,8 @@ void check_for_train(){
     incoming_train_time = millis();
     Serial.println(F("Incoming train RTL"));
     set_output_active();
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    lcc_event_produce_event(evt_ctx, events.rtl_events.pre_island);
     return;
   }
 
@@ -248,6 +312,12 @@ void check_for_train(){
 
   if(millis_diff > timeout_millis &&
     current_state != TRACK_UNOCCUPIED){
+    struct lcc_event_context* evt_ctx = lcc_context_get_event_context(ctx);
+    if(current_direction == DIRECTION_RTL){
+      lcc_event_produce_event(evt_ctx, events.rtl_events.unoccupied);
+    }else{
+      lcc_event_produce_event(evt_ctx, events.ltr_events.unoccupied);
+    }
     current_state = TRACK_UNOCCUPIED;
     current_direction = DIRECTION_UNKNOWN;
     set_output_inactive();
@@ -261,6 +331,9 @@ void check_for_train(){
 void mem_address_space_information_query(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space){
   if(address_space == 251){
     lcc_memory_respond_information_query(ctx, alias, 1, address_space, 64 + 64, 0, 0);
+  }else if(address_space == 253){
+    // basic config space
+    lcc_memory_respond_information_query(ctx, alias, 1, address_space, sizeof(events), 0, 0);
   }else{
     // This memory space does not exist: return an error
     lcc_memory_respond_information_query(ctx, alias, 0, address_space, 0, 0, 0);
@@ -268,34 +341,102 @@ void mem_address_space_information_query(struct lcc_memory_context* ctx, uint16_
 }
 
 void mem_address_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint8_t read_count){
-  if(address_space != 251){
+  if(address_space == 251){
+    // This space is what we use for node name/description
+    uint8_t buffer[64];
+    eeprom_read(starting_address, buffer, read_count);
+
+    // For any blank data, we will read 0xFF
+    // In this example, we know that we have strings, so replace all 0xFF with 0x00
+    for(int x = 0; x < sizeof(buffer); x++){
+      if(buffer[x] == 0xFF){
+        buffer[x] = 0x00;
+      }
+    }
+
+    lcc_memory_respond_read_reply_ok(ctx, alias, address_space, starting_address, buffer, read_count);
+  }else if(address_space == 253){
+    // Basic config space
+    if(starting_address + read_count > sizeof(events)){
+      // trying to read too much memory
+      lcc_memory_respond_read_reply_fail(ctx, alias, address_space, 0, 0, NULL);
+      return;
+    }
+
+    // LCC is defined as big-endian: Use built-in GCC functions to swap to big endian
+    struct occupation_events events_big = events;
+    events_big.ltr_events.island_occupied = __builtin_bswap64(events_big.ltr_events.island_occupied);
+    events_big.ltr_events.pre_island = __builtin_bswap64(events_big.ltr_events.pre_island);
+    events_big.ltr_events.post_island = __builtin_bswap64(events_big.ltr_events.post_island);
+    events_big.ltr_events.unoccupied = __builtin_bswap64(events_big.ltr_events.unoccupied);
+    events_big.rtl_events.island_occupied = __builtin_bswap64(events_big.rtl_events.island_occupied);
+    events_big.rtl_events.pre_island = __builtin_bswap64(events_big.rtl_events.pre_island);
+    events_big.rtl_events.post_island = __builtin_bswap64(events_big.rtl_events.post_island);
+    events_big.rtl_events.unoccupied = __builtin_bswap64(events_big.rtl_events.unoccupied);
+    uint8_t* events_as_u8 = (uint8_t*)&events_big;
+
+    lcc_memory_respond_read_reply_ok(ctx, alias, address_space, starting_address, events_as_u8, read_count);
+  }else{
     lcc_memory_respond_read_reply_fail(ctx, alias, address_space, 0, 0, NULL);
     return;
   }
-
-  uint8_t buffer[64];
-  eeprom_read(starting_address, buffer, read_count);
-
-  // For any blank data, we will read 0xFF
-  // In this example, we know that we have all strings, so replace all 0xFF with 0x00
-  for(int x = 0; x < sizeof(buffer); x++){
-    if(buffer[x] == 0xFF){
-      buffer[x] = 0x00;
-    }
-  }
-
-  lcc_memory_respond_read_reply_ok(ctx, alias, address_space, starting_address, buffer, read_count);
 }
 
 void mem_address_space_write(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len){
-  if(address_space != 251){
+  if(address_space == 251){
+    eeprom_write(starting_address, data, data_len);
+
+    lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
+  }else if(address_space == 253){
+    // In this example, we know that we only have event IDs that we want to store,
+    // So we will swap all of our incoming data to store
+    for(int offset = 0; offset < data_len % 8; offset++){
+      uint64_t* u64_data = (uint64_t*)data;
+      u64_data[offset] = __builtin_bswap64(u64_data[offset]);
+    }
+
+    // Copy the new data to our events data
+    uint8_t* events_u8 = (uint8_t*)&events;
+    memcpy(events_u8 + starting_address, data, data_len);
+
+    // Write out to EEPROM
+    eeprom_write(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+
+    lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
+  }else{
     lcc_memory_respond_write_reply_fail(ctx, alias, address_space, starting_address, 0, NULL);
     return;
   }
+}
 
-  eeprom_write(starting_address, data, data_len);
+void initialize_events_if_needed(uint64_t unique_id){
+  // do a sanity check on our events: if all of our events are 0xFF...
+  // That means our memory is not initialized yet.
+  bool initialized = false;
+  for(int x = 0; x < sizeof(events); x++){
+    uint8_t* u8_data = (uint8_t*)&events;
+    if(u8_data[x] != 0xFF){
+      initialized = true;
+      break;
+    }
+  }
 
-  lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
+  if(initialized){
+    return;
+  }
+
+  // Let's go and initialize all of our events since they are
+  // all 0xFF
+  uint64_t event_id = unique_id << 16;
+
+  events.ltr_events.pre_island = event_id++;
+  events.ltr_events.island_occupied = event_id++;
+  events.ltr_events.post_island = event_id++;
+  events.ltr_events.unoccupied = event_id++;
+  events.rtl_events.pre_island = event_id++;
+  events.rtl_events.island_occupied = event_id++;
+  events.rtl_events.post_island = event_id++;
+  events.rtl_events.unoccupied = event_id++;
 }
 
 //
@@ -363,11 +504,18 @@ void setup() {
     mem_address_space_read,
     mem_address_space_write);
 
-  uint64_t event_id = unique_id << 16;
-  crossing_active_event = event_id;
-  crossing_inactive_event = event_id + 1;
-  lcc_event_add_event_produced(evt_ctx, event_id);
-  lcc_event_add_event_produced(evt_ctx, event_id + 1);
+  // Load our events
+  eeprom_read(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+  initialize_events_if_needed(unique_id);
+
+  lcc_event_add_event_produced(evt_ctx, events.ltr_events.pre_island);
+  lcc_event_add_event_produced(evt_ctx, events.ltr_events.island_occupied);
+  lcc_event_add_event_produced(evt_ctx, events.ltr_events.post_island);
+  lcc_event_add_event_produced(evt_ctx, events.ltr_events.unoccupied);
+  lcc_event_add_event_produced(evt_ctx, events.rtl_events.pre_island);
+  lcc_event_add_event_produced(evt_ctx, events.rtl_events.island_occupied);
+  lcc_event_add_event_produced(evt_ctx, events.rtl_events.post_island);
+  lcc_event_add_event_produced(evt_ctx, events.rtl_events.unoccupied);
 
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
