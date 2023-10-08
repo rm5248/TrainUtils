@@ -6,11 +6,12 @@
 // The Snowball Creek LCC shield uses pin 2 for DCC packet decoding
 #define DCC_PIN     2
 
-int lastDccPacketTime = 0;
-int blinkLedDate = 0;
-int blinkVal = 0;
-int shieldBlinkVal = 0;
+unsigned long rxDccLedMillis = 0;
+unsigned long blinkLedMillis = 0;
+int blinkLedVal = 0;
+int rxDccBlinkVal = 0;
 int nextLedUpdate = 500;
+int rxDccCount = 0;
 NmraDcc  Dcc;
 
 void notifyDccAccTurnoutOutput (uint16_t Addr, uint8_t Direction, uint8_t OutputPower){
@@ -21,7 +22,7 @@ void notifyDccAccTurnoutOutput (uint16_t Addr, uint8_t Direction, uint8_t Output
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   uint8_t maxWaitLoops = 255;
   while(!Serial && maxWaitLoops--)
     delay(20);
@@ -52,7 +53,7 @@ void setup() {
 
 void notifyDccMsg( DCC_MSG * Msg)
 {
-  lastDccPacketTime = millis();
+  rxDccCount++;
 }
 
 void loop() {
@@ -62,23 +63,30 @@ void loop() {
   unsigned long now = millis();
 
   // Blink our builtin LED periodically
-  if (blinkLedDate < now) {
-    blinkLedDate += 1000 ;
-    digitalWrite (LED_BUILTIN, blinkVal);
-    blinkVal = !blinkVal;
+  if (now >= blinkLedMillis)
+  {
+    blinkLedMillis += 1000 ;
+    digitalWrite (LED_BUILTIN, blinkLedVal);
+    blinkLedVal = !blinkLedVal;
   }
 
-  int rxDccPacket = (now - lastDccPacketTime) < 250;
-
   // As long as we continue to get DCC packets, blink the LEDs on the shield
-  if(now == nextLedUpdate && rxDccPacket){
-    digitalWrite(5, shieldBlinkVal);
-    digitalWrite(6, !shieldBlinkVal);
-    shieldBlinkVal = !shieldBlinkVal;
-    nextLedUpdate += 100;
-  }else if(now == nextLedUpdate && !rxDccPacket){
-    digitalWrite(5, 0);
-    digitalWrite(6, 0);
-    nextLedUpdate += 100;
+  if(now >= rxDccLedMillis)
+  {
+    rxDccLedMillis += 100;
+
+    if(rxDccCount)
+    {
+      rxDccCount = 0;
+
+      digitalWrite(5, rxDccBlinkVal);
+      digitalWrite(6, !rxDccBlinkVal);
+      rxDccBlinkVal = !rxDccBlinkVal;
+    }
+    else
+    {
+      digitalWrite(5, 0);
+      digitalWrite(6, 0);
+    }
   }
 }
