@@ -9,6 +9,64 @@
 #include "lcc-simple.h"
 #include "lcc-addressed.h"
 
+static void lcc_context_check_collision(struct lcc_context* ctx, struct lcc_can_frame* frame){
+    int is_frame_control = 1;
+    uint16_t node_alias = frame->can_id & 0xFFF;
+    int cid_frame_number = (frame->can_id >> 24) & 0x07;
+    int is_cid_frame = is_frame_control && cid_frame_number <= 0x07 && cid_frame_number >= 0x04;
+
+    if(frame->can_id & (0x01l << 27) ){
+        // bit 27: 1 for LCC message, 0 for CAN control frame
+        is_frame_control = 0;
+    }
+
+    if(node_alias != ctx->node_alias){
+        // No collision, break out early
+        return;
+    }
+
+    // A node shall compare the source Node ID alias in each received frame against
+    // all reserved Node ID
+    // aliases it currently holds. In case of a match, the receiving node shall:
+
+    // If the frame is a CID frame, send an RID frame in response
+    if(is_cid_frame){
+        struct lcc_can_frame tosend;
+        tosend.can_len = 0;
+        tosend.res0 = 0;
+        tosend.res1 = 0;
+        tosend.res2 = 0;
+
+        // RID frame
+        lcc_set_lcb_variable_field(&tosend, ctx, 0x700);
+        tosend.can_id &= (~(0x01l << 27));
+        ctx->write_function(ctx, &tosend);
+        return;
+    }
+
+    // If the frame is not a Check ID (CID) frame, the node is in Permitted state,
+    // and the received
+    // source Node ID alias is the current Node ID alias of the node, the node shall
+    // immediately
+    // transition to Inhibited state, send an AMR frame to release and then stop
+    // using the current Node
+    // ID alias.
+    // TODO put code here
+
+    // If the frame is not a Check ID (CID) frame and the node is not in Permitted
+    // state, the node shall
+    // immediately stop using the matching Node ID alias.
+    if( !is_cid_frame && ctx->state != LCC_STATE_PERMITTED ){
+        ctx->node_alias_state = LCC_NODE_ALIAS_FAIL;
+    }
+
+    // If the frame is not a Check ID (CID) frame and the received source
+    // Node ID alias is not the
+    // current Node ID alias of the node, the node shall immediately
+    // stop using the matching node ID
+    // alias.
+}
+
 static int is_datagram_frame(struct lcc_can_frame* frame){
     int can_frame_type = (frame->can_id & LCC_CAN_FRAME_TYPE_MASK) >> 24;
     uint16_t mti = (frame->can_id & LCC_VARIABLE_FIELD_MASK) >> 12;
@@ -71,11 +129,7 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
         return LCC_ERROR_INVALID_ARG;
     }
 
-    uint16_t node_alias = frame->can_id & 0xFFF;
-    if( ctx->node_alias_state == LCC_NODE_ALIAS_SENT_CID &&
-            node_alias == ctx->node_alias ){
-        ctx->node_alias_state = LCC_NODE_ALIAS_FAIL;
-    }
+    lcc_context_check_collision(ctx, frame);
 
     if(ctx->state != LCC_STATE_PERMITTED){
         return LCC_OK;

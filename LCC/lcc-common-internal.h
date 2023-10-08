@@ -62,7 +62,11 @@ struct lcc_context{
     uint64_t unique_id;
     union{
         uint16_t flags;
-        uint16_t reserved : 12, listen_all_events: 1, node_alias_state : 2, state : 1;
+        struct{
+            uint16_t listen_all_events: 1;
+            uint16_t node_alias_state : 2;
+            uint16_t state : 1;
+        };
     };
     int16_t node_alias;
     lcc_write_fn write_function;
