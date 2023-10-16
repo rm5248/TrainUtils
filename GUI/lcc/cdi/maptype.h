@@ -5,17 +5,23 @@
 #include <QString>
 #include <QVector>
 #include <QMap>
+#include <variant>
+
+class QXmlStreamReader;
 
 class MapType
 {
 public:
+    typedef std::variant<QString, int, uint64_t> Property;
+
     MapType();
+
+    static MapType createFromXML(QXmlStreamReader* xml);
 
 private:
     QString m_name;
     QString m_description;
-    QVector<QString> m_relations;
-    QMap<QString,QString> m_properties;
+    QMap<QString,Property> m_relations;
 };
 
 #endif // MAPTYPE_H

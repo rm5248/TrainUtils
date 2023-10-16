@@ -5,7 +5,7 @@
 #include <QMainWindow>
 #include <QHostAddress>
 
-#include "DockManager.h"
+#include "qt5advanceddocking/DockManager.h"
 #include "systemconnection.h"
 
 QT_BEGIN_NAMESPACE

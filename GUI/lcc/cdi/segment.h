@@ -5,6 +5,8 @@
 #include <string>
 #include <QString>
 
+class QXmlStreamReader;
+
 /**
  * Represents a <segment> tag in the LCC XML schema.
  */
@@ -12,6 +14,8 @@ class Segment
 {
 public:
     Segment();
+
+    static Segment createFromXML(QXmlStreamReader* xml);
 
 private:
     int m_space;
