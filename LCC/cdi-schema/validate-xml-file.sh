@@ -1,5 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# First arg: XML file to validate
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+CDI_XSD="$SCRIPT_DIR"/cdi-3.xsd
 
-exec xmllint --schema cdi-3.xsd $1 --noout
+exec xmllint --schema "$CDI_XSD" $1 --noout
