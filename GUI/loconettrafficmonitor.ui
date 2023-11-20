@@ -33,6 +33,20 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="logStats">
+        <property name="text">
+         <string>Log Stats</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="statsButton">
+        <property name="text">
+         <string>Save Stats</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

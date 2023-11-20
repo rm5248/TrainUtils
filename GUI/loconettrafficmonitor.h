@@ -5,6 +5,7 @@
 #include <QWidget>
 
 #include "loconet_buffer.h"
+#include "loconet/loconetusage.h"
 
 class LoconetConnection;
 
@@ -26,9 +27,14 @@ private Q_SLOTS:
     void on_clearButton_clicked();
     void incomingLoconetMessage(loconet_message msg);
 
+    void on_statsButton_clicked();
+
+    void on_logStats_stateChanged(int arg1);
+
 private:
     Ui::LoconetTrafficMonitor *ui;
     std::shared_ptr<LoconetConnection> m_connection;
+    LoconetUsage m_usage;
 };
 
 #endif // LOCONETTRAFFICMONITOR_H

@@ -47,6 +47,8 @@ set(PROJECT_SOURCES
         loconet/loconetconnection.h
         loconet/loconetnetworkconnection.cpp
         loconet/loconetnetworkconnection.h
+        loconet/loconetusage.h
+        loconet/loconetusage.cpp
         loconettrafficmonitor.h
         loconettrafficmonitor.cpp
         loconettrafficmonitor.ui
