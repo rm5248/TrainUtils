@@ -10,7 +10,7 @@
 
 #include <lcc-gridconnect.h>
 
-static const byte MCP2515_CS  = 9 ; // CS input of MCP2515 (adapt to your design) 
+static const byte MCP2515_CS  = 8 ; // CS input of MCP2515 (adapt to your design)
 static const byte MCP2515_INT =  2 ; // INT output of MCP2515 (adapt to your design)
 
 // The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:

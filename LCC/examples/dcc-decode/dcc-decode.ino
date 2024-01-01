@@ -3,8 +3,8 @@
 // Note: this example is based off of the NmraDcc_ARD_DCCSHieLD-test from
 // the NmraDcc library examples
 
-// The Snowball Creek LCC shield uses pin 2 for DCC packet decoding
-#define DCC_PIN     2
+// The Snowball Creek LCC shield uses pin 3 for DCC packet decoding
+#define DCC_PIN     3
 
 unsigned long rxDccLedMillis = 0;
 unsigned long blinkLedMillis = 0;

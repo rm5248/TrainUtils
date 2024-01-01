@@ -9,6 +9,7 @@
  * This example handles just a single track crossing.
  */
 #include <ACAN2515.h>
+#include <M95_EEPROM.h>
 #include <lcc.h>
 #include <lcc-common-internal.h>
 #include <lcc-datagram.h>
@@ -98,26 +99,19 @@ enum Direction{
   DIRECTION_RTL,
 };
 
-static const byte MCP2515_CS  = 9 ; // CS input of MCP2515 (adapt to your design) 
+static const byte MCP2515_CS  = 8 ; // CS input of MCP2515 (adapt to your design) 
 static const byte MCP2515_INT =  2 ; // INT output of MCP2515 (adapt to your design)
-static const byte EEPROM_CS = 10;
+static const byte EEPROM_CS = 7;
 static const byte CROSSING_OCCUPIED_OUTPUT = 5;
 
-static const byte EEPROM_WRITE_ENABLE = 0x6;
-static const byte EEPROM_READ_STATUS_REGISTER = 0x5;
-static const byte EEPROM_WRITE_STATUS_REGISTER = 0x1;
-static const byte EEPROM_READ_MEMORY_ARRAY = 0x3;
-static const byte EEPROM_WRITE_MEMORY_ARRAY = 0x2;
-static const byte EEPROM_WRITE_DISABLE = 0x4;
-
 // Address in EEPROM of various important pieces of data
-static const int LCC_UNIQUE_ID_ADDR = 0x6000;
 static const int CROSSING_EVENTS_ADDR = 0x0;
 static const int NODE_NAME_DESCRIPTION_ADDR = 0x1000;
 
 // The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
 ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT) ;
+M95_EEPROM eeprom(SPI, EEPROM_CS, 256, 3, true);
 
 static const uint32_t QUARTZ_FREQUENCY = 16UL * 1000UL * 1000UL ; // 16 MHz
 
@@ -143,45 +137,6 @@ struct occupation_events {
   struct occupation ltr_events;
   struct occupation rtl_events;
 } events;
-
-void eeprom_read(int offset, void* data, int numBytes){
-  digitalWrite(EEPROM_CS, LOW);
-  SPI.transfer(EEPROM_READ_MEMORY_ARRAY);
-
-  SPI.transfer((offset & 0xFF00) >> 8);
-  SPI.transfer((offset & 0x00FF) >> 0);
-
-  uint8_t* u8_data = data;
-  while(numBytes > 0){
-    numBytes--;
-    *u8_data = SPI.transfer(0xFF); // dummy byte
-    u8_data++;
-  }
-
-  digitalWrite(EEPROM_CS, HIGH);
-}
-
-void eeprom_write(int offset, void* data, int numBytes){
-  digitalWrite(EEPROM_CS, LOW);
-  SPI.transfer(EEPROM_WRITE_ENABLE);
-  digitalWrite(EEPROM_CS, HIGH);
-
-  delay(5);
-
-  digitalWrite(EEPROM_CS, LOW);
-  SPI.transfer(EEPROM_WRITE_MEMORY_ARRAY);
-  SPI.transfer((offset & 0xFF00) >> 8);
-  SPI.transfer((offset & 0x00FF) >> 0);
-
-  uint8_t* u8_data = data;
-  while(numBytes > 0){
-    numBytes--;
-    SPI.transfer(*u8_data); // data byte
-    u8_data++;
-  }
-
-  digitalWrite(EEPROM_CS, HIGH);
-}
 
 /**
  * This is a callback function that is called by liblcc in order to write a frame out to the CAN bus.
@@ -344,7 +299,7 @@ void mem_address_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint
   if(address_space == 251){
     // This space is what we use for node name/description
     uint8_t buffer[64];
-    eeprom_read(starting_address, buffer, read_count);
+    eeprom.read(starting_address, buffer, read_count);
 
     // For any blank data, we will read 0xFF
     // In this example, we know that we have strings, so replace all 0xFF with 0x00
@@ -384,7 +339,7 @@ void mem_address_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint
 
 void mem_address_space_write(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len){
   if(address_space == 251){
-    eeprom_write(starting_address, data, data_len);
+    eeprom.write(starting_address, data, data_len);
 
     lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
   }else if(address_space == 253){
@@ -400,7 +355,7 @@ void mem_address_space_write(struct lcc_memory_context* ctx, uint16_t alias, uin
     memcpy(events_u8 + starting_address, data, data_len);
 
     // Write out to EEPROM
-    eeprom_write(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+    eeprom.write(CROSSING_EVENTS_ADDR, &events, sizeof(events));
 
     lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
   }else{
@@ -453,6 +408,7 @@ void setup() {
   }
 
   SPI.begin();
+  eeprom.begin();
 
   // Output LED to tell us if the track is occupied
   pinMode(CROSSING_OCCUPIED_OUTPUT, OUTPUT);
@@ -468,8 +424,16 @@ void setup() {
 
   // Define a unique ID for your node.  The generation of this unique ID can be
   // found in the LCC specifications, specifically the unique identifiers standard
+  // We will read the unique ID from the ID page of the EEPROM.
   uint64_t unique_id;
-  eeprom_read(LCC_UNIQUE_ID_ADDR, &unique_id, 8);
+  eeprom.read_id_page(8, &unique_id);
+
+  Serial.print("ID: ");
+  for(int x = 0; x < 8; x++){
+    uint8_t* as_u8 = (uint8_t*)&unique_id;
+    Serial.print(as_u8[x], HEX);
+  }
+  Serial.println();
 
   // Create an LCC context that determines our communications
   ctx = lcc_context_new();
@@ -505,7 +469,7 @@ void setup() {
     mem_address_space_write);
 
   // Load our events
-  eeprom_read(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+  eeprom.read(CROSSING_EVENTS_ADDR, &events, sizeof(events));
   initialize_events_if_needed(unique_id);
 
   lcc_event_add_event_produced(evt_ctx, events.ltr_events.pre_island);
