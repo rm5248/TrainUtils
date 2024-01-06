@@ -194,7 +194,7 @@ int lcc_memory_respond_information_query(struct lcc_memory_context* ctx,
     }
     response[2] = address_space;
     lcc_uint32_to_data(response + 3, highest_address);
-    response[7] = flags;
+    response[7] = flags & 0x01;
     lcc_uint32_to_data(response + 9, lowest_address);
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
