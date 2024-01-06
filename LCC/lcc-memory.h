@@ -73,6 +73,15 @@ int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias,
 int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_len, int flags);
 
 /**
+ * Set a function that will be called when a reboot is requested.
+ *
+ * @param ctx
+ * @param reboot_fn
+ * @return
+ */
+int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot reboot_fn);
+
+/**
  * Set functions for reading/writing/querying memory on the device.
  *
  * @param ctx

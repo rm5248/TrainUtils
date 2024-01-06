@@ -159,6 +159,16 @@ int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_l
     return LCC_OK;
 }
 
+int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot reboot_fn){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->reboot_fn = reboot_fn;
+
+    return LCC_OK;
+}
+
 int lcc_memory_set_memory_functions(struct lcc_memory_context* ctx,
                                     lcc_address_space_information_query query_fn,
                                     lcc_address_space_read read_fn,
@@ -415,27 +425,51 @@ static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* 
     }
 }
 
+static int lcc_handle_reboot(struct lcc_memory_context* ctx){
+    if(ctx->reboot_fn){
+        ctx->reboot_fn(ctx);
+    }
+
+    return 0;
+}
+
 int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
-    if(ctx->cdi_data == NULL){
+    if(data_len < 2 || data[0] != 0x20){
         return 0;
     }
 
-    if(data[0] != 0x20){
-        return 0;
-    }
+    if(data[1] == 0xA9){
+        // Reboot command
+        return lcc_handle_reboot(ctx);
+    }else if(data[1] == 0xAA){
+        // Factory reset.  First check our node ID, make sure it is fine.
+        uint64_t node_id = 0;
+        if(data_len < 8){
+            return 0;
+        }
 
-    // Check to see if this is a 'get configuration options' command
-    if(data[1] == 0x80){
-        // TODO finish this option
-    }
+        node_id |= ((uint64_t)data[2]) << 40;
+        node_id |= ((uint64_t)data[3]) << 32;
+        node_id |= ((uint64_t)data[4]) << 24;
+        node_id |= ((uint64_t)data[5]) << 16;
+        node_id |= ((uint64_t)data[6]) << 8;
+        node_id |= ((uint64_t)data[7]) << 0;
 
-    if(data[1] == 0x84 &&
+        if(ctx->parent->unique_id == node_id &&
+                ctx->factory_reset_fn){
+            ctx->factory_reset_fn(ctx);
+        }
+    }else if(data[1] == 0x84 &&
             data[2] == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
         return lcc_memory_handle_datagram_cdi_memory_space(ctx, alias, data, data_len);
     }else if(data[1] == 0x84){
         // return information for the given address space
         ctx->query_fn(ctx, alias, data[2]);
         return LCC_OK;
+    }
+
+    if(ctx->cdi_data == NULL){
+        return 0;
     }
 
     int handled = 0;

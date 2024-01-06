@@ -48,6 +48,8 @@ struct lcc_memory_context{
     lcc_address_space_information_query query_fn;
     lcc_address_space_read read_fn;
     lcc_address_space_write write_fn;
+    lcc_reboot reboot_fn;
+    lcc_factory_reset factory_reset_fn;
 };
 
 struct lcc_event_context{

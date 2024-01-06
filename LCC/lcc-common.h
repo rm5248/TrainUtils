@@ -97,6 +97,16 @@ typedef void (*lcc_address_space_read)(struct lcc_memory_context* ctx, uint16_t 
  */
 typedef void (*lcc_address_space_write)(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len);
 
+/**
+ * A function that will be called in order to trigger the device to reboot
+ */
+typedef void (*lcc_reboot)(struct lcc_memory_context* ctx);
+
+/**
+ * A function that will be called in order to trigger the device to factory reset.
+ */
+typedef void (*lcc_factory_reset)(struct lcc_memory_context* ctx);
+
 /*
  * Error code definitions
  */
