@@ -169,6 +169,16 @@ int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot re
     return LCC_OK;
 }
 
+int lcc_memory_set_factory_reset_function(struct lcc_memory_context* ctx, lcc_factory_reset reset_fn){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->factory_reset_fn = reset_fn;
+
+    return LCC_OK;
+}
+
 int lcc_memory_set_memory_functions(struct lcc_memory_context* ctx,
                                     lcc_address_space_information_query query_fn,
                                     lcc_address_space_read read_fn,
@@ -459,6 +469,7 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
                 ctx->factory_reset_fn){
             ctx->factory_reset_fn(ctx);
         }
+        return LCC_OK;
     }else if(data[1] == 0x84 &&
             data[2] == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
         return lcc_memory_handle_datagram_cdi_memory_space(ctx, alias, data, data_len);

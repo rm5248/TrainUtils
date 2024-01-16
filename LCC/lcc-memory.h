@@ -82,6 +82,15 @@ int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_l
 int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot reboot_fn);
 
 /**
+ * Set a function that will be called when a factory reset is requested.
+ *
+ * @param ctx
+ * @param reset_fn
+ * @return
+ */
+int lcc_memory_set_factory_reset_function(struct lcc_memory_context* ctx, lcc_factory_reset reset_fn);
+
+/**
  * Set functions for reading/writing/querying memory on the device.
  *
  * @param ctx
