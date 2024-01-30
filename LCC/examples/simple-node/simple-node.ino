@@ -1,17 +1,20 @@
 #include <ACAN2515.h>
+#include <M95_EEPROM.h>
 #include <lcc.h>
 #include <lcc-common-internal.h>
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-static const byte MCP2515_CS  = 8 ; // CS input of MCP2515 (adapt to your design) 
-static const byte MCP2515_INT =  2 ; // INT output of MCP2515 (adapt to your design)
+static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
+static const byte MCP2515_INT =  2 ; // INT output of MCP2515
+static const byte EEPROM_CS = 7;
 
 // The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
-// This particular example also uses the SparkFun CAN-BUS Shield:
-// https://www.sparkfun.com/products/13262
 ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT) ;
+
+// EEPROM on the shield
+M95_EEPROM eeprom(SPI, EEPROM_CS, 256, 3, true);
 
 static const uint32_t QUARTZ_FREQUENCY = 16UL * 1000UL * 1000UL ; // 16 MHz
 
@@ -41,9 +44,20 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
 }
 
 void setup () {
-  // Define a unique ID for your node.  The generation of this unique ID can be
-  // found in the LCC specifications, specifically the unique identifiers standard
-  uint64_t unique_id = 0x040032405022llu;
+  Serial.begin (9600) ;
+  while (!Serial) {
+    delay (50) ;
+    digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
+  }
+
+  SPI.begin () ;
+  eeprom.begin();
+
+  // Define a unique ID for your node.
+  // Assuming we are using the Snowball Creek LCC Shield, we can just read
+  // the unique ID from the ID page of the EEPROM
+  uint64_t unique_id;
+  eeprom.read_id_page(8, &unique_id);
 
   // Create an LCC context that determines our communications
   ctx = lcc_context_new();
@@ -88,13 +102,6 @@ void setup () {
   pinMode(7, OUTPUT);
   pinMode(8, OUTPUT);
 
-  Serial.begin (9600) ;
-  while (!Serial) {
-    delay (50) ;
-    digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
-  }
-
-  SPI.begin () ;
   Serial.println ("Configure ACAN2515") ;
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
