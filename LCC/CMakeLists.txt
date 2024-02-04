@@ -1,5 +1,5 @@
 project( LibLCC
-	VERSION 0.1.0 
+	VERSION 0.4.0 
 	DESCRIPTION "Layout Command and control library")
 
 # These are the public headers that get installed
