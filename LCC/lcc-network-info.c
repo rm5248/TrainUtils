@@ -228,6 +228,7 @@ static void lcc_network_handle_simple_node_reply(struct lcc_network_info* inf, s
             }
         }
 
+#ifndef LCC_SIMPLE_NODE_INFO_SMALL
         if(strings[0] != NULL){
             strncpy(node->simple_info.manufacturer_name, strings[0], 40);
         }
@@ -250,6 +251,7 @@ static void lcc_network_handle_simple_node_reply(struct lcc_network_info* inf, s
         if(inf->node_update_cb){
             inf->node_update_cb(inf, node);
         }
+#endif
 
         node->rx_buffer_location = 0;
     }

@@ -330,6 +330,59 @@ int lcc_context_alias(struct lcc_context* ctx){
     return ctx->node_alias;
 }
 
+#ifdef LCC_SIMPLE_NODE_INFO_SMALL
+static void lcc_context_small_info_string_copy(struct lcc_context* ctx, int idx, const char* field, int field_max_len){
+    int field_len = 0;
+    if(field){
+        field_len = strlen(field);
+    }
+    int bytes_to_copy = field_len;
+    if(field_len > field_max_len){
+        bytes_to_copy = field_max_len - 1;
+    }
+
+    if(idx == 0){
+        if(field){
+            memcpy(ctx->simple_info.node_information, field, bytes_to_copy);
+            ctx->simple_info.node_information[bytes_to_copy + 1] = 0;
+        }else{
+            ctx->simple_info.node_information[0] = 0;
+        }
+        return;
+    }
+
+    // First thing to do: find where to put this
+    char* string_start_location = NULL;
+    int current_field = 0;
+    for(unsigned int x = 1; x < sizeof(ctx->simple_info); x++){
+        if(ctx->simple_info.node_information[x - 1] == 0){
+            current_field++;
+            if(current_field == idx){
+                string_start_location = ctx->simple_info.node_information + x;
+                break;
+            }
+        }
+    }
+
+    if(!string_start_location){
+        // can't find where to put this.  So we don't put it in.
+        return;
+    }
+
+    // Copy the string, making sure that we NULL terminate it and we don't run off the end
+    unsigned int current_location;
+    for(current_location = 0; current_location < bytes_to_copy; current_location++){
+        char* next_location = string_start_location + current_location + 1;
+        if(next_location >= ctx->simple_info.node_information + sizeof(ctx->simple_info.node_information)){
+            break;
+        }
+
+        string_start_location[current_location] = field[current_location];
+    }
+    string_start_location[current_location + 1] = 0;
+}
+#endif
+
 int lcc_context_set_simple_node_information(struct lcc_context* ctx,
                                             const char* manufacturer_name,
                                             const char* model_name,
@@ -339,22 +392,39 @@ int lcc_context_set_simple_node_information(struct lcc_context* ctx,
         return LCC_ERROR_INVALID_ARG;
     }
 
-    int manufacturer_string_len = strlen(manufacturer_name);
-    int model_string_len = strlen(model_name);
-    int hardware_string_len =strlen(hw_version);
-    int software_string_len = strlen(sw_version);
+    int manufacturer_string_len = manufacturer_name ? strlen(manufacturer_name) : 0;
+    int model_string_len = model_name ? strlen(model_name) : 0;
+    int hardware_string_len = hw_version ? strlen(hw_version) : 0;
+    int software_string_len = sw_version ? strlen(sw_version) : 0;
 
-    if(strlen(manufacturer_name) > 40 ||
-            strlen(model_name) > 40 ||
-            strlen(hw_version) > 20 ||
-            strlen(sw_version) > 20){
+    if(manufacturer_string_len > 40 ||
+            model_string_len > 40 ||
+            hardware_string_len > 20 ||
+            software_string_len > 20){
         return LCC_ERROR_STRING_TOO_LONG;
     }
 
-    memcpy(ctx->simple_info.manufacturer_name, manufacturer_name, manufacturer_string_len + 1);
-    memcpy(ctx->simple_info.model_name, model_name, model_string_len + 1);
-    memcpy(ctx->simple_info.hw_version, hw_version, hardware_string_len + 1);
-    memcpy(ctx->simple_info.sw_version, sw_version, software_string_len + 1);
+#ifdef LCC_SIMPLE_NODE_INFO_SMALL
+    // Copy all of the strings back-to-back
+    lcc_context_small_info_string_copy(ctx, 0, manufacturer_name, 40);
+    lcc_context_small_info_string_copy(ctx, 1, model_name, 40);
+    lcc_context_small_info_string_copy(ctx, 2, hw_version, 20);
+    lcc_context_small_info_string_copy(ctx, 3, sw_version, 20);
+#else
+    memset(ctx->simple_info.manufacturer_name, 0, 124);
+    if(manufacturer_name){
+        memcpy(ctx->simple_info.manufacturer_name, manufacturer_name, manufacturer_string_len + 1);
+    }
+    if(model_name){
+        memcpy(ctx->simple_info.model_name, model_name, model_string_len + 1);
+    }
+    if(hw_version){
+        memcpy(ctx->simple_info.hw_version, hw_version, hardware_string_len + 1);
+    }
+    if(sw_version){
+        memcpy(ctx->simple_info.sw_version, sw_version, software_string_len + 1);
+    }
+#endif
 
     return LCC_OK;
 }
@@ -366,16 +436,21 @@ int lcc_context_set_simple_node_name_description(struct lcc_context* ctx,
         return LCC_ERROR_INVALID_ARG;
     }
 
-    int node_name_len = strlen(node_name);
-    int node_description_len = strlen(node_description);
+    int node_name_len = node_name ? strlen(node_name) : 0;
+    int node_description_len = node_description ? strlen(node_description) : 0;
 
     if(node_name_len > 62 ||
             node_description_len > 63){
         return LCC_ERROR_STRING_TOO_LONG;
     }
 
+#ifdef LCC_SIMPLE_NODE_INFO_SMALL
+    lcc_context_small_info_string_copy(ctx, 4, node_name, 62);
+    lcc_context_small_info_string_copy(ctx, 5, node_description, 63);
+#else
     memcpy(ctx->simple_info.node_name, node_name, node_name_len + 1);
     memcpy(ctx->simple_info.node_description, node_description, node_description_len + 1);
+#endif
 
     return LCC_OK;
 }

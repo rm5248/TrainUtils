@@ -5,6 +5,7 @@
 #include "lcc-addressed.h"
 #include "lcc-common-internal.h"
 #include "lcc-datagram.h"
+#include "lcc-simple-node-info.h"
 
 int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
     uint16_t alias = (frame->data[0] << 8) | frame->data[1];
@@ -53,12 +54,12 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
     }else if(mti == LCC_MTI_SIMPLE_NODE_INFORMATION_REQUEST){
         // Respond with our simple information
         char max_simple_data[sizeof(struct lcc_simple_node_info) + 2];
-        int manufacturer_string_len = strlen(ctx->simple_info.manufacturer_name);
-        int model_string_len = strlen(ctx->simple_info.model_name);
-        int hardware_string_len = strlen(ctx->simple_info.hw_version);
-        int software_string_len = strlen(ctx->simple_info.sw_version);
-        int node_name_len = strlen(ctx->simple_info.node_name);
-        int node_description_len = strlen(ctx->simple_info.node_description);
+        int manufacturer_string_len = strlen(lcc_simple_node_info_manufacturer_name(&ctx->simple_info));
+        int model_string_len = strlen(lcc_simple_node_info_model_name(&ctx->simple_info));
+        int hardware_string_len = strlen(lcc_simple_node_info_hw_version(&ctx->simple_info));
+        int software_string_len = strlen(lcc_simple_node_info_sw_version(&ctx->simple_info));
+        int node_name_len = strlen(lcc_simple_node_info_node_name(&ctx->simple_info));
+        int node_description_len = strlen(lcc_simple_node_info_node_description(&ctx->simple_info));
         int max_simple_data_len = 0;
 
         max_simple_data[0] = 4;
@@ -69,7 +70,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.manufacturer_name, manufacturer_string_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_manufacturer_name(&ctx->simple_info), manufacturer_string_len + 1);
             max_simple_data_len += manufacturer_string_len + 1;
         }
 
@@ -78,7 +79,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.model_name, model_string_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_model_name(&ctx->simple_info), model_string_len + 1);
             max_simple_data_len += model_string_len + 1;
         }
 
@@ -87,7 +88,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.hw_version, hardware_string_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_hw_version(&ctx->simple_info), hardware_string_len + 1);
             max_simple_data_len += hardware_string_len + 1;
         }
 
@@ -96,7 +97,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.sw_version, software_string_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_sw_version(&ctx->simple_info), software_string_len + 1);
             max_simple_data_len += software_string_len + 1;
         }
 
@@ -107,7 +108,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.node_name, node_name_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_node_name(&ctx->simple_info), node_name_len + 1);
             max_simple_data_len += node_name_len + 1;
         }
 
@@ -116,7 +117,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             max_simple_data[max_simple_data_len] = 0;
             max_simple_data_len++;
         }else{
-            memcpy(&max_simple_data[max_simple_data_len], ctx->simple_info.node_description, node_description_len + 1);
+            memcpy(&max_simple_data[max_simple_data_len], lcc_simple_node_info_node_description(&ctx->simple_info), node_description_len + 1);
             max_simple_data_len += node_description_len + 1;
         }
 

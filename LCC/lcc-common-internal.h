@@ -12,9 +12,33 @@
 
 #include "lcc-common.h"
 
+#ifdef ARDUINO_AVR_UNO
+#define LCC_SIMPLE_NODE_INFO_SMALL 1
+#endif
+
 /* This is just an internal file, but arduino seems to use a C++ compiler so we need to make sure functions are C */
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+// Figure out how big our lcc_simple_node_info needs to be.
+// Normally, this struct is 251 bytes long.  For memory constrained devices(currently the Uno)
+// we set this to a max of 90 bytes.
+#ifdef LCC_SIMPLE_NODE_INFO_SMALL
+// There is not much RAM on the uno, so we will make this struct much much smaller.
+// This is also a common thing that we can define if needed.
+struct lcc_simple_node_info {
+    char node_information[90];
+};
+#else
+struct lcc_simple_node_info {
+    char manufacturer_name[41];
+    char model_name[41];
+    char hw_version[21];
+    char sw_version[21];
+    char node_name[63];
+    char node_description[64];
+};
 #endif
 
 struct event_list{

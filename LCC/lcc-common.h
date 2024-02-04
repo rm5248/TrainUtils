@@ -137,27 +137,6 @@ struct lcc_can_frame {
         uint8_t data[8];
 };
 
-#ifdef ARDUINO_AVR_UNO
-// There is not much RAM on the uno, so we will make this struct much much smaller
-struct lcc_simple_node_info {
-    char manufacturer_name[20];
-    char model_name[20];
-    char hw_version[5];
-    char sw_version[5];
-    char node_name[20];
-    char node_description[20];
-};
-#else
-struct lcc_simple_node_info {
-    char manufacturer_name[41];
-    char model_name[41];
-    char hw_version[21];
-    char sw_version[21];
-    char node_name[63];
-    char node_description[64];
-};
-#endif
-
 /*
  * Important bitmasks/fields
  */

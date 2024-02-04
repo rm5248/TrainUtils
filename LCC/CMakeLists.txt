@@ -33,6 +33,8 @@ add_library(lcc STATIC
     lcc-memory.h
     lcc-event.c
     lcc-event.h
+    lcc-simple-node-info.c
+    lcc-simple-node-info.h
 )
 target_compile_definitions(lcc PRIVATE LIBLCC_BUILD)
 
