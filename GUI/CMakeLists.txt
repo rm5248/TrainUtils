@@ -4,7 +4,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include( GNUInstallDirs )
@@ -158,9 +158,9 @@ else()
     endif()
 endif()
 
-#pkg_check_modules( train-required REQUIRED
-#    liblog4cxx-qt>=1.0.0
-#)
+pkg_check_modules( train-required REQUIRED
+    sigc++-3.0
+)
 find_package(log4cxx CONFIG REQUIRED)
 find_package(log4cxx-qt CONFIG REQUIRED)
 find_package(qtadvanceddocking CONFIG REQUIRED)
@@ -180,7 +180,7 @@ target_link_libraries(train-gui PRIVATE
     log4cxx-qt
 )
 target_include_directories(train-gui PRIVATE
-    ${train-required-dbus_INCLUDE_DIRS}
+    ${train-required_INCLUDE_DIRS}
     ../LCC
     ../LocoNetCommunications
     ../LoconetTCPUtil

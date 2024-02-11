@@ -6,6 +6,7 @@
 #include "lcc-network-info.h"
 #include "lcc-node-info.h"
 #include "lcc/lccnode.h"
+#include "lcc-simple-node-info.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -186,10 +187,10 @@ void LCCNodeInformation::updateAllValuesForNode(){
     }
 
     struct lcc_simple_node_info* simple = lcc_node_info_get_simple(node_info);
-    ui->manufacturerLabel->setText(QString(simple->manufacturer_name));
-    ui->modelLabel->setText(QString(simple->model_name));
-    ui->swVersionLabel->setText(QString(simple->sw_version));
-    ui->hwVersionLabel->setText(QString(simple->hw_version));
+    ui->manufacturerLabel->setText(QString(lcc_simple_node_info_manufacturer_name(simple)));
+    ui->modelLabel->setText(QString(lcc_simple_node_info_model_name(simple)));
+    ui->swVersionLabel->setText(QString(lcc_simple_node_info_sw_version(simple)));
+    ui->hwVersionLabel->setText(QString(lcc_simple_node_info_hw_version(simple)));
 }
 
 void LCCNodeInformation::on_queryProtocolsSimpleNode_clicked()
