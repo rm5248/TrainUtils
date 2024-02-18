@@ -6,6 +6,10 @@
 
 #include "lcc-common.h"
 
+#define LCC_VERSION_MAJOR(version) ((version & 0xFF0000) >> 16)
+#define LCC_VERSION_MINOR(version) ((version & 0x00FF00) >> 8)
+#define LCC_VERSION_MICRO(version) ((version & 0x0000FF) >> 0)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -152,6 +156,12 @@ struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ct
  * @return
  */
 struct lcc_event_context* lcc_context_get_event_context(struct lcc_context* ctx);
+
+/**
+ * Get the version of LibLCC.
+ * @return
+ */
+uint32_t lcc_library_version();
 
 #ifdef __cplusplus
 } /* extern C */

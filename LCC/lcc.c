@@ -508,3 +508,32 @@ struct lcc_event_context* lcc_context_get_event_context(struct lcc_context* ctx)
     return ctx->event_context;
 }
 
+uint32_t lcc_library_version(){
+    // On Arduino, we can't get the library version from the cmake configuration file.
+    // We can at least check the versions when using CMake.
+#define MAJOR 0ll
+#define MINOR 4ll
+#define MICRO 0ll
+
+#ifdef LIBLCC_MAJOR
+
+#if LIBLCC_MAJOR != MAJOR
+#error "Major number bad!"
+#endif
+
+#if LIBLCC_MINOR != MINOR
+#error "Minor number bad!"
+#endif
+
+#if LIBLCC_MICRO != MICRO
+#error "Micro number bad!"
+#endif
+
+#endif
+
+    const uint32_t lib_version = MAJOR << 16 |
+                                          MINOR << 8 |
+                                          MICRO << 0;
+    return lib_version;
+}
+

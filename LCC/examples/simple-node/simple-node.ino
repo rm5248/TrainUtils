@@ -25,6 +25,48 @@ unsigned long claim_alias_time;
 static uint32_t gBlinkLedDate = 0 ;
 int inputValue = 0;
 
+struct id_page{
+  uint64_t node_id;
+  uint16_t id_version;
+  char manufacturer[32];
+  char part_number[21];
+  char hw_version[12];
+};
+
+void print_node_id(uint64_t node_id){
+  char buffer[3];
+  sprintf(buffer, "%02X", (int)((node_id & 0xFF0000000000l) >> 40));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+  sprintf(buffer, "%02X", (int)((node_id & 0x00FF00000000l) >> 32));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+  sprintf(buffer, "%02X", (int)((node_id & 0x0000FF000000l) >> 24));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+  sprintf(buffer, "%02X", (int)((node_id & 0x000000FF0000l) >> 16));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+  sprintf(buffer, "%02X", (int)((node_id & 0x00000000FF00l) >> 8));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+  sprintf(buffer, "%02X", (int)((node_id & 0x0000000000FFl) >> 0));
+  Serial.print(buffer[0]);
+  Serial.print(buffer[1]);
+}
+
+void print_liblcc_version(){
+  uint32_t lib_version = lcc_library_version();
+
+  Serial.print("LibLCC version: ");
+  Serial.print(LCC_VERSION_MAJOR(lib_version));
+  Serial.print(".");
+  Serial.print(LCC_VERSION_MINOR(lib_version));
+  Serial.print(".");
+  Serial.print(LCC_VERSION_MICRO(lib_version));
+  Serial.println();
+}
+
 /**
  * This is a callback function that is called by liblcc in order to write a frame out to the CAN bus.
  */
@@ -44,11 +86,16 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
 }
 
 void setup () {
+  struct id_page id;
+
   Serial.begin (9600) ;
   while (!Serial) {
     delay (50) ;
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
   }
+
+  // First let's print out the version of LibLCC
+  print_liblcc_version();
 
   SPI.begin () ;
   eeprom.begin();
@@ -56,8 +103,21 @@ void setup () {
   // Define a unique ID for your node.
   // Assuming we are using the Snowball Creek LCC Shield, we can just read
   // the unique ID from the ID page of the EEPROM
+  // We will also set the manufacturer and other related information from the ID page
   uint64_t unique_id;
-  eeprom.read_id_page(8, &unique_id);
+  eeprom.read_id_page(sizeof(id), &id);
+  unique_id = id.node_id;
+  Serial.print("LCC ID: ");
+  print_node_id(unique_id);
+  Serial.println();
+  Serial.print("ID page version: ");
+  Serial.println(id.id_version);
+  Serial.print("Manufacturer: ");
+  Serial.println(id.manufacturer);
+  Serial.print("Part number: ");
+  Serial.println(id.part_number);
+  Serial.print("HW Version: ");
+  Serial.println(id.hw_version);
 
   // Create an LCC context that determines our communications
   ctx = lcc_context_new();
@@ -70,10 +130,10 @@ void setup () {
 
   // Set simple node information that is handled by the 'simple node information protocol'
   lcc_context_set_simple_node_information(ctx,
-                                        "Manufacturer",
-                                        "Model",
-                                        "HWVersion",
-                                        "SWVersion");
+                                        id.manufacturer,
+                                        id.part_number,
+                                        id.hw_version,
+                                        "1.0");
 
   // Optional: create other contexts to handle other parts of LCC communication
   // Contexts:
@@ -109,6 +169,16 @@ void setup () {
   // the ACAN2515 library will allocate too much memory
   settings.mReceiveBufferSize = 4;
   settings.mTransmitBuffer0Size = 8;
+  // OpenLCB uses the following CAN propogation settings with the MCP2515:
+  // CFN3 = 0x02
+  // CFN2 = 0x90
+  // CFN1 = 0x07
+  settings.mPropagationSegment = 1;
+  settings.mPhaseSegment1 = 3;
+  settings.mPhaseSegment2 = 3;
+  settings.mSJW = 1;
+  settings.mTripleSampling = false;
+  settings.mBitRatePrescaler = 8;
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;
