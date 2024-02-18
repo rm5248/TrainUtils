@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+  <identification>
+    <manufacturer>Northern Virginia Model Railroaders</manufacturer>
+    <model>Audio Player</model>
+    <hardwareVersion>1.0</hardwareVersion>
+    <softwareVersion>0.1</softwareVersion>
+  </identification>
+  <acdi/>
+  <segment space="253">
+    <name>Audio Events</name>
+    <group replication="100">
+    	<name></name>
+    </group>
+  </segment>
+  <segment space="251">
+    <name>Node ID</name>
+    <group>
+      <name>Your name and description for this node</name>
+      <string size="63">
+        <name>Node Name</name>
+      </string>
+      <string size="64" offset="1">
+        <name>Node Description</name>
+      </string>
+    </group>
+  </segment>
+</cdi>

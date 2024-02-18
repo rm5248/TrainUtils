@@ -1,54 +1,19 @@
 /*
- 4-28-2011
- Spark Fun Electronics 2011
- Nathan Seidle
- 
- This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
- 
- This example code works with the MP3 Shield (https://www.sparkfun.com/products/10628) and plays a MP3 from the 
- SD card called 'track001.mp3'. The theory is that you can load a microSD card up with a bunch of MP3s and 
- then play a given 'track' depending on some sort of input such as which pin is pulled low.
- 
- This example shows all the background interactions. For a more simple example see the
- 
- This code relies on the sdfatlib from Bill Greiman: 
- http://code.google.com/p/sdfatlib/
- You will need to download and install his library. To compile, you MUST change Sd2PinMap.h of the SDfatlib! 
- The default SS_PIN = 10;. You must change this line under the ATmega328/Arduino area of code to 
- uint8_t const SS_PIN = 9;. This will cause the sdfatlib to use pin 9 as the 'chip select' for the 
- microSD card on pin 9 of the Arduino so that the layout of the shield works.
- 
- Attach the shield to an Arduino. Load code (after editing Sd2PinMap.h) then open the terminal at 57600bps. This 
- example shows that it takes ~30ms to load up the VS1053 buffer. We can then do whatever we want for ~100ms 
- before we need to return to filling the buffer (for another 30ms).
- 
- This code is heavily based on the example code I wrote to control the MP3 shield found here:
- http://www.sparkfun.com/products/9736
- This example code extends the previous example by reading the MP3 from an SD card and file rather than from internal
- memory of the ATmega. Because the current MP3 shield does not have a microSD socket, you will need to add the microSD 
- shield to your Arduino stack.
- 
- The main gotcha from all of this is that you have to make sure your CS pins for each device on an SPI bus is carefully
- declared. For the SS pin (aka CS) on the SD FAT libaray, you need to correctly set it within Sd2PinMap.h. The default 
- pin in Sd2PinMap.h is 10. If you're using the SparkFun microSD shield with the SparkFun MP3 shield, the SD CS pin 
- is pin 9. 
- 
- Four pins are needed to control the VS1503:
- DREQ
- CS
- DCS
- Reset (optional but good to have access to)
- Plus the SPI bus
- 
- Only the SPI bus pins and another CS pin are needed to control the microSD card.
- 
- What surprised me is the fact that with a normal MP3 we can do other things for up to 100ms while the MP3 IC crunches
- through its fairly large buffer of 2048 bytes. As long as you keep your sensor checks or serial reporting to under 
- 100ms and leave ~30ms to then replenish the MP3 buffer, you can do quite a lot while the MP3 is playing glitch free.
- 
+ * This is based off of the SparkFun MP3 Shield code.
+ *
+ * Because the LCC shield and the MP3 shield are not compatible with each other
+ * (they each use the same pins), we need to hook them together with jumper wires.
+ * There is /just enough/ RAM and memory on the Uno to run this example.
+ *
+ * To hook up the shield, connect with jumper wires as follows:
+ *
+ * MP3 Shield Pin <-----------------> Arduino Pin
+ *  2 (MP3 DREQ)    <---------------> A2
+ *  6 (MP3 Chip Select) <-----------> A0
+ *  7 (MP3 data chip select) <------> A1
+ *  8 (MP3 Reset) <-----------------> A3
+ *  9 (SD card select) <------------> A4
  */
-
-//  #define SPI_DRIVER_SELECT 1
 
 #include <SPI.h>
 #include <ACAN2515.h>
@@ -56,6 +21,8 @@
 #include <SdFat.h>
 #include <lcc.h>
 #include <lcc-event.h>
+#include <lcc-datagram.h>
+#include <lcc-memory.h>
 
 #include "vs1053.h"
 
@@ -104,6 +71,9 @@ void incoming_lcc_evt(struct lcc_context* ctx, uint64_t event_id){
   Serial.print(low_bits, HEX);
 
   playMP3("track001.mp3");
+
+  // Note: Not enough memory to keep configuration in RAM.
+  // Every event that comes in we need to search EEPROM for.
 }
 
 int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
@@ -126,8 +96,7 @@ void setup_lcc(){
 
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  // For the computer interface, we need to increase our buffer sizes so that we can be assured we get all of the data
-  settings.mReceiveBufferSize = 12;
+  settings.mReceiveBufferSize = 4;
   settings.mTransmitBuffer0Size = 8;
   // OpenLCB uses the following CAN propogation settings with the MCP2515:
   // CFN3 = 0x02
@@ -177,6 +146,9 @@ void setup_lcc(){
 
   lcc_event_set_incoming_event_function(evt_ctx, incoming_lcc_evt);
   lcc_event_set_listen_all_events(evt_ctx, 1);
+
+  struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(ctx);
+  struct lcc_memory_context* mem_ctx = lcc_memory_new(ctx);
 }
 
 void setup() {
@@ -253,6 +225,9 @@ void setup() {
   vs1053.set_volume(40, 40);
 
   setup_lcc();
+
+    Serial.print(F("Free at start: "));
+  Serial.println(freeMemory());
 }
 
 void check_lcc_available(){
