@@ -215,8 +215,14 @@ int lcc_context_generate_alias(struct lcc_context* ctx){
 
     if( ctx->node_alias == 0 ){
         // Let's generate a starting alias number.
-        ctx->node_alias = ctx->unique_id & 0xFFF;
-        ctx->node_alias ^= 0xA5C;
+        // Simple LCG: https://en.wikipedia.org/wiki/Linear_congruential_generator
+        // https://rosettacode.org/wiki/Linear_congruential_generator#C
+        uint16_t alias = 0;
+        alias = ctx->unique_id & 0xFFF;
+        uint32_t new_val = (alias * 1103515245llu + 12345);
+        alias = new_val & 0xFFF;
+
+        ctx->node_alias = alias;
     }else{
         ctx->node_alias++;
     }
