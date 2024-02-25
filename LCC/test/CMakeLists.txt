@@ -17,3 +17,6 @@ add_test( NAME lcc-alias1 COMMAND lcc-test-alias alias-collision)
 add_executable(lcc-test-datagram test-datagram.c test-common.c test-common.h)
 target_link_libraries(lcc-test-datagram lcc)
 target_include_directories(lcc-test-datagram PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+add_test( NAME datagram-test COMMAND lcc-test-datagram datagram )
+#add_test( NAME datagram-same-time COMMAND lcc-test-datagram datagram-same-time )

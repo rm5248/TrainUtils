@@ -142,7 +142,7 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
         }
 
         if(datagram_ctx->currently_handling_incoming_datagram &&
-                can_frame_type == 3){
+                (can_frame_type == 3 || can_frame_type == 2)){
             // We are currently handling a datagram.
             // Send back a rejection with a temporary error(resend OK)
             int stat = lcc_datagram_respond_rejected(datagram_ctx,
@@ -158,7 +158,6 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             return stat;
         }
 
-        printf("Handling incoming datagram CTX %p\n", ctx);
         datagram_ctx->currently_handling_incoming_datagram = 1;
 
         // This is a datagram that is destined for us, append to our buffer
@@ -169,7 +168,6 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             // First we check to see if we handle it within the library(CDI).
             // If we don't handle it within the library, call the callback function.
             int handled = 0;
-            printf("Done handling incoming datagram CTX %p\n", ctx);
             datagram_ctx->currently_handling_incoming_datagram = 0;
             if(ctx->memory_context){
                 handled = lcc_memory_try_handle_datagram(ctx->memory_context, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
@@ -191,7 +189,6 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
         int handled = 0;
-        printf("Done handling incoming datagram OK CTX %p\n", ctx);
         datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
@@ -203,7 +200,6 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
         }
     }else if(mti == LCC_MTI_DATAGRAM_REJECTED){
         int handled = 0;
-        printf("Done handling incoming datagram REJECT CTX %p\n", ctx);
         datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
