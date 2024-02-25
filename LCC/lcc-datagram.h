@@ -10,8 +10,6 @@ extern "C" {
 
 struct lcc_datagram_context* lcc_datagram_context_new(struct lcc_context* parent);
 
-//void lcc_datagram_context_free(struct lcc_datagram_context* ctx);
-
 struct lcc_context* lcc_datagram_context_parent(struct lcc_datagram_context* ctx);
 
 /**
@@ -60,12 +58,22 @@ int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
  *
  * @param ctx
  * @param alias
+ * @param error_code The error code to send back(see LCC_ERRCODE family of macros)
+ * @param optional_info Optional info to send back, max of 64 bytes of data.
  * @return
  */
 int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
                                   uint16_t alias,
                                   uint16_t error_code,
                                   const char* optional_info);
+
+/**
+ * Check to see if a datagram transfer is currently in progress.
+ *
+ * @param ctx
+ * @return
+ */
+int lcc_datagram_transfer_in_progress(struct lcc_datagram_context* ctx);
 
 #ifdef __cplusplus
 } /* extern C */

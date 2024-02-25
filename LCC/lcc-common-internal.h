@@ -62,6 +62,7 @@ struct lcc_datagram_context{
     lcc_incoming_datagram_fn datagram_received_fn;
     lcc_datagram_received_ok_fn datagram_ok_fn;
     lcc_datagram_rejected_fn datagram_rejected_fn;
+    int currently_handling_datagram;
 };
 
 struct lcc_memory_context{
@@ -74,6 +75,15 @@ struct lcc_memory_context{
     lcc_address_space_write write_fn;
     lcc_reboot reboot_fn;
     lcc_factory_reset factory_reset_fn;
+};
+
+struct lcc_remote_memory_context{
+    struct lcc_context* parent;
+    lcc_remote_memory_request_ok remote_request_ok;
+    lcc_remote_memory_request_fail remote_request_fail;
+    lcc_remote_memory_received remote_memory_received;
+    lcc_remote_memory_read_rejected read_rejected;
+    int16_t current_requesting_alias;
 };
 
 struct lcc_event_context{
@@ -109,6 +119,9 @@ struct lcc_context{
 
     // Memory handling
     struct lcc_memory_context* memory_context;
+
+    // Remote memory handling
+    struct lcc_remote_memory_context* remote_memory_context;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0
@@ -149,6 +162,14 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame);
  * Return 1 if it was handled, 0 if it was not.
  */
 int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len);
+
+/**
+ * Try to handle a datagram with the remote memory subsystem.
+ * Return 1 if it was handled, 0 if it was not.
+ */
+int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len);
+int lcc_remote_memory_handle_datagram_rx_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags);
+int lcc_remote_memory_handle_datagram_rejected(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len);
 
 /**
  * Read a uint32(in big-endian order) from data.  Data must be at least 4 bytes.

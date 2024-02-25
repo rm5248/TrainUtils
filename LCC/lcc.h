@@ -157,6 +157,8 @@ struct lcc_memory_context* lcc_context_get_memory_context(struct lcc_context* ct
  */
 struct lcc_event_context* lcc_context_get_event_context(struct lcc_context* ctx);
 
+struct lcc_remote_memory_context* lcc_context_get_remote_memory_context(struct lcc_context* ctx);
+
 /**
  * Get the version of LibLCC.
  * @return

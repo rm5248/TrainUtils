@@ -31,6 +31,10 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx){
         return NULL;
     }
 
+    if(ctx->memory_context){
+        return ctx->memory_context;
+    }
+
 #ifdef ARDUINO
     static struct lcc_memory_context mem_ctx;
     memset(&mem_ctx, 0, sizeof(mem_ctx));
@@ -47,104 +51,6 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx){
 
     return memory;
 #endif
-}
-
-int lcc_memory_read_single_transfer(struct lcc_context* ctx, int alias, uint8_t space, uint32_t starting_address, int read_count){
-    if(ctx->datagram_context == NULL){
-        return LCC_ERROR_NO_DATAGRAM_HANDLING;
-    }
-
-    memset(&ctx->datagram_context->datagram_buffer, 0, sizeof(ctx->datagram_context->datagram_buffer));
-
-    if(read_count > 64 || read_count < 0){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    uint8_t tx_data[8];
-    tx_data[0] = 0x20;
-    tx_data[1] = (0x01 << 6); /* read operation */
-    if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
-        tx_data[1] |= 0x3;
-    }else if(space == LCC_MEMORY_SPACE_ALL_MEMORY){
-        tx_data[1] |= 0x2;
-    }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE){
-        tx_data[1] |= 0x01;
-    }else{
-        tx_data[6] = space;
-    }
-    lcc_uint32_to_data(tx_data + 2, starting_address);
-
-    tx_data[6] = read_count & 0xFF;
-
-    lcc_datagram_load_and_send(ctx->datagram_context,
-                               alias,
-                               tx_data, 7);
-
-//    struct lcc_can_frame frame;
-//    memset(&frame, 0, sizeof(frame));
-
-//    lcc_set_lcb_variable_field(&frame, ctx, alias);
-//    lcc_set_lcb_can_frame_type(&frame, 1);
-
-//    // The frame format is 0x1Adddsss
-//    int real_id = frame.can_id & 0xFFFFFF;
-//    real_id |= 0x1A000000;
-//    frame.can_id = real_id;
-
-//    frame.can_len = 7;
-//    frame.data[0] = 0x20;
-//    frame.data[1] = (0x01 << 6); /* read operation */
-//    if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
-//        frame.data[1] |= 0x3;
-//    }else if(space == LCC_MEMORY_SPACE_ALL_MEMORY){
-//        frame.data[1] |= 0x2;
-//    }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE){
-//        frame.data[1] |= 0x01;
-//    }else{
-//        frame.data[6] = space;
-//    }
-//    frame.data[2] = ((starting_address & 0xFF000000) >> 24) & 0xFF;
-//    frame.data[3] = ((starting_address & 0x00FF0000) >> 16) & 0xFF;
-//    frame.data[4] = ((starting_address & 0x0000FF00) >> 8) & 0xFF;
-//    frame.data[5] = ((starting_address & 0x000000FF) >> 0) & 0xFF;
-//    frame.data[6] = read_count & 0xFF;
-//    ctx->write_function(ctx, &frame);
-
-    return LCC_OK;
-}
-
-int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias, uint8_t space){
-    if(ctx == NULL){
-        return LCC_ERROR_INVALID_ARG;
-    }
-
-    uint8_t tx_data[8];
-    tx_data[0] = 0x20;
-    tx_data[1] = 0x84;
-    tx_data[2] = space;
-
-    lcc_datagram_load_and_send(ctx->datagram_context,
-                               alias,
-                               tx_data, 3);
-
-//    struct lcc_can_frame frame;
-//    memset(&frame, 0, sizeof(frame));
-
-//    lcc_set_lcb_variable_field(&frame, ctx, alias);
-//    lcc_set_lcb_can_frame_type(&frame, 1);
-
-//    // The frame format is 0x1Adddsss
-//    int real_id = frame.can_id & 0xFFFFFF;
-//    real_id |= 0x1A000000;
-//    frame.can_id = real_id;
-
-//    frame.can_len = 3;
-//    frame.data[0] = 0x20;
-//    frame.data[1] = 0x84;
-//    frame.data[2] = space;
-//    ctx->write_function(ctx, &frame);
-
-    return LCC_OK;
 }
 
 int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_len, int flags){
@@ -537,4 +443,12 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
     }
 
     return 1;
+}
+
+struct lcc_context* lcc_memory_parent_context(struct lcc_memory_context* ctx){
+    if(ctx == NULL){
+        return NULL;
+    }
+
+    return ctx->parent;
 }

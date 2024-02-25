@@ -4,6 +4,7 @@
 #include "lcc-memory.h"
 #include "lcc-datagram.h"
 #include "lcc-event.h"
+#include "lcc-remote-memory.h"
 #include "lccnode.h"
 
 #include <log4cxx/logger.h>
@@ -151,7 +152,9 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
 }
 
 void LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
-    lcc_memory_read_single_transfer(m_lcc, alias, space, starting_address, len);
+    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+
+    lcc_remote_memory_read_single_transfer(ctx, alias, space, starting_address, len);
 }
 
 std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){

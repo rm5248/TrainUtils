@@ -24,39 +24,17 @@ extern "C" {
 struct lcc_memory_context;
 struct lcc_context;
 
-//typedef void(*lcc_memory_read_cb)
-
+/**
+ * Create a new memory context.  The memory context is for sending data from your node.
+ * If you want to query a remote node, use a lcc_remote_memory_context object.
+ * These are split to save memory.  On a normal LCC node, you do not care about reading
+ * memory from a remote node, you are only interested in providing your memory to other
+ * node(such as a configuration tool like JMRI).
+ *
+ * @param ctx
+ * @return
+ */
 struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx);
-
-//void lcc_memory_free(struct lcc_memory* memory);
-
-//int lcc_memory_set_read_callback(struct lcc_memory* memory, )
-
-/**
- * Read memory from the specified location.  Note that this will read a single block of
- * memory from the LCC device(max 64 bytes of data).  If you want to read an entire
- * memory section, this method must be called multiple times in order to transfer all of the data.
- *
- * @param ctx
- * @param alias
- * @param space
- * @param starting_address
- * @param read_count
- * @return
- */
-int lcc_memory_read_single_transfer(struct lcc_context* ctx, int alias, uint8_t space, uint32_t starting_address, int read_count);
-
-/**
- * Send a request to the specified node alias for memory space information.
- *
- * Note that the reply to this comes back as a datagram reply and must be parsed by higher level code.
- *
- * @param ctx
- * @param alias
- * @param space
- * @return
- */
-int lcc_memory_get_address_space_information(struct lcc_context* ctx, int alias, uint8_t space);
 
 /**
  * Set pointer to CDI data for this node.  If the CDI data is set, then queries
@@ -206,6 +184,8 @@ int lcc_memory_respond_read_reply_fail(struct lcc_memory_context* ctx,
                                        uint32_t starting_address,
                                    uint16_t error_code,
                                        const char* message);
+
+struct lcc_context* lcc_memory_parent_context(struct lcc_memory_context* ctx);
 
 #ifdef __cplusplus
 } /* extern C */

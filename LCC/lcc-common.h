@@ -24,6 +24,11 @@ struct lcc_datagram_context;
 struct lcc_memory_context;
 
 /**
+ * Opaque context used to hold information for remote memory(memory on a node on the bus)
+ */
+struct lcc_remote_memory_context;
+
+/**
  * Opaque context used to hold information for events
  */
 struct lcc_event_context;
@@ -107,8 +112,41 @@ typedef void (*lcc_reboot)(struct lcc_memory_context* ctx);
  */
 typedef void (*lcc_factory_reset)(struct lcc_memory_context* ctx);
 
+/**
+ * A function that will be called after requesting remote memory information.
+ * Corresponds to receiving a 'Datagram Received OK' message(Memory Configuration
+ * Standard, section 4.4).
+ *
+ * @see lcc_datagram_received_ok_fn
+ */
+typedef void (*lcc_remote_memory_request_ok)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags);
+
+/**
+ * A function that will be called after requesting remote memory information.
+ * If the node rejects the datagram, this method will be called.
+ *
+ * @see lcc_datagram_rejected_fn
+ */
+typedef void (*lcc_remote_memory_request_fail)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len);
+
+/**
+ * A function that will be called after a valid datagram of memory has been received from a remote node.
+ */
+typedef void (*lcc_remote_memory_received)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len);
+
+/**
+ * A function that will be called if:
+ *
+ * The node rejects the read.  Note that you may first get a 'datagram received OK' response before this is called.
+ * This is because the read command consists of two separate datagrams: one to request the data(which LibLCC
+ * automatically sends a 'response OK' for with the LCC_DATAGRAM_REPLY_PENDING bit set),
+ * and the second datagram that contains the actual data.
+ */
+typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+
+
 /*
- * Error code definitions
+ * Error code definitions used by the library
  */
 #define LCC_OK 0
 #define LCC_ERROR_GENERIC -1
@@ -123,6 +161,8 @@ typedef void (*lcc_factory_reset)(struct lcc_memory_context* ctx);
 #define LCC_ERROR_NO_DATAGRAM_HANDLING -9
 /** Data was unable to be transmitted.  For example, a queue may be full */
 #define LCC_ERROR_TX -10
+#define LCC_ERROR_DATAGRAM_IN_PROGRESS -11
+#define LCC_ERROR_MEMORY_TX_IN_PROGRESS -12
 
 /**
  * Struct used to pass frames to/from the library.
@@ -199,6 +239,28 @@ struct lcc_can_frame {
 #define LCC_ADDRESS_SPACE_NOT_PRESENT 0x87
 
 #define LCC_DATAGRAM_REPLY_PENDING 0x80
+
+/*
+ * LCC protocol error codes
+ */
+#define LCC_ERRCODE_PERMANENT 0x1000
+#define LCC_ERRCODE_SOURCE_NOT_PERMITTED 0x1020
+#define LCC_ERRCODE_NOT_IMPLEMENTED 0x1040
+#define LCC_ERRCODE_INVALID_ARG 0x1080
+
+#define LCC_ERRCODE_TEMPORARY 0x2000
+#define LCC_ERRCODE_TIMEOUT 0x2010
+#define LCC_ERRCODE_BUFFER_UNAVAILABLE 0x2020
+#define LCC_ERRCODE_NOT_EXPECTED 0x2040
+#define LCC_ERRCODE_TRANSFER_ERROR 0x2080
+
+#define LCC_ERRCODE_NOT_IMPLEMENTED_SUBCOMMAND 0x1041
+#define LCC_ERRCODE_NOT_IMPLEMENTED_DATAGRAM_STREAM 0x1042
+#define LCC_ERRCODE_NOT_IMPLEMENTED_UNKNOWN_MTI 0x1043
+
+#define LCC_ERRCODE_TIMEOUT_END_OF_FRAME 0x2011
+#define LCC_ERRCODE_OUT_OF_ORDER_MIDDLE_END 0x2041
+#define LCC_ERRCODE_OUT_OF_ORDER_START_BEFORE_FINISH 0x2042
 
 /**
  * Convert a node id to dotted format, putting the result in 'buffer'

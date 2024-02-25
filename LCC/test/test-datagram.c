@@ -1,0 +1,90 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#include <string.h>
+#include <stdio.h>
+
+#include "lcc.h"
+#include "lcc-common.h"
+#include "lcc-datagram.h"
+#include "lcc-memory.h"
+#include "lcc-remote-memory.h"
+#include "test-common.h"
+
+const char* cdi_data = "abcdefghijklmnopqrstuvwxyz";
+
+static int null_read_fn(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint8_t read_count){
+    return LCC_OK;
+}
+
+static void write_memory_response_to_buffer(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
+    void* user_data = lcc_context_user_data(lcc_remote_memory_parent(ctx));
+    memcpy(user_data, memory_data, len);
+}
+
+static int test_datagram(){
+    struct lcc_context** both_ctx = lcctest_create_contexts(2);
+
+    // One of our contexts has datagram data(both_ctx[0]).
+    // We will request it from the other context(both_ctx[1]).
+    struct lcc_datagram_context* datagram_ctx1 = lcc_datagram_context_new(both_ctx[0]);
+    struct lcc_memory_context* memory_ctx1 = lcc_memory_new(both_ctx[0]);
+    struct lcc_datagram_context* datagram_ctx2 = lcc_datagram_context_new(both_ctx[1]);
+    struct lcc_remote_memory_context* remote_memory_ctx2 = lcc_remote_memory_new(both_ctx[1]);
+
+    lcc_memory_set_cdi(memory_ctx1, cdi_data, strlen(cdi_data), 0);
+
+    char buffer[128] = {0};
+    lcc_context_set_userdata(both_ctx[0], buffer);
+    lcc_remote_memory_set_functions(remote_memory_ctx2,
+                                    NULL,
+                                    NULL,
+                                    write_memory_response_to_buffer,
+                                    NULL);
+    lcc_remote_memory_read_single_transfer(remote_memory_ctx2,
+            lcc_context_alias(both_ctx[0]),
+            LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION,
+            0,
+            26);
+
+    if(memcmp(buffer, cdi_data, strlen(cdi_data)) == 0){
+        return 0;
+    }
+
+    // TODO need to finish this to properly handle memory transmission
+    return 1;
+}
+
+// Test to make sure that the receiving node will only process
+// one datagram at a time and send back a rejection if we try to get it to
+// send another one before we are finished sending the first
+static int test_datagram_same_time(){
+    struct lcc_context** both_ctx = lcctest_create_contexts(2);
+
+    // One of our contexts has datagram data(both_ctx[0]).
+    // We will request it from the other context(both_ctx[1]).
+    struct lcc_datagram_context* datagram_ctx1 = lcc_datagram_context_new(both_ctx[0]);
+    struct lcc_memory_context* memory_ctx1 = lcc_memory_new(both_ctx[0]);
+    struct lcc_datagram_context* datagram_ctx2 = lcc_datagram_context_new(both_ctx[1]);
+    struct lcc_memory_context* memory_ctx2 = lcc_memory_new(both_ctx[1]);
+
+    lcc_memory_set_memory_functions(memory_ctx1,
+                                    NULL,
+                                    null_read_fn,
+                                    NULL);
+
+    lcc_memory_read_single_transfer(both_ctx[1],
+            lcc_context_alias(both_ctx[0]),
+            LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION,
+            0,
+            5);
+
+}
+
+int main(int argc, char** argv){
+    if(argc < 2) return 1;
+
+    if(strcmp(argv[1], "datagram") == 0){
+        return test_datagram();
+    }
+
+    return 1;
+}

@@ -3,6 +3,7 @@
 #include "lcc-memory.h"
 #include "lcc-node-info.h"
 #include "lcc-datagram.h"
+#include "lcc-remote-memory.h"
 #include "lccconnection.h"
 
 #include <log4cxx/logger.h>
@@ -17,6 +18,7 @@ LCCNode::LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObj
     m_hasCDI(false),
     m_cdiSize(-1)
 {
+    lcc_remote_memory_new(lcc);
     m_rawcdi.reserve(1024);
     connect(conn, &LCCConnection::incomingDatagram,
             this, &LCCNode::datagramRx);
@@ -35,8 +37,9 @@ void LCCNode::readCDI(){
         return;
     }
     uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
 
-    lcc_memory_get_address_space_information(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    lcc_remote_memory_get_address_space_information(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
 }
 
 void LCCNode::datagramRx(uint16_t source_alias, QByteArray ba){
@@ -105,7 +108,8 @@ void LCCNode::handleDatagramRead(QByteArray ba){
             if(bytesRemaining < 64){
                 bytesToTx = bytesRemaining;
             }
-            lcc_memory_read_single_transfer(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, bytesToTx);
+            lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+            lcc_remote_memory_read_single_transfer(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, bytesToTx);
         }else{
             m_hasCDI = true;
             QXmlStreamReader reader;
@@ -153,7 +157,8 @@ void LCCNode::handleGetAddressSpaceInformationReply(QByteArray ba){
         m_cdiSize = highestAddress;
 
         m_cdiCurrentOffset = 0;
-        lcc_memory_read_single_transfer(m_lcc, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, 0, 64);
+        lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+        lcc_remote_memory_read_single_transfer(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, 0, 64);
     }
 }
 
