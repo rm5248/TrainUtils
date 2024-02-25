@@ -141,7 +141,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             return LCC_OK;
         }
 
-        if(datagram_ctx->currently_handling_datagram){
+        if(datagram_ctx->currently_handling_incoming_datagram &&
+                can_frame_type == 3){
             // We are currently handling a datagram.
             // Send back a rejection with a temporary error(resend OK)
             int stat = lcc_datagram_respond_rejected(datagram_ctx,
@@ -152,12 +153,13 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             // the 'respond rejected' sets the handling datagram variable to 0,
             // set it back to 1 since by definition at this point we are already
             // handling something.
-            datagram_ctx->currently_handling_datagram = 1;
+            datagram_ctx->currently_handling_incoming_datagram = 1;
 
             return stat;
         }
 
-        datagram_ctx->currently_handling_datagram = 1;
+        printf("Handling incoming datagram CTX %p\n", ctx);
+        datagram_ctx->currently_handling_incoming_datagram = 1;
 
         // This is a datagram that is destined for us, append to our buffer
         lcc_datagram_append_bytes(&datagram_ctx->datagram_buffer, frame->data, frame->can_len);
@@ -167,6 +169,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             // First we check to see if we handle it within the library(CDI).
             // If we don't handle it within the library, call the callback function.
             int handled = 0;
+            printf("Done handling incoming datagram CTX %p\n", ctx);
+            datagram_ctx->currently_handling_incoming_datagram = 0;
             if(ctx->memory_context){
                 handled = lcc_memory_try_handle_datagram(ctx->memory_context, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
             }
@@ -187,6 +191,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
         int handled = 0;
+        printf("Done handling incoming datagram OK CTX %p\n", ctx);
+        datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
             handled = lcc_remote_memory_handle_datagram_rx_ok(ctx->remote_memory_context, source_alias, frame->data[0]);
@@ -197,6 +203,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
         }
     }else if(mti == LCC_MTI_DATAGRAM_REJECTED){
         int handled = 0;
+        printf("Done handling incoming datagram REJECT CTX %p\n", ctx);
+        datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
             handled = lcc_remote_memory_handle_datagram_rejected(ctx->remote_memory_context, source_alias, frame->data[2] << 8 | frame->data[3], NULL, 0);
@@ -224,7 +232,7 @@ int lcc_datagram_respond_rxok(struct lcc_datagram_context* ctx,
     frame.can_len = 3;
     frame.data[2] = flags;
 
-    ctx->currently_handling_datagram = 0;
+    ctx->currently_handling_incoming_datagram = 0;
 
     return ctx->parent->write_function(ctx->parent, &frame);
 }
@@ -244,7 +252,7 @@ int lcc_datagram_respond_rejected(struct lcc_datagram_context* ctx,
     frame.data[0] = (error_code & 0xFF00) >> 8;
     frame.data[1] = error_code & 0xFF;
 
-    ctx->currently_handling_datagram = 0;
+    ctx->currently_handling_incoming_datagram = 0;
 
     return ctx->parent->write_function(ctx->parent, &frame);
 }
@@ -254,5 +262,5 @@ int lcc_datagram_transfer_in_progress(struct lcc_datagram_context* ctx){
         return 0;
     }
 
-    return ctx->currently_handling_datagram;
+    return ctx->currently_handling_incoming_datagram;
 }

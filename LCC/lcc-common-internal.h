@@ -62,7 +62,7 @@ struct lcc_datagram_context{
     lcc_incoming_datagram_fn datagram_received_fn;
     lcc_datagram_received_ok_fn datagram_ok_fn;
     lcc_datagram_rejected_fn datagram_rejected_fn;
-    int currently_handling_datagram;
+    int currently_handling_incoming_datagram;
 };
 
 struct lcc_memory_context{

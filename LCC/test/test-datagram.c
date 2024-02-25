@@ -33,7 +33,7 @@ static int test_datagram(){
     lcc_memory_set_cdi(memory_ctx1, cdi_data, strlen(cdi_data), 0);
 
     char buffer[128] = {0};
-    lcc_context_set_userdata(both_ctx[0], buffer);
+    lcc_context_set_userdata(both_ctx[1], buffer);
     lcc_remote_memory_set_functions(remote_memory_ctx2,
                                     NULL,
                                     NULL,
@@ -45,11 +45,12 @@ static int test_datagram(){
             0,
             26);
 
+    lcctest_pump_frames();
+
     if(memcmp(buffer, cdi_data, strlen(cdi_data)) == 0){
         return 0;
     }
 
-    // TODO need to finish this to properly handle memory transmission
     return 1;
 }
 

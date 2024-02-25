@@ -6,15 +6,30 @@
 static struct lcc_context** all_ctx = NULL;
 static int num_ctx = 0;
 
+// Linked list that contains the frames we need to send.
+// This is so we can pop at the front
+struct can_frame_meta{
+    struct lcc_context* from_ctx;
+    struct lcc_can_frame frame;
+    struct can_frame_meta* next;
+};
+
+static struct can_frame_meta* frames_to_send = NULL;
+
 static int write_fun(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    struct lcc_can_frame new_frame = *frame;
+    struct can_frame_meta* new_meta = malloc(sizeof(struct can_frame_meta));
+    new_meta->from_ctx = ctx;
+    new_meta->frame = *frame;
+    new_meta->next = NULL;
 
-    for(int x = 0; x < num_ctx; x++){
-        if(ctx == all_ctx[x]){
-            continue;
+    if(frames_to_send == NULL){
+        frames_to_send = new_meta;
+    }else{
+        struct can_frame_meta* current = frames_to_send;
+        while(current->next != NULL){
+            current = current->next;
         }
-
-        lcc_context_incoming_frame(all_ctx[x], &new_frame);
+        current->next = new_meta;
     }
 
     return LCC_OK;
@@ -56,11 +71,37 @@ struct lcc_context** lcctest_create_contexts(int num){
         }
     }
 
+    // Pump the frames to have the network setup
+    lcctest_pump_frames();
+
     return all_ctx;
 }
 
 void lcctest_free_contexts(){
     for(int x = 0; x < num_ctx; x++){
         lcc_context_free(all_ctx[x]);
+    }
+}
+
+void lcctest_pump_frames(){
+    if(frames_to_send == NULL){
+        return;
+    }
+
+    while(frames_to_send != NULL){
+        struct can_frame_meta* current_frame = frames_to_send;
+
+        frames_to_send = current_frame->next;
+
+        for(int x = 0; x < num_ctx; x++){
+            struct lcc_context* curr_ctx = all_ctx[x];
+            if(curr_ctx == current_frame->from_ctx){
+                continue;
+            }
+
+            lcc_context_incoming_frame(curr_ctx, &current_frame->frame);
+        }
+
+        free(current_frame);
     }
 }

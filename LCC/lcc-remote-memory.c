@@ -150,7 +150,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
         return 1;
     }else{
         if(ctx->remote_memory_received){
-            ctx->remote_memory_received(ctx, alias, address_space, starting_address, data[data_starting_byte + 2], data_len - data_starting_byte);
+            ctx->remote_memory_received(ctx, alias, address_space, starting_address, data + data_starting_byte, data_len - data_starting_byte);
         }
     }
 

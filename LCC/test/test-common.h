@@ -18,4 +18,6 @@ struct lcc_context** lcctest_create_contexts(int num);
  */
 void lcctest_free_contexts();
 
+void lcctest_pump_frames();
+
 #endif
