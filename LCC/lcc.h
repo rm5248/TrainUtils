@@ -33,11 +33,17 @@ void lcc_context_free(struct lcc_context* ctx);
 int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* frame);
 
 /**
- * Set a function that will be called in order to write a CAN frame out on the bus
- * @param write_fn
+ * Set functions that handle writing a CAN frame out on the bus.
+ *
+ * @param write_fn The function that will write out CAN frames to the bus
+ * @param write_buffer_avail_fn A function that will return how many CAN frames can be queued up to be sent.
+ * If there is not enough space to queue up CAN frames for a specific message, the message will not be queued.
+ * This parameter may be NULL, in which case the size is not checked.  This is currently only relevant for datagram messages,
+ * as it is possible to determine how many frames we need before we try to send them.
+ *
  * @return
  */
-int lcc_context_set_write_function(struct lcc_context* ctx, lcc_write_fn write_fn);
+int lcc_context_set_write_function(struct lcc_context* ctx, lcc_write_fn write_fn, lcc_write_buffer_available write_buffer_avail_fn);
 
 /**
  * Set the unique identifier of this node.

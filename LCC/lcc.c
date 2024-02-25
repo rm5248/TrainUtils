@@ -170,12 +170,13 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     return LCC_OK;
 }
 
-int lcc_context_set_write_function(struct lcc_context* ctx, lcc_write_fn write_fn){
+int lcc_context_set_write_function(struct lcc_context* ctx, lcc_write_fn write_fn, lcc_write_buffer_available write_buffer_avail_fn){
     if( !write_fn || !ctx ){
         return LCC_ERROR_INVALID_ARG;
     }
 
     ctx->write_function = write_fn;
+    ctx->write_buffer_avail_function = write_buffer_avail_fn;
 
     return LCC_OK;
 }

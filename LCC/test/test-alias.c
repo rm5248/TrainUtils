@@ -37,8 +37,8 @@ static int alias_collision(){
         return 1;
     }
 
-    lcc_context_set_write_function( both_ctx[0], write_fun );
-    lcc_context_set_write_function( both_ctx[1], write_fun );
+    lcc_context_set_write_function( both_ctx[0], write_fun, NULL );
+    lcc_context_set_write_function( both_ctx[1], write_fun, NULL );
 
     stat = lcc_context_generate_alias( both_ctx[0] );
     if(stat != LCC_OK){

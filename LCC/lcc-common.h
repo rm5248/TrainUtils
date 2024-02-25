@@ -51,6 +51,8 @@ enum lcc_producer_state{
  */
 typedef int(*lcc_write_fn)(struct lcc_context*, struct lcc_can_frame*);
 
+typedef int(*lcc_write_buffer_available)(struct lcc_context*);
+
 /**
  * A function that will be called when an event that we are interested in comes in.
  */

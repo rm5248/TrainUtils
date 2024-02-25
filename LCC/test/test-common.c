@@ -48,7 +48,7 @@ struct lcc_context** lcctest_create_contexts(int num){
     for(int x = 0; x < num; x++){
         all_ctx[x] = lcc_context_new();
 
-        lcc_context_set_write_function(all_ctx[x], write_fun);
+        lcc_context_set_write_function(all_ctx[x], write_fun, NULL);
         lcc_context_set_unique_identifer(all_ctx[x], unique_id++);
     }
 

@@ -14,7 +14,7 @@ LCCQIoConnection::LCCQIoConnection(QObject *parent) : LCCConnection(parent)
     m_lccGrid = lcc_gridconnect_new();
 
     lcc_context_set_userdata(m_lcc, this);
-    lcc_context_set_write_function(m_lcc, LCCQIoConnection::writeLCCFrameCB);
+    lcc_context_set_write_function(m_lcc, LCCQIoConnection::writeLCCFrameCB, NULL);
     lcc_gridconnect_set_userdata(m_lccGrid, this);
     lcc_gridconnect_set_frame_parsed(m_lccGrid, LCCQIoConnection::gridconnectLCCFrameParsedCB);
 }

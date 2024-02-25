@@ -73,9 +73,20 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
                                void* data,
                                int data_len){
     struct lcc_can_frame frame;
+    uint16_t buffer_size = UINT16_MAX;
 
     if(ctx == NULL || data_len < 0 || data_len > 72){
         return LCC_ERROR_INVALID_ARG;
+    }
+
+    if(ctx->parent->write_buffer_avail_function){
+        buffer_size = ctx->parent->write_buffer_avail_function(ctx->parent);
+    }
+
+    // A bit of a catch-22 here:
+    // if our buffer is not large enough, we can't actually send an error code
+    if(buffer_size == 0){
+        return LCC_ERROR_TX;
     }
 
     if(data_len <= 8){
@@ -93,6 +104,14 @@ int lcc_datagram_load_and_send(struct lcc_datagram_context* ctx,
     if(data_len % 8 != 0){
         numPackets++;
     }
+
+    if(buffer_size < numPackets){
+        // We don't have enough buffer to send this data.
+        // Since we know we are sending a datagram, we can automatically send a 'datagram rejected' message
+        // with the appropriate error code
+        return lcc_datagram_respond_rejected(ctx, alias, LCC_ERRCODE_BUFFER_UNAVAILABLE, NULL);
+    }
+
     for(int x = 0; x < numPackets; x++){
         lcc_set_lcb_variable_field(&frame, ctx->parent, alias);
         if(x == 0){

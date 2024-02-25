@@ -106,6 +106,7 @@ struct lcc_context{
     };
     int16_t node_alias;
     lcc_write_fn write_function;
+    lcc_write_buffer_available write_buffer_avail_function;
     void* user_data;
 
     // Simple node information
