@@ -56,13 +56,15 @@ static void lcc_handle_control_frame(struct lcc_context* ctx, struct lcc_can_fra
 static void lcc_context_check_collision(struct lcc_context* ctx, struct lcc_can_frame* frame){
     int is_frame_control = 1;
     uint16_t node_alias = frame->can_id & 0xFFF;
-    int cid_frame_number = (frame->can_id >> 24) & 0x07;
-    int is_cid_frame = is_frame_control && cid_frame_number <= 0x07 && cid_frame_number >= 0x04;
+    int cid_frame_number = (frame->can_id >> 24ll) & 0x07;
+    int is_cid_frame;
 
     if(frame->can_id & (0x01l << 27) ){
         // bit 27: 1 for LCC message, 0 for CAN control frame
         is_frame_control = 0;
     }
+
+    is_cid_frame = is_frame_control && cid_frame_number <= 0x07 && cid_frame_number >= 0x04;
 
     if(node_alias != ctx->node_alias){
         // No collision, break out early
