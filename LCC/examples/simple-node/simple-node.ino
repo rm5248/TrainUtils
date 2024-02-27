@@ -33,28 +33,6 @@ struct id_page{
   char hw_version[12];
 };
 
-void print_node_id(uint64_t node_id){
-  char buffer[3];
-  sprintf(buffer, "%02X", (int)((node_id & 0xFF0000000000l) >> 40));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-  sprintf(buffer, "%02X", (int)((node_id & 0x00FF00000000l) >> 32));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-  sprintf(buffer, "%02X", (int)((node_id & 0x0000FF000000l) >> 24));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-  sprintf(buffer, "%02X", (int)((node_id & 0x000000FF0000l) >> 16));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-  sprintf(buffer, "%02X", (int)((node_id & 0x00000000FF00l) >> 8));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-  sprintf(buffer, "%02X", (int)((node_id & 0x0000000000FFl) >> 0));
-  Serial.print(buffer[0]);
-  Serial.print(buffer[1]);
-}
-
 void print_liblcc_version(){
   uint32_t lib_version = lcc_library_version();
 
@@ -85,6 +63,10 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
   return LCC_ERROR_TX;
 }
 
+int lcc_buffer_size(struct lcc_context* ctx){
+  return can.transmitBufferCount(0);
+}
+
 void setup () {
   struct id_page id;
 
@@ -97,6 +79,10 @@ void setup () {
   // First let's print out the version of LibLCC
   print_liblcc_version();
 
+  // Delay our startup.  The EEPROM seems to get into a bad state where it will not talk
+  // if we come up and come down(which happens when flashing from Arduino IDE)
+  delay(2000);
+
   SPI.begin () ;
   eeprom.begin();
 
@@ -108,7 +94,9 @@ void setup () {
   eeprom.read_id_page(sizeof(id), &id);
   unique_id = id.node_id;
   Serial.print("LCC ID: ");
-  print_node_id(unique_id);
+  char buffer[20];
+  lcc_node_id_to_dotted_format(unique_id, buffer, sizeof(buffer));
+  Serial.print(buffer);
   Serial.println();
   Serial.print("ID page version: ");
   Serial.println(id.id_version);
@@ -126,7 +114,8 @@ void setup () {
   lcc_context_set_unique_identifer(ctx, unique_id);
 
   // Set the callback function that will be called to write  frame out to the bus
-  lcc_context_set_write_function(ctx, lcc_write);
+  // Also give it a callback function that tells LibLCC how many frames can be buffered
+  lcc_context_set_write_function(ctx, lcc_write, lcc_buffer_size);
 
   // Set simple node information that is handled by the 'simple node information protocol'
   lcc_context_set_simple_node_information(ctx,
