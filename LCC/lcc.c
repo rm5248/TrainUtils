@@ -59,12 +59,13 @@ static void lcc_context_check_collision(struct lcc_context* ctx, struct lcc_can_
     int cid_frame_number = (frame->can_id >> 24ll) & 0x07;
     int is_cid_frame;
 
+
+    is_cid_frame = is_frame_control && cid_frame_number <= 0x07 && cid_frame_number >= 0x04;
+
     if(frame->can_id & (0x01l << 27) ){
         // bit 27: 1 for LCC message, 0 for CAN control frame
         is_frame_control = 0;
     }
-
-    is_cid_frame = is_frame_control && cid_frame_number <= 0x07 && cid_frame_number >= 0x04;
 
     if(node_alias != ctx->node_alias){
         // No collision, break out early
@@ -182,7 +183,7 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     }
 
     // Decode the CAN frame and maybe do something useful with it.
-    if((frame->can_id & LCC_FRAME_TYPE_MASK) == 0){
+    if((frame->can_id & LCC_FRAME_TYPE_MASK) == 0ll){
         lcc_handle_control_frame(ctx, frame);
         return LCC_OK;
     }
@@ -195,6 +196,7 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
     // TODO the handlers below should probably be in a list of some kind,
     // so that we just call them sequentially until somebody can handle the request
     if(is_datagram_frame(frame)){
+        LOG_DEBUG("lcc.context", "Going to try to handle datagram" );
         return lcc_handle_datagram(ctx, frame);
     }
 
@@ -596,5 +598,9 @@ uint32_t lcc_library_version(){
                                           MINOR << 8 |
                                           MICRO << 0;
     return lib_version;
+}
+
+void lcc_set_log_function(simplelogger_log_function log_fn){
+    lcc_global_log = log_fn;
 }
 

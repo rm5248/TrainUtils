@@ -160,8 +160,11 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             return LCC_OK;
         }
 
+        LOG_DEBUG("lcc.datagram", "Got datagram frame type %d", can_frame_type );
+
         if(datagram_ctx->currently_handling_incoming_datagram &&
                 (can_frame_type == 3 || can_frame_type == 2)){
+            LOG_DEBUG("lcc.datagram", "Currently handling an incoming datagram, ignoring new req");
             // We are currently handling a datagram.
             // Send back a rejection with a temporary error(resend OK)
             int stat = lcc_datagram_respond_rejected(datagram_ctx,
@@ -205,6 +208,8 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             datagram_ctx->datagram_buffer.offset = 0;
         }
     }
+
+    LOG_DEBUG("lcc.datagram", "Check MTI 0x%04X", mti );
 
     if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
         int handled = 0;

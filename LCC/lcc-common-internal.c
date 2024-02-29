@@ -3,6 +3,8 @@
 #include <string.h>
 #include "lcc-common-internal.h"
 
+simplelogger_log_function lcc_global_log;
+
 void lcc_set_lcb_variable_field(struct lcc_can_frame* frame, struct lcc_context* ctx, int variable_field){
     uint32_t var_field_u32 = variable_field;
     frame->can_id = 0;

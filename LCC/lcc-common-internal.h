@@ -16,10 +16,28 @@
 #define LCC_SIMPLE_NODE_INFO_SMALL 1
 #endif
 
+#define SIMPLELOGGER_LOG_FUNCTION_NAME lcc_global_log
+#include "simplelogger.h"
+
+#ifdef LIBLCC_DEBUG
+#define LOG_TRACE(logger, ...) \
+do{ char buffer[128]; snprintf(buffer, sizeof(buffer), __VA_ARGS__); SIMPLELOGGER_LOG_CSTR( logger, buffer, SL_TRACE); } while(0)
+#define LOG_DEBUG(logger, ...) \
+do{ char buffer[128]; snprintf(buffer, sizeof(buffer), __VA_ARGS__); SIMPLELOGGER_LOG_CSTR( logger, buffer, SL_DEBUG); } while(0)
+#define LOG_INFO(logger, ...) \
+do{ char buffer[128]; snprintf(buffer, sizeof(buffer), __VA_ARGS__); SIMPLELOGGER_LOG_CSTR( logger, buffer, SL_DEBUG); } while(0)
+#else
+#define LOG_TRACE(logger, ...)
+#define LOG_DEBUG(logger, ...)
+#define LOG_INFO(logger, ...)
+#endif
+
 /* This is just an internal file, but arduino seems to use a C++ compiler so we need to make sure functions are C */
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern simplelogger_log_function lcc_global_log;
 
 // Figure out how big our lcc_simple_node_info needs to be.
 // Normally, this struct is 251 bytes long.  For memory constrained devices(currently the Uno)

@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include "simplelogger_defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -146,7 +148,6 @@ typedef void (*lcc_remote_memory_received)(struct lcc_remote_memory_context* ctx
  */
 typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
 
-
 /*
  * Error code definitions used by the library
  */
@@ -272,6 +273,8 @@ struct lcc_can_frame {
  * @param buffer_len Must be at least 18 bytes long
  */
 int lcc_node_id_to_dotted_format(uint64_t node_id, char* buffer, int buffer_len);
+
+void lcc_set_log_function(simplelogger_log_function log_fn);
 
 #ifdef __cplusplus
 } /* extern C */

@@ -38,7 +38,13 @@ add_library(lcc STATIC
     lcc-remote-memory.c
     lcc-remote-memory.h
 )
-target_compile_definitions(lcc PRIVATE LIBLCC_BUILD LIBLCC_MAJOR=${PROJECT_VERSION_MAJOR} LIBLCC_MINOR=${PROJECT_VERSION_MINOR} LIBLCC_MICRO=${PROJECT_VERSION_PATCH} )
+target_compile_definitions(lcc PRIVATE
+    LIBLCC_BUILD
+    LIBLCC_MAJOR=${PROJECT_VERSION_MAJOR}
+    LIBLCC_MINOR=${PROJECT_VERSION_MINOR}
+    LIBLCC_MICRO=${PROJECT_VERSION_PATCH}
+    LIBLCC_DEBUG
+)
 
 if(BUILD_TESTING)
     add_subdirectory(test)
