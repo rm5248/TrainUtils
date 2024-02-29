@@ -5,6 +5,8 @@
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
+// Updated 2024-02-28
+
 static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
 static const byte MCP2515_INT =  2 ; // INT output of MCP2515
 static const byte EEPROM_CS = 7;

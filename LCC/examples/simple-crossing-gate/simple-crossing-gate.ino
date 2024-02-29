@@ -8,6 +8,9 @@
  *
  * This example handles just a single track crossing.
  */
+
+ // Updated 2024-02-28
+
 #include <ACAN2515.h>
 #include <M95_EEPROM.h>
 #include <lcc.h>
@@ -99,8 +102,16 @@ enum Direction{
   DIRECTION_RTL,
 };
 
-static const byte MCP2515_CS  = 8 ; // CS input of MCP2515 (adapt to your design) 
-static const byte MCP2515_INT =  2 ; // INT output of MCP2515 (adapt to your design)
+struct id_page{
+  uint64_t node_id;
+  uint16_t id_version;
+  char manufacturer[32];
+  char part_number[21];
+  char hw_version[12];
+};
+
+static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
+static const byte MCP2515_INT =  2 ; // INT output of MCP2515
 static const byte EEPROM_CS = 7;
 static const byte CROSSING_OCCUPIED_OUTPUT = 5;
 
@@ -153,6 +164,14 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
 
   Serial.println("Unable to transmit frame");
   return LCC_ERROR_TX;
+}
+
+/**
+ * This is a callback function that is called by liblcc in order query how big our transmit buffer is
+ */
+int lcc_buffer_size(struct lcc_context* ctx){
+  int txCount = can.transmitBufferSize(0) - can.transmitBufferCount(0);
+  return txCount;
 }
 
 void handle_ltr(int left_input, int left_island_input, int right_island_input, int right_input){
@@ -299,7 +318,7 @@ void mem_address_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint
   if(address_space == 251){
     // This space is what we use for node name/description
     uint8_t buffer[64];
-    eeprom.read(starting_address, buffer, read_count);
+    eeprom.read(starting_address, read_count, buffer);
 
     // For any blank data, we will read 0xFF
     // In this example, we know that we have strings, so replace all 0xFF with 0x00
@@ -339,7 +358,7 @@ void mem_address_space_read(struct lcc_memory_context* ctx, uint16_t alias, uint
 
 void mem_address_space_write(struct lcc_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* data, int data_len){
   if(address_space == 251){
-    eeprom.write(starting_address, data, data_len);
+    eeprom.write(starting_address, data_len, data );
 
     lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
   }else if(address_space == 253){
@@ -355,7 +374,7 @@ void mem_address_space_write(struct lcc_memory_context* ctx, uint16_t alias, uin
     memcpy(events_u8 + starting_address, data, data_len);
 
     // Write out to EEPROM
-    eeprom.write(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+    eeprom.write(CROSSING_EVENTS_ADDR, sizeof(events), &events);
 
     lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
   }else{
@@ -406,6 +425,10 @@ void setup() {
     delay (50) ;
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
   }
+ 
+  // Delay our startup.  The EEPROM seems to get into a bad state where it will not talk
+  // if we come up and come down(which happens when flashing from Arduino IDE)
+  delay(3000);
 
   SPI.begin();
   eeprom.begin();
@@ -426,14 +449,22 @@ void setup() {
   // found in the LCC specifications, specifically the unique identifiers standard
   // We will read the unique ID from the ID page of the EEPROM.
   uint64_t unique_id;
-  eeprom.read_id_page(8, &unique_id);
-
-  Serial.print("ID: ");
-  for(int x = 0; x < 8; x++){
-    uint8_t* as_u8 = (uint8_t*)&unique_id;
-    Serial.print(as_u8[x], HEX);
-  }
+  struct id_page id;
+  eeprom.read_id_page(sizeof(id), &id);
+  unique_id = id.node_id;
+  Serial.print("LCC ID: ");
+  char buffer[20];
+  lcc_node_id_to_dotted_format(unique_id, buffer, sizeof(buffer));
+  Serial.print(buffer);
   Serial.println();
+  Serial.print("ID page version: ");
+  Serial.println(id.id_version);
+  Serial.print("Manufacturer: ");
+  Serial.println(id.manufacturer);
+  Serial.print("Part number: ");
+  Serial.println(id.part_number);
+  Serial.print("HW Version: ");
+  Serial.println(id.hw_version);
 
   // Create an LCC context that determines our communications
   ctx = lcc_context_new();
@@ -442,14 +473,14 @@ void setup() {
   lcc_context_set_unique_identifer(ctx, unique_id);
 
   // Set the callback function that will be called to write  frame out to the bus
-  lcc_context_set_write_function(ctx, lcc_write);
+  lcc_context_set_write_function(ctx, lcc_write, lcc_buffer_size);
 
   // Set simple node information that is handled by the 'simple node information protocol'
   lcc_context_set_simple_node_information(ctx,
-                                        "Snowball Creek",
-                                        "Simple Crossing",
-                                        "1.0",
-                                        "0.1");
+                                        id.manufacturer,
+                                        id.part_number,
+                                        id.hw_version,
+                                        "1.0");
 
   // Optional: create other contexts to handle other parts of LCC communication
   // Contexts:
@@ -469,7 +500,7 @@ void setup() {
     mem_address_space_write);
 
   // Load our events
-  eeprom.read(CROSSING_EVENTS_ADDR, &events, sizeof(events));
+  eeprom.read(CROSSING_EVENTS_ADDR, sizeof(events), &events);
   initialize_events_if_needed(unique_id);
 
   lcc_event_add_event_produced(evt_ctx, events.ltr_events.pre_island);

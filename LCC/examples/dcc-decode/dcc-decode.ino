@@ -1,5 +1,7 @@
 #include <NmraDcc.h>
 
+// Updated 2024-02-28
+
 // Note: this example is based off of the NmraDcc_ARD_DCCSHieLD-test from
 // the NmraDcc library examples
 
@@ -26,7 +28,6 @@ void setup() {
   uint8_t maxWaitLoops = 255;
   while(!Serial && maxWaitLoops--)
     delay(20);
-
   
   pinMode (LED_BUILTIN, OUTPUT);
 

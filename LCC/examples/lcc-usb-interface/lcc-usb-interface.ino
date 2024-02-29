@@ -6,6 +6,8 @@
  * hardware that needs to be configured.
  */
 
+// Updated 2024-02-28
+
 #include <ACAN2515.h>
 
 #include <lcc-gridconnect.h>
