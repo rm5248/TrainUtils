@@ -25,9 +25,32 @@ unsigned long claim_alias_time;
 static uint32_t gBlinkLedDate = 0 ;
 int inputValue = 0;
 
-const char cdi[] PROGMEM = { "<?xml version='1.0'?>
-"
+const char cdi[] PROGMEM = { "<?xml version='1.0'?>"
 };
+
+struct id_page{
+  uint64_t node_id;
+  uint16_t id_version;
+  char manufacturer[32];
+  char part_number[21];
+  char hw_version[12];
+};
+
+static void incoming_lcc_event(struct lcc_context* ctx, uint64_t event_id){
+  if(event_id == 0x0101020000FF001Bll){
+    // activate switch 10
+    digitalWrite(5, 1);
+  }else if(event_id == 0x0101020000FF001All){
+    // Deactivate switch 10
+    digitalWrite(5, 0);
+  }else if(event_id == 0x0101020000FF001Dll){
+    // Activate switch 11
+    digitalWrite(6, 1);
+  }else if(event_id == 0x0101020000FF001Cll){
+    // Deactivate switch 11
+    digitalWrite(6, 0);
+  }
+}
 
 /**
  * This is a callback function that is called by liblcc in order to write a frame out to the CAN bus.
@@ -54,14 +77,34 @@ void setup () {
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
   }
 
+  // Delay our startup.  The EEPROM seems to get into a bad state where it will not talk
+  // if we come up and come down(which happens when flashing from Arduino IDE)
+  delay(2000);
+
   SPI.begin () ;
   eeprom.begin();
 
   // Define a unique ID for your node.
   // Assuming we are using the Snowball Creek LCC Shield, we can just read
   // the unique ID from the ID page of the EEPROM
+  // We will also set the manufacturer and other related information from the ID page
+  struct id_page id;
   uint64_t unique_id;
-  eeprom.read_id_page(8, &unique_id);
+  eeprom.read_id_page(sizeof(id), &id);
+  unique_id = id.node_id;
+  Serial.print("LCC ID: ");
+  char buffer[20];
+  lcc_node_id_to_dotted_format(unique_id, buffer, sizeof(buffer));
+  Serial.print(buffer);
+  Serial.println();
+  Serial.print("ID page version: ");
+  Serial.println(id.id_version);
+  Serial.print("Manufacturer: ");
+  Serial.println(id.manufacturer);
+  Serial.print("Part number: ");
+  Serial.println(id.part_number);
+  Serial.print("HW Version: ");
+  Serial.println(id.hw_version);
 
   // Create an LCC context that determines our communications
   ctx = lcc_context_new();
@@ -70,16 +113,15 @@ void setup () {
   lcc_context_set_unique_identifer(ctx, unique_id);
 
   // Set the callback function that will be called to write  frame out to the bus
-  lcc_context_set_write_function(ctx, lcc_write);
+  lcc_context_set_write_function(ctx, lcc_write, NULL);
 
   // Set simple node information that is handled by the 'simple node information protocol'
   lcc_context_set_simple_node_information(ctx,
-                                        "Manufacturer",
-                                        "Model",
-                                        "HWVersion",
-                                        "SWVersion");
+                                        id.manufacturer,
+                                        id.part_number,
+                                        id.hw_version,
+                                        "1.0");
 
-  // Optional: create other contexts to handle other parts of LCC communication
   // Contexts:
   // * Datagram - allows transfers of datagrams to/from the device
   // * Event - event producer/consumer
@@ -88,23 +130,26 @@ void setup () {
   lcc_datagram_context_new(ctx);
   struct lcc_event_context* evt_ctx = lcc_event_new(ctx);
 
-  uint64_t event_id = unique_id << 16;
-  lcc_event_add_event_produced(evt_ctx, event_id);
-  lcc_event_add_event_produced(evt_ctx, event_id + 1);
-  lcc_event_add_event_produced(evt_ctx, event_id + 2);
+  // Listen for the specific events that we are interested in.
+  // In this case, we will listen for events that correspond to throwing/closing
+  // DCC accessory switches 11 and 12.
+  lcc_event_add_event_consumed(evt_ctx, 0x0101020000FF001All);
+  lcc_event_add_event_consumed(evt_ctx, 0x0101020000FF001Bll);
+  lcc_event_add_event_consumed(evt_ctx, 0x0101020000FF001Cll);
+  lcc_event_add_event_consumed(evt_ctx, 0x0101020000FF001Dll);
 
+  // Add a handler function that will be called when an event that we are interested in
+  // is received from the LCC bus
+  lcc_event_set_incoming_event_function(evt_ctx, incoming_lcc_event);
 
   pinMode (LED_BUILTIN, OUTPUT) ;
   digitalWrite (LED_BUILTIN, HIGH) ;
 
-  // This particular code uses the SparkFun CAN-BUS shield, where pins 7 and 8
-  // are LED outputs.
-  // Pin 4 is used as a sample digital input that will generate LCC events when it
-  // changes state.  Make sure to put a pull-down on this pin, and you can then trigger
-  // events by connecting and disconnecting it from the +5v rail.
-  pinMode(4, INPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8, OUTPUT);
+  // The LEDs that correspond to the switches we are controlling
+  // LED 5 corresponds to switch 10
+  // LED 6 corresponds to switch 11
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
 
   Serial.println ("Configure ACAN2515") ;
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
@@ -157,21 +202,5 @@ void loop() {
       Serial.print(F("Claimed alias "));
       Serial.println(lcc_context_alias(ctx), HEX);
     }
-  }
-
-  // Read the value of pin 4 - if it changes state, send an event
-  int currentVal = !!digitalRead(4);
-  if(currentVal != inputValue){
-    inputValue = currentVal;
-    uint64_t event_id = lcc_context_unique_id(ctx) << 16llu;
-
-    if(currentVal == 0){
-      lcc_event_produce_event(lcc_context_get_event_context(ctx), event_id);
-    }else{
-      lcc_event_produce_event(lcc_context_get_event_context(ctx), event_id + 1);
-    }
-
-    // Light up LED with current status
-    digitalWrite(7, currentVal);
   }
 }
