@@ -1,19 +1,19 @@
-#include <ACAN2515.h>
+#include <ACAN2517.h>
 #include <M95_EEPROM.h>
 #include <lcc.h>
 #include <lcc-common-internal.h>
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-// Updated 2024-02-28
+// Updated 2024-03-19
 
-static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
-static const byte MCP2515_INT =  2 ; // INT output of MCP2515
+static const byte MCP2517_CS  = 8 ; // CS input of MCP2517
+static const byte MCP2517_INT =  2 ; // INT output of MCP2517
 static const byte EEPROM_CS = 7;
 
 // The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
-ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT) ;
+ACAN2517 can (MCP2517_CS, SPI, MCP2517_INT) ;
 
 // EEPROM on the shield
 M95_EEPROM eeprom(SPI, EEPROM_CS, 256, 3, true);
@@ -66,7 +66,7 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
 }
 
 int lcc_buffer_size(struct lcc_context* ctx){
-  return can.transmitBufferCount(0);
+  return can.driverTransmitBufferSize() - can.driverTransmitBufferCount();
 }
 
 void setup () {
@@ -153,22 +153,22 @@ void setup () {
   pinMode(7, OUTPUT);
   pinMode(8, OUTPUT);
 
-  Serial.println ("Configure ACAN2515") ;
-  ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;
+  Serial.println ("Configure ACAN2517") ;
+  ACAN2517Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
+  // settings.mRequestedMode = ACAN2517Settings::NormalMode;
   // We need to lower the transmit and receive buffer size(at least on the Uno), as otherwise
   // the ACAN2515 library will allocate too much memory
-  settings.mReceiveBufferSize = 4;
-  settings.mTransmitBuffer0Size = 8;
+  // settings.mReceiveBufferSize = 4;
+  // settings.mTransmitBuffer0Size = 8;
   // OpenLCB uses the following CAN propogation settings with the MCP2515:
   // CFN3 = 0x02
   // CFN2 = 0x90
   // CFN1 = 0x07
-  settings.mPropagationSegment = 1;
+  // settings.mPropagationSegment = 1;
   settings.mPhaseSegment1 = 3;
   settings.mPhaseSegment2 = 3;
   settings.mSJW = 1;
-  settings.mTripleSampling = false;
+  // settings.mTripleSampling = false;
   settings.mBitRatePrescaler = 8;
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
