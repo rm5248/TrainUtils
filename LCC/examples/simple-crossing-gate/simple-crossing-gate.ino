@@ -9,9 +9,20 @@
  * This example handles just a single track crossing.
  */
 
- // Updated 2024-02-28
+ // Updated 2024-05-06
 
+#define CAN_CHIP_MCP2518 2518
+#define CAN_CHIP_MCP2515 2515
+
+// Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
+// Earlier shields use the MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2515
+
+#if CAN_CHIP == CAN_CHIP_MCP2518
+#include <ACAN2517.h>
+#else if CAN_CHIP == CAN_CHIP_MCP1515
 #include <ACAN2515.h>
+#endif
 #include <M95_EEPROM.h>
 #include <lcc.h>
 #include <lcc-common-internal.h>
@@ -110,8 +121,8 @@ struct id_page{
   char hw_version[12];
 };
 
-static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
-static const byte MCP2515_INT =  2 ; // INT output of MCP2515
+static const byte MCP_CS  = 8 ; // CS input of CAN controller
+static const byte MCP_INT =  2 ; // INT output of CAN controller
 static const byte EEPROM_CS = 7;
 static const byte CROSSING_OCCUPIED_OUTPUT = 5;
 
@@ -119,9 +130,14 @@ static const byte CROSSING_OCCUPIED_OUTPUT = 5;
 static const int CROSSING_EVENTS_ADDR = 0x0;
 static const int NODE_NAME_DESCRIPTION_ADDR = 0x1000;
 
-// The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
+// The CAN controller.  This example uses the ACAN2515 or ACAN2517 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
-ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT) ;
+// https://github.com/pierremolinaro/acan2517
+#if CAN_CHIP == CAN_CHIP_MCP2518
+ACAN2517 can (MCP_CS, SPI, MCP_INT) ;
+#else if CAN_CHIP == CAN_CHIP_MCP1515
+ACAN2515 can (MCP_CS, SPI, MCP_INT) ;
+#endif
 M95_EEPROM eeprom(SPI, EEPROM_CS, 256, 3, true);
 
 static const uint32_t QUARTZ_FREQUENCY = 16UL * 1000UL * 1000UL ; // 16 MHz
@@ -170,8 +186,11 @@ int lcc_write(struct lcc_context*, struct lcc_can_frame* lcc_frame){
  * This is a callback function that is called by liblcc in order query how big our transmit buffer is
  */
 int lcc_buffer_size(struct lcc_context* ctx){
-  int txCount = can.transmitBufferSize(0) - can.transmitBufferCount(0);
-  return txCount;
+#if CAN_CHIP == CAN_CHIP_MCP2518
+  return can.driverTransmitBufferSize() - can.driverTransmitBufferCount();
+#else if CAN_CHIP == CAN_CHIP_MCP2515
+  return can.transmitBufferSize(0) - can.transmitBufferCount(0);
+#endif
 }
 
 void handle_ltr(int left_input, int left_island_input, int right_island_input, int right_input){
@@ -512,6 +531,9 @@ void setup() {
   lcc_event_add_event_produced(evt_ctx, events.rtl_events.post_island);
   lcc_event_add_event_produced(evt_ctx, events.rtl_events.unoccupied);
 
+#if CAN_CHIP == CAN_CHIP_MCP2518
+  ACAN2517Settings settings (ACAN2517Settings::OSC_40MHz_DIVIDED_BY_2, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
+#else if CAN_CHIP == CAN_CHIP_MCP2515
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   // We need to lower the transmit and receive buffer size(at least on the Uno), as otherwise
@@ -523,11 +545,13 @@ void setup() {
   // CFN2 = 0x90
   // CFN1 = 0x07
   settings.mPropagationSegment = 1;
+  settings.mTripleSampling = false;
   settings.mPhaseSegment1 = 3;
   settings.mPhaseSegment2 = 3;
   settings.mSJW = 1;
-  settings.mTripleSampling = false;
   settings.mBitRatePrescaler = 8;
+#endif
+
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;

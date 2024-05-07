@@ -1,8 +1,9 @@
 #define CAN_CHIP_MCP2518 2518
 #define CAN_CHIP_MCP2515 2515
 
-// Select which CAN chip to use.  The new Snowball Creek shields use the MCP2518(compatible with MCP2517)
-#define CAN_CHIP CAN_CHIP_MCP2518
+// Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
+// Earlier shields use the MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2515
 
 #if CAN_CHIP == CAN_CHIP_MCP2518
 #include <ACAN2517.h>
@@ -16,7 +17,7 @@
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-// Updated 2024-05-05
+// Updated 2024-05-06
 
 static const byte MCP_CS  = 8 ; // CS input of CAN controller
 static const byte MCP_INT =  2 ; // INT output of CAN controller
@@ -24,6 +25,7 @@ static const byte EEPROM_CS = 7;
 
 // The CAN controller.  This example uses the ACAN2515 or ACAN2517 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
+// https://github.com/pierremolinaro/acan2517
 #if CAN_CHIP == CAN_CHIP_MCP2518
 ACAN2517 can (MCP_CS, SPI, MCP_INT) ;
 #else if CAN_CHIP == CAN_CHIP_MCP1515
@@ -84,7 +86,7 @@ int lcc_buffer_size(struct lcc_context* ctx){
 #if CAN_CHIP == CAN_CHIP_MCP2518
   return can.driverTransmitBufferSize() - can.driverTransmitBufferCount();
 #else if CAN_CHIP == CAN_CHIP_MCP2515
-  return can.transmitBufferCount(0);
+  return can.transmitBufferSize(0) - can.transmitBufferCount(0);
 #endif
 }
 
@@ -189,7 +191,7 @@ void setup () {
   settings.mPropagationSegment = 1;
   settings.mTripleSampling = false;
   settings.mPhaseSegment1 = 3;
-  settings.mPhaseSegment2 = 2;
+  settings.mPhaseSegment2 = 3;
   settings.mSJW = 1;
   settings.mBitRatePrescaler = 8;
 #endif
