@@ -1,17 +1,33 @@
+#define CAN_CHIP_MCP2518 2518
+#define CAN_CHIP_MCP2515 2515
+
+// Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
+// Earlier shields use the MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2515
+
+#if CAN_CHIP == CAN_CHIP_MCP2518
+#include <ACAN2517.h>
+#else if CAN_CHIP == CAN_CHIP_MCP1515
 #include <ACAN2515.h>
+#endif
 #include <M95_EEPROM.h>
 #include <lcc.h>
 #include <lcc-common-internal.h>
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-static const byte MCP2515_CS  = 8 ; // CS input of MCP2515
-static const byte MCP2515_INT =  2 ; // INT output of MCP2515
+static const byte MCP_CS  = 8 ; // CS input of CAN controller
+static const byte MCP_INT =  2 ; // INT output of CAN controller
 static const byte EEPROM_CS = 7;
 
-// The CAN controller.  This example uses the ACAN2515 library from Pierre Molinaro:
+// The CAN controller.  This example uses the ACAN2515 or ACAN2517 library from Pierre Molinaro:
 // https://github.com/pierremolinaro/acan2515
-ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT) ;
+// https://github.com/pierremolinaro/acan2517
+#if CAN_CHIP == CAN_CHIP_MCP2518
+ACAN2517 can (MCP_CS, SPI, MCP_INT) ;
+#else if CAN_CHIP == CAN_CHIP_MCP1515
+ACAN2515 can (MCP_CS, SPI, MCP_INT) ;
+#endif
 
 // EEPROM on the shield
 M95_EEPROM eeprom(SPI, EEPROM_CS, 256, 3, true);
@@ -151,13 +167,26 @@ void setup () {
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
 
-  Serial.println ("Configure ACAN2515") ;
+#if CAN_CHIP == CAN_CHIP_MCP2518
+  ACAN2517Settings settings (ACAN2517Settings::OSC_40MHz_DIVIDED_BY_2, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
+#else if CAN_CHIP == CAN_CHIP_MCP2515
+  Serial.println("MCP2515");
   ACAN2515Settings settings (QUARTZ_FREQUENCY, 125UL * 1000UL) ; // CAN bit rate 125 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  // We need to lower the transmit and receive buffer size(at least on the Uno), as otherwise
-  // the ACAN2515 library will allocate too much memory
   settings.mReceiveBufferSize = 4;
   settings.mTransmitBuffer0Size = 8;
+  // OpenLCB uses the following CAN propogation settings with the MCP2515:
+  // CFN3 = 0x02
+  // CFN2 = 0x90
+  // CFN1 = 0x07
+  settings.mPropagationSegment = 1;
+  settings.mTripleSampling = false;
+  settings.mPhaseSegment1 = 3;
+  settings.mPhaseSegment2 = 3;
+  settings.mSJW = 1;
+  settings.mBitRatePrescaler = 8;
+#endif
+
   const uint16_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;
