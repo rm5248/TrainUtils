@@ -27,7 +27,7 @@ static int outgoing_frame(struct lcc_context* ctx, struct lcc_can_frame* frame){
     lcc_canframe_to_gridconnect(frame, out_buffer, sizeof(out_buffer));
 
     printf("Write %d bytes: %s\n", strlen(out_buffer), out_buffer);
-    if(write(*socket, out_buffer, strlen(out_buffer) < 0)){
+    if(write(*socket, out_buffer, strlen(out_buffer)) < 0){
         perror("write");
     }
 
@@ -99,6 +99,7 @@ int main(int argc, char** argv){
     do{
         uint8_t bytes[128];
 
+        fflush(stdout);
         read_stat = read(client_fd, bytes, sizeof(bytes) - 1);
         if( read_stat > 0 ){
             if(bytes[read_stat - 1] == '\n'){
@@ -106,7 +107,6 @@ int main(int argc, char** argv){
             }
             bytes[read_stat] = 0;
             printf("Read %d bytes: %s\n", read_stat, bytes);
-            fflush(stdout);
             lcc_gridconnect_incoming_data(gridconnect, bytes, read_stat);
         }else if(read_stat < 0){
             perror("read");

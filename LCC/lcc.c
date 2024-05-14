@@ -39,7 +39,8 @@ static void lcc_handle_control_frame(struct lcc_context* ctx, struct lcc_can_fra
 
         // If the full node ID is equal to our ID and we are in the permitted state,
         // respond with AMD frame
-        if(ctx->state == LCC_STATE_PERMITTED){
+        if(ctx->state == LCC_STATE_PERMITTED &&
+                node_id == ctx->unique_id){
             lcc_send_amd_frame(ctx);
         }
 
