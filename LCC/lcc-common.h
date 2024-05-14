@@ -166,6 +166,7 @@ typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context
 #define LCC_ERROR_TX -10
 #define LCC_ERROR_DATAGRAM_IN_PROGRESS -11
 #define LCC_ERROR_MEMORY_TX_IN_PROGRESS -12
+#define LCC_ERROR_EVENT_NOT_ACCESSORY_DECODER -13
 
 /**
  * Struct used to pass frames to/from the library.

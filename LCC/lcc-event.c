@@ -104,3 +104,69 @@ int lcc_event_produce_event(struct lcc_event_context* ctx,
     lcc_set_eventid_in_data(&frame, event_id);
     return ctx->parent->write_function(ctx->parent, &frame);
 }
+
+int lcc_event_id_is_accessory_address(uint64_t event_id){
+    const uint64_t event_mask = 0x0101020000FF0000;
+
+    if((event_id & event_mask) == event_mask){
+        return 1;
+    }
+
+    return 0;
+}
+
+int lcc_event_id_to_accessory_decoder(uint64_t event_id, struct lcc_accessory_address* address){
+    if(!lcc_event_id_is_accessory_address(event_id)){
+        return LCC_ERROR_EVENT_NOT_ACCESSORY_DECODER;
+    }
+
+    if(address == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    uint16_t lower_bits = event_id & 0xFFFF;
+    int active_bit = lower_bits & (0x01 << 3);
+    uint8_t direction = (event_id & 0xFF0000ll) >> 16;
+
+    // Remove bit 3 from our address
+    uint16_t upper_bits = 0xFF0;
+    upper_bits = upper_bits >> 1;
+
+    address->dcc_accessory_address = upper_bits | (lower_bits & 0x7);
+    if(direction == 0xFF && active_bit){
+        address->active = 1;
+    }else{
+        address->active = 0;
+    }
+
+    return LCC_OK;
+}
+
+int lcc_event_id_to_accessory_decoder_2040(uint64_t event_id, struct lcc_accessory_address* address){
+    if(!lcc_event_id_is_accessory_address(event_id)){
+        return LCC_ERROR_EVENT_NOT_ACCESSORY_DECODER;
+    }
+
+    if(address == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    // In this decoding scheme, we ignore bit 3 and use the low-order bit to determine if
+    // we are active or not.
+    uint16_t lower_bits = event_id & 0xFFFF;
+    int active_bit = lower_bits & (0x01 << 3);
+    uint8_t direction = (event_id & 0xFF0000ll) >> 16;
+
+    // Remove bit 3 from our address
+    uint16_t upper_bits = 0xFF0;
+    upper_bits = upper_bits >> 1;
+
+    address->dcc_accessory_address = upper_bits | (lower_bits & 0x7);
+    if(direction == 0xFF && active_bit){
+        address->active = 1;
+    }else{
+        address->active = 0;
+    }
+
+    return LCC_OK;
+}
