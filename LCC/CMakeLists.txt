@@ -3,6 +3,10 @@ project( LibLCC
         VERSION 0.5.0
 	DESCRIPTION "Layout Command and control library")
 
+#
+# Check our options
+#
+
 # These are the public headers that get installed
 # No internal headers should go in this variable
 set(headers
@@ -10,6 +14,7 @@ set(headers
     lcc-print.h
     lcc-common.h
     lcc-gridconnect.h
+    simplelogger_defs.h
 )
 
 add_library(lcc STATIC
@@ -79,23 +84,51 @@ IF( UNIX )
     )
     INSTALL( FILES "${CMAKE_CURRENT_BINARY_DIR}/liblcc.pc"
              DESTINATION lib/pkgconfig)
-ENDIF( UNIX )
+ENDIF()
 
 #
 # Install Information
 #
-SET(install_targets ${install_targets} lcc )
-IF( UNIX )
-    INSTALL( TARGETS ${install_targets}
+include(GNUInstallDirs)
+if( CMAKE_INSTALL_LIBDIR STREQUAL "" )
+    set(CMAKE_INSTALL_LIBDIR "lib")
+endif()
+
+#IF( UNIX )
+    INSTALL( TARGETS lcc
+#             COMPONENT lcc
+             EXPORT liblccTargets
              RUNTIME DESTINATION bin
              LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
              ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" )
     INSTALL( FILES ${headers} DESTINATION include/lcc )
-ENDIF( UNIX )
-IF( WIN32 )
-    INSTALL( TARGETS ${install_targets}
-             RUNTIME DESTINATION bin
-             LIBRARY DESTINATION lib
-             ARCHIVE DESTINATION lib )
-    INSTALL( FILES ${headers} DESTINATION include/lcc )
-ENDIF( WIN32 )
+#ENDIF( UNIX )
+#IF( WIN32 )
+#    INSTALL( TARGETS lcc
+#             COMPONENT lcc
+#             EXPORT lccTargets
+#             RUNTIME DESTINATION bin
+#             LIBRARY DESTINATION lib
+#             ARCHIVE DESTINATION lib )
+#    INSTALL( FILES ${headers} DESTINATION include/lcc )
+#ENDIF( WIN32 )
+
+#
+# Support for find_package
+#
+install(EXPORT liblccTargets
+  FILE         liblccConfig.cmake
+  NAMESPACE     lcc::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/liblcc
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/liblccConfigVersion.cmake"
+  VERSION       ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+install(FILES   "${CMAKE_CURRENT_BINARY_DIR}/liblccConfigVersion.cmake"
+  DESTINATION   ${CMAKE_INSTALL_LIBDIR}/cmake/liblcc
+)
+
+message("FARTS")
