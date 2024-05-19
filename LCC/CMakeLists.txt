@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 3.15)
 project( LibLCC
         VERSION 0.5.0
 	DESCRIPTION "Layout Command and control library")
