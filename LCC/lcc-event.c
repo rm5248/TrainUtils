@@ -151,18 +151,18 @@ int lcc_event_id_to_accessory_decoder_2040(uint64_t event_id, struct lcc_accesso
         return LCC_ERROR_INVALID_ARG;
     }
 
-    // In this decoding scheme, we ignore bit 3 and use the low-order bit to determine if
-    // we are active or not.
-    uint16_t lower_bits = event_id & 0xFFFF;
-    int active_bit = lower_bits & (0x01 << 3);
+    // https://docs.tcsdcc.com/wiki/DCC_Turnout_Creation_in_JMRI_With_TCS_Command_Stations#LCC_Event_ID_Reference_Table
+    uint16_t addr = event_id & 0xFFF;
+    addr = addr - 0x8;
+    addr = addr >> 1;
+
+    int active = event_id & 0x01;
+
     uint8_t direction = (event_id & 0xFF0000ll) >> 16;
 
-    // Remove bit 3 from our address
-    uint16_t upper_bits = 0xFF0;
-    upper_bits = upper_bits >> 1;
-
-    address->dcc_accessory_address = upper_bits | (lower_bits & 0x7);
-    if(direction == 0xFF && active_bit){
+    // DCC addresses are 1-indexed
+    address->dcc_accessory_address = addr + 1;
+    if(direction == 0xFF && active){
         address->active = 1;
     }else{
         address->active = 0;
