@@ -46,6 +46,11 @@ target_compile_definitions(lcc PRIVATE
     LIBLCC_MICRO=${PROJECT_VERSION_PATCH}
     LIBLCC_DEBUG
 )
+target_include_directories( lcc INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:include/lcc>
+)
 
 if(BUILD_TESTING)
     add_subdirectory(test)
