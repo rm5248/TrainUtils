@@ -15,7 +15,7 @@ struct lcc_remote_memory_context* lcc_remote_memory_new(struct lcc_context* ctx)
         return ctx->remote_memory_context;
     }
 
-#ifdef ARDUINO
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
     static struct lcc_remote_memory_context mem_ctx;
     memset(&mem_ctx, 0, sizeof(mem_ctx));
     mem_ctx.parent = ctx;

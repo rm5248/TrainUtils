@@ -6,6 +6,8 @@
 #ifndef LIBLCC_BUILD
 #error "Internal header, do not use in client code!"
 #endif
+#else
+#define LIBLCC_ENABLE_STATIC_CONTEXT 1
 #endif /* ARDUINO */
 
 #include <stdint.h>
@@ -14,6 +16,10 @@
 
 #ifdef ARDUINO_AVR_UNO
 #define LCC_SIMPLE_NODE_INFO_SMALL 1
+#endif
+
+#ifdef LIBLCC_HAS_CONFIG_H
+#include "lcc-config.h"
 #endif
 
 #define SIMPLELOGGER_LOG_FUNCTION_NAME lcc_global_log

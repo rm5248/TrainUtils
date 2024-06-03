@@ -20,7 +20,7 @@ static void lcc_datagram_append_bytes(struct lcc_datagram_buffer* datagram, void
 }
 
 struct lcc_datagram_context* lcc_datagram_context_new(struct lcc_context* parent){
-#ifdef ARDUINO
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
     static struct lcc_datagram_context ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.parent = parent;

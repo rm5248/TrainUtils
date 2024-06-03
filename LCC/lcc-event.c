@@ -7,7 +7,7 @@
 #include "lcc-common-internal.h"
 
 struct lcc_event_context* lcc_event_new(struct lcc_context* parent){
-#ifdef ARDUINO
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
     static struct lcc_event_context event_ctx;
     memset(&event_ctx, 0, sizeof(event_ctx));
     event_ctx.parent = parent;

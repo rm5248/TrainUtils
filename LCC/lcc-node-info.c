@@ -5,7 +5,7 @@
 #include "lcc-network-internal.h"
 
 struct lcc_node_info* lcc_node_info_new(struct lcc_context* parent){
-#ifdef ARDUINO
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
     static struct lcc_node_info inf;
     memset(&inf, 0, sizeof(struct lcc_node_info));
     return &inf;
@@ -20,7 +20,7 @@ struct lcc_node_info* lcc_node_info_new(struct lcc_context* parent){
 }
 
 void lcc_node_info_free(struct lcc_node_info* inf){
-#ifndef ARDUINO
+#ifndef LIBLCC_ENABLE_STATIC_CONTEXT
     free(inf);
 #endif
 }

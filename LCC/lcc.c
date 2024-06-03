@@ -135,7 +135,7 @@ static int is_datagram_frame(struct lcc_can_frame* frame){
 }
 
 struct lcc_context* lcc_context_new(){
-#ifdef ARDUINO
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
     static struct lcc_context ctx;
     memset(&ctx, 0, sizeof(struct lcc_context));
 
@@ -161,7 +161,7 @@ void lcc_context_free(struct lcc_context* ctx){
         return;
     }
 
-#ifndef ARDUINO
+#ifndef LIBLCC_ENABLE_STATIC_CONTEXT
     if(ctx->datagram_context){
         free(ctx->datagram_context);
     }
