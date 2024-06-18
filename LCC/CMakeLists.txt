@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
+include(lcc-version)
 project( LibLCC
-        VERSION 0.6.0
+        VERSION ${LIBLCC_VERSION}
 	DESCRIPTION "Layout Command and control library")
 
 #
