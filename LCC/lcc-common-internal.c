@@ -167,6 +167,33 @@ int lcc_send_events_produced(struct lcc_context* ctx){
     return LCC_OK;
 }
 
+int lcc_send_events_consumed(struct lcc_context *ctx){
+    struct lcc_can_frame frame;
+    uint64_t event_id;
+
+    if(!ctx->write_function ||
+            !ctx->event_context){
+        return LCC_OK;
+    }
+
+    for(int x = 0; x < ctx->event_context->events_consumed.len; x++){
+        event_id = ctx->event_context->events_consumed.event_array[x];
+
+        // For now, let's just always say that we don't know what the state of anything is
+        memset(&frame, 0, sizeof(frame));
+        lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN | LCC_MTI_EVENT_NUM_PRESENT);
+
+        lcc_set_lcb_can_frame_type(&frame, 1);
+        lcc_set_eventid_in_data(&frame, event_id);
+        int write_ret = ctx->write_function(ctx, &frame);
+        if(write_ret != LCC_OK){
+            return write_ret;
+        }
+    }
+
+    return LCC_OK;
+}
+
 uint32_t lcc_uint32_from_data(void* data){
     uint32_t retval = 0;
     uint8_t* u8_data = data;

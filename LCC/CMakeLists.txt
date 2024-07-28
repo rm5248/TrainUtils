@@ -45,6 +45,8 @@ add_library(lcc STATIC
     lcc-simple-node-info.h
     lcc-remote-memory.c
     lcc-remote-memory.h
+    lcc-clock.h
+    lcc-clock.c
 )
 target_compile_definitions(lcc PRIVATE
     LIBLCC_BUILD

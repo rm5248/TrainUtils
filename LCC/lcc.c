@@ -368,6 +368,9 @@ int lcc_context_claim_alias(struct lcc_context* ctx){
     // Send out our list of events that we produce
     lcc_send_events_produced(ctx);
 
+    // Send out our list of events that we consume
+    lcc_send_events_consumed(ctx);
+
     return LCC_OK;
 }
 

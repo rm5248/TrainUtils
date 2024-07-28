@@ -173,12 +173,20 @@ void event_list_add_event(struct event_list* list, uint64_t event_id);
 int event_list_has_event(struct event_list* list, uint64_t event_id);
 
 /**
- * Send out all of the events that we produce.
+ * Send out all of the events that we produce.  Internal method, do not call.
  *
  * @param ctx
  * @return
  */
 int lcc_send_events_produced(struct lcc_context* ctx);
+
+/**
+ * Send out all of the enevts that we consume.  Internal method, do not call.
+ *
+ * @param ctx
+ * @return
+ */
+int lcc_send_events_consumed(struct lcc_context* ctx);
 
 int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame);
 
