@@ -27,6 +27,7 @@ target_include_directories(lcc-test-events PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 
 add_test( NAME decode_2048_1 COMMAND lcc-test-events decode_2048_1 )
 add_test( NAME decode_2048_2 COMMAND lcc-test-events decode_2048_2 )
+add_test( NAME report_time COMMAND lcc-test-events report_time )
 
 #
 # Use the olcbchecker application to run these tests

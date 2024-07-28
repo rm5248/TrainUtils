@@ -5,6 +5,7 @@
 #include "lcc.h"
 #include "lcc-common.h"
 #include "lcc-event.h"
+#include "lcc-clock.h"
 
 static int decode_2048_1(){
     uint64_t event_id = 0x0101020000ff000E; // turnout 4
@@ -34,6 +35,24 @@ static int decode_2048_2(){
     return 1;
 }
 
+static int report_time(){
+    uint64_t event_id = 0x0101000001000900;
+    enum lcc_clock_type type;
+    struct lcc_time time;
+
+    int stat = lcc_event_to_report_time_event(event_id, &type, &time);
+
+    if(stat != LCC_OK){
+        return 1;
+    }
+
+    if(time.hours == 9 && time.minutes == 0 && type == LCC_CLOCK_TYPE_DEFAULT_FAST_CLOCK){
+        return 0;
+    }
+
+    return 1;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -41,6 +60,8 @@ int main(int argc, char** argv){
         return decode_2048_1();
     }else if(strcmp(argv[1], "decode_2048_2") == 0){
         return decode_2048_2();
+    }else if(strcmp(argv[1], "report_time") == 0){
+        return report_time();
     }
 
     return 1;

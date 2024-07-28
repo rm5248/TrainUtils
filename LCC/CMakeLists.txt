@@ -65,6 +65,7 @@ target_include_directories( lcc PRIVATE
 )
 
 if(BUILD_TESTING)
+    include(CTest)
     add_subdirectory(test)
 endif()
 

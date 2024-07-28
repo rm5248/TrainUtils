@@ -31,6 +31,26 @@ struct lcc_time{
  */
 uint64_t lcc_clock_report_time_eventid(enum lcc_clock_type, struct lcc_time);
 
+/**
+ * Check to see if the given Event ID is a 'Report Time' event.
+ * This method only checks for the 4 well-known clock types.
+ *
+ * @param event_id
+ * @return 1 if the event is a 'Report Time' event, 0 otherwise.
+ */
+int lcc_event_is_report_time_event(uint64_t event_id);
+
+/**
+ * Convert a given event to a 'Report Time' event.
+ * This method only checks for the 4 well-known clock types.
+ *
+ * @param event_id The event to convert
+ * @param type The clock type that this event is for.  May be NULL.
+ * @param time The decoded time
+ * @return LCC_OK on success, error code otherwise
+ */
+int lcc_event_to_report_time_event(uint64_t event_id, enum lcc_clock_type* type, struct lcc_time* time);
+
 #ifdef __cplusplus
 }
 #endif

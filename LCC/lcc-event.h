@@ -3,6 +3,7 @@
 #define LIBLCC_EVENT_H
 
 #include "lcc-common.h"
+#include "lcc-clock.h"
 
 struct lcc_event_context;
 struct lcc_context;

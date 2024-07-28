@@ -212,3 +212,14 @@ void lcc_uint32_to_data(void* data, uint32_t value){
     u8_data[2] = ((value & 0x0000FF00) >> 8l) & 0xFF;
     u8_data[3] = ((value & 0x000000FF) >> 0l) & 0xFF;
 }
+
+void lcc_event_id_to_array(uint64_t event_id, uint8_t* array){
+    array[0] = (event_id & 0xFF00000000000000l) >> 56;
+    array[1] = (event_id & 0x00FF000000000000l) >> 48;
+    array[2] = (event_id & 0x0000FF0000000000l) >> 40;
+    array[3] = (event_id & 0x000000FF00000000l) >> 32;
+    array[4] = (event_id & 0x00000000FF000000l) >> 24;
+    array[5] = (event_id & 0x0000000000FF0000l) >> 16;
+    array[6] = (event_id & 0x000000000000FF00l) >> 8;
+    array[7] = (event_id & 0x00000000000000FFl) >> 0;
+}
