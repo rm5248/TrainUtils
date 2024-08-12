@@ -49,6 +49,17 @@ int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
     return LCC_OK;
 }
 
+int lcc_event_add_event_consumed_query_fn(struct lcc_event_context* ctx,
+                                          lcc_query_consumer_state_fn consumer_state){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->consumer_state_fn = consumer_state;
+
+    return LCC_OK;
+}
+
 int lcc_event_add_event_produced(struct lcc_event_context* ctx,
                                    uint64_t event_id){
     if(!ctx){
@@ -167,6 +178,33 @@ int lcc_event_id_to_accessory_decoder_2040(uint64_t event_id, struct lcc_accesso
     }else{
         address->active = 0;
     }
+
+    return LCC_OK;
+}
+
+int lcc_accessory_decoder_to_event_id_2040(struct lcc_accessory_address* address, uint64_t* event_id){
+	if(address == NULL || event_id == NULL){
+		return LCC_ERROR_INVALID_ARG;
+	}
+
+    if(address->dcc_accessory_address > 2048 || address->dcc_accessory_address == 0){
+		return LCC_ERROR_INVALID_ARG;
+	}
+
+    *event_id = 0x0101020000FF0000llu;
+
+    uint16_t addr = 0;
+    if(address->dcc_accessory_address < 2044){
+        addr = address->dcc_accessory_address << 1;
+        addr = addr + 0x6;
+    }else{
+        addr = ((address->dcc_accessory_address - 1) - 2044) << 1;
+    }
+    if(address->active){
+        addr++;
+    }
+
+    *event_id |= addr;
 
     return LCC_OK;
 }

@@ -122,6 +122,7 @@ struct lcc_event_context{
     struct event_list events_consumed;
     struct event_list events_produced;
     lcc_query_producer_state_fn producer_state_fn;
+    lcc_query_consumer_state_fn consumer_state_fn;
 };
 
 struct lcc_context{

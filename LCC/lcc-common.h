@@ -43,6 +43,12 @@ enum lcc_producer_state{
     LCC_PRODUCER_UNKNOWN
 };
 
+enum lcc_consumer_state{
+    LCC_CONSUMER_VALID,
+    LCC_CONSUMER_INVALID,
+    LCC_CONSUMER_UNKNOWN
+};
+
 /**
  * A function that will be called in order to write the specified CAN frame out
  * to the bus in an implementation-specific manner
@@ -67,6 +73,14 @@ typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint64_t event_id)
  * This is for the Identify Producer message, MTI 0x0914
  */
 typedef enum lcc_producer_state(*lcc_query_producer_state_fn)(struct lcc_context* ctx, uint64_t event_id);
+
+/**
+ * A function that will be called when consumers are being queried.  For the given event,
+ * give back an enum LCC_CONSUMER_<state> determinging what the current state of the event is.
+ *
+ * This is for the Identify Consumer message, MTI 0x08F4
+ */
+typedef enum lcc_consumer_state(*lcc_query_consumer_state_fn)(struct lcc_context* ctx, uint64_t event_id);
 
 /**
  * A function that will be called when a datagram is received from a node.

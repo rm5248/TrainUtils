@@ -179,9 +179,24 @@ int lcc_send_events_consumed(struct lcc_context *ctx){
     for(int x = 0; x < ctx->event_context->events_consumed.len; x++){
         event_id = ctx->event_context->events_consumed.event_array[x];
 
-        // For now, let's just always say that we don't know what the state of anything is
         memset(&frame, 0, sizeof(frame));
-        lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN | LCC_MTI_EVENT_NUM_PRESENT);
+
+        if(ctx->event_context->consumer_state_fn){
+            enum lcc_consumer_state state = ctx->event_context->consumer_state_fn(ctx, event_id);
+            switch(state){
+            case LCC_CONSUMER_VALID:
+                lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_VALID| LCC_MTI_EVENT_NUM_PRESENT);
+                break;
+            case LCC_CONSUMER_INVALID:
+                lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_INVALID | LCC_MTI_EVENT_NUM_PRESENT);
+                break;
+            case LCC_CONSUMER_UNKNOWN:
+                lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN | LCC_MTI_EVENT_NUM_PRESENT);
+                break;
+            }
+        }else{
+            lcc_set_lcb_variable_field(&frame, ctx, LCC_MTI_CONSUMER_IDENTIFIED_UNKNOWN | LCC_MTI_EVENT_NUM_PRESENT);
+        }
 
         lcc_set_lcb_can_frame_type(&frame, 1);
         lcc_set_eventid_in_data(&frame, event_id);

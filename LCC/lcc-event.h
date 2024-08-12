@@ -51,6 +51,17 @@ int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
                                    uint64_t event_id);
 
 /**
+ * Set a function that will be called in order to determine the current state of an event
+ * that is consumed by this node.
+ *
+ * @param ctx
+ * @param consumer_state
+ * @return
+ */
+int lcc_event_add_event_consumed_query_fn(struct lcc_event_context* ctx,
+                                            lcc_query_consumer_state_fn consumer_state);
+
+/**
  * Add an event that is logically produced by this node.
  *
  * @param ctx
@@ -121,6 +132,15 @@ int lcc_event_id_to_accessory_decoder(uint64_t event_id, struct lcc_accessory_ad
  * @return LCC_OK, or LCC_ERROR_EVENT_NOT_ACCESSORY_DECODER if the event is not an accessory decoder event
  */
 int lcc_event_id_to_accessory_decoder_2040(uint64_t event_id, struct lcc_accessory_address* address);
+
+/**
+ * Convert a DCC address to an EventID.  This will correspond to an accessory address between 1-2040.
+ *
+ * @param address The address to convert
+ * @param evnet_id The EventID that corresponds to this address
+ * @return LCC_OK if the address is valid and can be converted
+ */
+int lcc_accessory_decoder_to_event_id_2040(struct lcc_accessory_address* address, uint64_t* event_id);
 
 #ifdef __cplusplus
 } /* extern C */
