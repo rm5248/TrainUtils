@@ -349,6 +349,28 @@ static int lcc_handle_reboot(struct lcc_memory_context* ctx){
     return 0;
 }
 
+static int lcc_try_handle_freeze_unfreeze(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
+    if(data_len != 3){
+        return 0;
+    }
+
+    if(data[1] == 0xA1){
+        // Freeze command
+        if(data[2] == LCC_MEMORY_SPACE_FIRMWARE && ctx->parent->firmware_upgrade_context){
+            _lcc_firmware_upgrade_freeze(ctx->parent->firmware_upgrade_context, alias);
+            return 1;
+        }
+    }else if(data[1] == 0xA0){
+        // Unfreeze command
+        if(data[2] == LCC_MEMORY_SPACE_FIRMWARE && ctx->parent->firmware_upgrade_context){
+            _lcc_firmware_upgrade_unfreeze(ctx->parent->firmware_upgrade_context, alias);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
     if(data_len < 2 || data[0] != 0x20){
         return 0;
@@ -383,6 +405,8 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
         // return information for the given address space
         ctx->query_fn(ctx, alias, data[2]);
         return LCC_OK;
+    }else if(lcc_try_handle_freeze_unfreeze(ctx, alias, data, data_len) == 1){
+        return 1;
     }
 
     if(ctx->cdi_data == NULL){

@@ -34,45 +34,46 @@ int lcc_firmware_upgrade_in_progress(struct lcc_firmware_upgrade_context* ctx){
     return ctx->upgrade_in_progress;
 }
 
-int _lcc_firmware_upgrade_try_handle_datagram(struct lcc_firmware_upgrade_context* ctx, uint16_t alias, uint8_t* data, int data_len){
+int _lcc_firmware_upgrade_freeze(struct lcc_firmware_upgrade_context* ctx, uint16_t alias){
+    ctx->upgrade_in_progress = 1;
+    if(lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0) != LCC_OK){
+        return 0;
+    }
+    // Now send the 'Node Initialization Complete' message
+    struct lcc_can_frame frame;
+    memset(&frame, 0, sizeof(frame));
+    lcc_set_lcb_variable_field(&frame, ctx->parent, 0x100);
+    lcc_set_lcb_can_frame_type(&frame, 1);
+    lcc_set_nodeid_in_data(&frame, ctx->parent->unique_id);
+    ctx->parent->write_function(ctx->parent, &frame);
 
-    if(data_len == 3 && data[0] == 0x20){
-        if(data[1] == 0xA1){
-            // Freeze command
-            if(data[2] == LCC_MEMORY_SPACE_FIRMWARE){
-                ctx->upgrade_in_progress = 1;
-                if(lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0) != LCC_OK){
-                    return 0;
-                }
-                // Now send the 'Node Initialization Complete' message
-                struct lcc_can_frame frame;
-                memset(&frame, 0, sizeof(frame));
-                lcc_set_lcb_variable_field(&frame, ctx->parent, 0x100);
-                lcc_set_lcb_can_frame_type(&frame, 1);
-                lcc_set_nodeid_in_data(&frame, ctx->parent->unique_id);
-                ctx->parent->write_function(ctx->parent, &frame);
-
-                if(ctx->start_fn){
-                    ctx->start_fn(ctx);
-                }
-
-                return 1;
-            }
-        }else if(data[1] == 0xA0){
-            // Unfreeze command
-            if(data[2] == LCC_MEMORY_SPACE_FIRMWARE){
-                // The firmware transfer should have finished at this point.  It is expected
-                // that we reboot once the unfreeze is sent.
-                if(ctx->finished_fn){
-                    ctx->finished_fn(ctx);
-                }
-                return 1;
-            }
-        }
+    if(ctx->start_fn){
+        ctx->start_fn(ctx);
     }
 
     return 0;
 }
+
+int _lcc_firmware_upgrade_unfreeze(struct lcc_firmware_upgrade_context* ctx, uint16_t alias){
+    ctx->upgrade_in_progress = 0;
+    if(lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0) != LCC_OK){
+        return 0;
+    }
+    // Now send the 'Node Initialization Complete' message
+    struct lcc_can_frame frame;
+    memset(&frame, 0, sizeof(frame));
+    lcc_set_lcb_variable_field(&frame, ctx->parent, 0x100);
+    lcc_set_lcb_can_frame_type(&frame, 1);
+    lcc_set_nodeid_in_data(&frame, ctx->parent->unique_id);
+    ctx->parent->write_function(ctx->parent, &frame);
+
+    if(ctx->finished_fn){
+        ctx->finished_fn(ctx);
+    }
+
+    return 0;
+}
+
 
 int _lcc_firmware_upgrade_incoming_write(struct lcc_firmware_upgrade_context* ctx, uint16_t alias, uint32_t starting_address, uint8_t* data, int data_len){
     // We have some incoming data for the firmware upgrade.  Let's handle it!
