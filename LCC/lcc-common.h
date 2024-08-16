@@ -37,6 +37,8 @@ struct lcc_event_context;
 
 struct lcc_can_frame;
 
+struct lcc_firmware_upgrade_context;
+
 enum lcc_producer_state{
     LCC_PRODUCER_VALID,
     LCC_PRODUCER_INVALID,
@@ -162,6 +164,20 @@ typedef void (*lcc_remote_memory_received)(struct lcc_remote_memory_context* ctx
  */
 typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
 
+typedef void (*lcc_firmware_upgrade_start)(struct lcc_firmware_upgrade_context* ctx);
+
+/**
+ * Called when data comes in during firmware upgrade.  The data should be written out to the firmware upgrade.
+ * The called function must call either lcc_firmware_write_ok or lcc_firmware_write_error depending on the
+ * result of the write function.
+ */
+typedef void (*lcc_firmware_upgrade_incoming_data)(struct lcc_firmware_upgrade_context* ctx, uint32_t starting_address, void* data, int data_len);
+
+/**
+ * Called when the firmware upgrade is completed, e.g. all data has been successfully transferred.
+ */
+typedef void (*lcc_firmware_upgrade_finished)(struct lcc_firmware_upgrade_context* ctx);
+
 /*
  * Error code definitions used by the library
  */
@@ -182,6 +198,8 @@ typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context
 #define LCC_ERROR_MEMORY_TX_IN_PROGRESS -12
 #define LCC_ERROR_EVENT_NOT_ACCESSORY_DECODER -13
 #define LCC_ERROR_EVENT_NOT_REPORT_TIME -14
+/** The given function was called at the incorrect time, e.g. the state required for this method to execute is not met */
+#define LCC_ERROR_INVALID_PROGRAM_STATE -15
 
 /**
  * Struct used to pass frames to/from the library.

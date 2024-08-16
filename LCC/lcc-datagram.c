@@ -197,6 +197,9 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
             if(ctx->remote_memory_context){
                 handled = lcc_remote_memory_try_handle_datagram(ctx->remote_memory_context, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
             }
+            if(ctx->firmware_upgrade_context){
+                handled = _lcc_firmware_upgrade_try_handle_datagram(ctx->firmware_upgrade_context, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
+            }
             if(!handled && datagram_ctx->datagram_received_fn){
                 datagram_ctx->datagram_received_fn(datagram_ctx, source_alias, datagram_ctx->datagram_buffer.buffer, datagram_ctx->datagram_buffer.offset);
             }else if(!handled){

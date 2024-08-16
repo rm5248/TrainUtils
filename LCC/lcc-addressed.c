@@ -6,6 +6,7 @@
 #include "lcc-common-internal.h"
 #include "lcc-datagram.h"
 #include "lcc-simple-node-info.h"
+#include "lcc-firmware-upgrade.h"
 
 int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
     uint16_t alias = (frame->data[0] << 8) | frame->data[1];
@@ -45,6 +46,13 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             ret_frame.data[3] |= 0x08; /* CDI protocol */
         }
         ret_frame.data[4] = 0;
+        if(ctx->firmware_upgrade_context){
+            if(ctx->firmware_upgrade_context->upgrade_in_progress){
+                ret_frame.data[4] |= 0x10; /* firmware upgrade active */
+            }else{
+                ret_frame.data[4] |= 0x20; /* firmware upgrade protocol */
+            }
+        }
         ret_frame.data[5] = 0;
         ret_frame.data[6] = 0;
         ret_frame.data[7] = 0;

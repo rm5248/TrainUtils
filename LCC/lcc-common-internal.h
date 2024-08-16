@@ -125,6 +125,16 @@ struct lcc_event_context{
     lcc_query_consumer_state_fn consumer_state_fn;
 };
 
+struct lcc_firmware_upgrade_context{
+    struct lcc_context* parent;
+    uint8_t upgrade_in_progress;
+    uint8_t calling_write_cb;
+    lcc_firmware_upgrade_start start_fn;
+    lcc_firmware_upgrade_incoming_data write_fn;
+    lcc_firmware_upgrade_finished finished_fn;
+    uint16_t alias;
+};
+
 struct lcc_context{
     uint64_t unique_id;
     union{
@@ -154,6 +164,9 @@ struct lcc_context{
 
     // Remote memory handling
     struct lcc_remote_memory_context* remote_memory_context;
+
+    // Firmware upgrade handling
+    struct lcc_firmware_upgrade_context* firmware_upgrade_context;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0
@@ -210,6 +223,9 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
 int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len);
 int lcc_remote_memory_handle_datagram_rx_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags);
 int lcc_remote_memory_handle_datagram_rejected(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len);
+
+int _lcc_firmware_upgrade_try_handle_datagram(struct lcc_firmware_upgrade_context* ctx, uint16_t alias, uint8_t* data, int data_len);
+int _lcc_firmware_upgrade_incoming_write(struct lcc_firmware_upgrade_context* ctx, uint16_t alias, uint32_t starting_address, uint8_t* data, int data_len);
 
 /**
  * Read a uint32(in big-endian order) from data.  Data must be at least 4 bytes.

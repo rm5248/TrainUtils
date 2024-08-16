@@ -424,6 +424,12 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
         data_offset = 7;
     }
 
+    if(!is_read && space == LCC_MEMORY_SPACE_FIRMWARE && ctx->parent->firmware_upgrade_context ){
+        lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, LCC_DATAGRAM_REPLY_PENDING);
+        _lcc_firmware_upgrade_incoming_write(ctx->parent->firmware_upgrade_context, alias, starting_address, data + data_offset, data_len - data_offset);
+        return 1;
+    }
+
     if(is_read && ctx->read_fn){
         // Send a 'datagram received ok' message with the 'reply pending' bit set,
         // indicating that we will have a follow-in message with the response of the read
