@@ -133,6 +133,7 @@ struct lcc_firmware_upgrade_context{
     lcc_firmware_upgrade_incoming_data write_fn;
     lcc_firmware_upgrade_finished finished_fn;
     uint16_t alias;
+    uint32_t addr;
 };
 
 struct lcc_context{

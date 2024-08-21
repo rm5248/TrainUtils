@@ -81,6 +81,7 @@ int _lcc_firmware_upgrade_incoming_write(struct lcc_firmware_upgrade_context* ct
         return -1;
     }
 
+    ctx->addr = starting_address;
     ctx->alias = alias;
     ctx->calling_write_cb = 1;
     ctx->write_fn(ctx, starting_address, data, data_len);
@@ -113,7 +114,10 @@ int lcc_firmware_write_ok(struct lcc_firmware_upgrade_context* ctx){
         return LCC_ERROR_INVALID_PROGRAM_STATE;
     }
 
-    return lcc_datagram_respond_rxok(ctx->parent->datagram_context, ctx->alias, 0);
+    return lcc_memory_respond_write_reply_ok(ctx->parent->memory_context,
+                                             ctx->alias,
+                                             LCC_MEMORY_SPACE_FIRMWARE,
+                                             ctx->addr);
 }
 
 int lcc_firmware_write_error(struct lcc_firmware_upgrade_context* ctx,
@@ -127,6 +131,11 @@ int lcc_firmware_write_error(struct lcc_firmware_upgrade_context* ctx,
         return LCC_ERROR_INVALID_PROGRAM_STATE;
     }
 
-    return lcc_datagram_respond_rejected(ctx->parent->datagram_context, ctx->alias, error_code, optional_info);
+    return lcc_memory_respond_write_reply_fail(ctx->parent->memory_context,
+                                             ctx->alias,
+                                             LCC_MEMORY_SPACE_FIRMWARE,
+                                             ctx->addr,
+                                               error_code,
+                                               optional_info);
 }
 
