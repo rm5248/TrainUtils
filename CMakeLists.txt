@@ -16,6 +16,7 @@ option (BUILD_CAB2LOCONET_COMPUTER
 option (BUILD_GUI
 	"Build the Train GUI"
 	OFF)
+option (BUILD_DCC_UTIL "Build the DCC utility library" OFF)
 
 # Request C++20, if available
 # This *should* fallback to an older standard if it is not available
@@ -62,6 +63,9 @@ add_subdirectory(LCC)
 if(BUILD_GUI)
 	add_subdirectory(GUI)
 endif()
+if(BUILD_DCC_UTIL)
+    add_subdirectory(DCC)
+endif()
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
     IF( UNIX )
@@ -102,3 +106,4 @@ message(STATUS "  Build Loconet TCP util: ......... : ON")
 message(STATUS "  Build Cab2Loconet(Computer): .... : ${BUILD_CAB2LOCONET_COMPUTER}")
 message(STATUS "  Build liblcc: ................... : ON")
 message(STATUS "  Build GUI: ...................... : ${BUILD_GUI}")
+message(STATUS "  Build DCC utility: .............. : ${BUILD_DCC_UTIL}")
