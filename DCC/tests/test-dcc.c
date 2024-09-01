@@ -16,7 +16,7 @@ static void send_single_byte(struct dcc_decoder* decoder, uint8_t byte){
     dcc_decoder_polarity_changed(decoder, 100);
     dcc_decoder_polarity_changed(decoder, 100);
 
-    for(uint8_t byte_pos = 7; byte_pos != 0; byte_pos-- ){
+    for(int byte_pos = 7; byte_pos >= 0; byte_pos-- ){
         int duration = 0;
         if( byte & (0x01 << byte_pos) ){
             duration = 58;
@@ -53,14 +53,36 @@ static void send_full_packet(struct dcc_decoder* decoder, uint8_t* packet_data, 
     dcc_decoder_polarity_changed(decoder, 58);
 }
 
+struct speeddir{
+    enum dcc_decoder_direction dir;
+    uint8_t speed;
+};
+
+static void speed_dir_cb(struct dcc_decoder* decoder, enum dcc_decoder_direction dir, uint8_t speed){
+    struct speeddir* sp = dcc_decoder_userdata(decoder);
+    sp->dir = dir;
+    sp->speed = speed;
+}
+
 int basic_packet(){
     struct dcc_decoder* decoder = dcc_decoder_new();
+    struct speeddir sp = {0};
+
+    dcc_decoder_set_speed_dir_cb(decoder, speed_dir_cb);
+    dcc_decoder_set_userdata(decoder, &sp);
+    dcc_decoder_set_short_address(decoder, 55);
 
     // Figure 1 of S9.2
     uint8_t packet_data[] = { 55, 116 };
     send_full_packet(decoder, packet_data, sizeof(packet_data));
 
     dcc_decoder_pump_packet(decoder);
+
+    if(sp.dir == DCC_DECODER_DIRECTION_FORWARD && sp.speed == 6){
+        return 0;
+    }
+
+    return 1;
 }
 
 int main(int argc, char** argv){

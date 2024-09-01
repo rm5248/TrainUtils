@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "dcc-decoder.h"
 
@@ -33,6 +32,10 @@ struct dcc_decoder{
     uint8_t working_byte;
     uint8_t working_byte_bit;
     uint8_t packet_data_pos;
+    uint8_t short_addr;
+    void* user_data;
+    dcc_decoder_incoming_speed_dir_packet speed_dir;
+    dcc_decoder_incoming_estop estop_fn;
 };
 
 static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
@@ -79,15 +82,47 @@ static int dcc_decoder_is_packet_valid(uint8_t* data, int len){
     return 0;
 }
 
-struct dcc_decoder* dcc_decoder_new(void){
-    struct dcc_decoder* decoder = malloc(sizeof(struct dcc_decoder));
-    if(!decoder){
-        return NULL;
+static void dcc_decoder_decode_short(struct dcc_decoder* decoder, uint8_t* packet){
+    if(packet[0] == 0xFF
+            && packet[1] == 0x00
+            && packet[2] == 0xFF){
+        // Idle packet
+        return;
     }
 
-    memset(decoder, 0, sizeof(struct dcc_decoder));
+    if(decoder->short_addr != packet[0] && packet[0] != 0){
+        return;
+    }
 
-    return decoder;
+    // This is either for us or a broadcast packet, take the appropriate action
+    if((packet[1] & 0xC0) == 0x40){
+        // speed packet
+        int dir = packet[1] & (0x01 << 6);
+        int speed = packet[1] & 0x1F;
+
+        if(decoder->speed_dir && speed != 1){
+            if(speed != 1){
+                speed--;
+            }
+            decoder->speed_dir(decoder,
+                               dir ? DCC_DECODER_DIRECTION_FORWARD : DCC_DECODER_DIRECTION_REVERSE,
+                               speed);
+        }
+
+        if(decoder->estop_fn && speed == 1){
+            decoder->estop_fn(decoder);
+        }
+    }
+}
+
+struct dcc_decoder* dcc_decoder_new(void){
+    // We're going to assume we can only have one DCC decoder,
+    // since there should really be no reason to have more than one.
+    static struct dcc_decoder decoder;
+
+    memset(&decoder, 0, sizeof(struct dcc_decoder));
+
+    return &decoder;
 }
 
 void dcc_decoder_free(struct dcc_decoder* decoder){
@@ -95,7 +130,23 @@ void dcc_decoder_free(struct dcc_decoder* decoder){
         return;
     }
 
-    free(decoder);
+    memset(decoder, 0, sizeof(struct dcc_decoder));
+}
+
+int dcc_decoder_set_userdata(struct dcc_decoder* decoder, void* user_data){
+    if(!decoder){
+        return DCC_DECODER_ERROR_INVALID_ARG;
+    }
+
+    decoder->user_data = user_data;
+}
+
+void* dcc_decoder_userdata(struct dcc_decoder* decoder){
+    if(!decoder){
+        return NULL;
+    }
+
+    return decoder->user_data;
 }
 
 int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff){
@@ -129,7 +180,6 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
         // We have been parsing the preamble, now that we got the 0 bit we can move on
         // to parsing the data from the packet.
         // This zero bit is the packet start bit.
-        printf("moving to parsing data byte.  num 1 bits: %d\n", decoder->num_1_bits);
         decoder->parse_state = PARSING_DATA_BYTE;
         decoder->working_byte = 0;
         decoder->working_byte_bit = 7;
@@ -141,8 +191,8 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
         if(timing == ONE_BIT){
             decoder->working_byte |= (0x01 << decoder->working_byte_bit);
         }
+
         if(decoder->working_byte_bit == 0){
-            printf("got one byte, moving to next.  byte: %d\n", decoder->working_byte);
             // This is the last bit of the byte, shift it into our buffer
             decoder->packet_data[decoder->packet_data_pos] = decoder->working_byte;
             decoder->packet_data_pos++;
@@ -151,7 +201,6 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
             decoder->parse_state = PARSING_BYTE_START_BIT;
         }
         decoder->working_byte_bit--;
-        printf("working byte bit %d = %d\n", decoder->working_byte_bit, timing);
     }else if(decoder->parse_state == PARSING_BYTE_START_BIT){
         // A zero bit deliminates the bytes on the rails.
         // A one bit means end-of-packet
@@ -184,6 +233,37 @@ int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
     }
 
     // We have a valid packet at this point, so let's decode it and call the callback(s)
+    if(data[0] == 0){
+        // Broadcast packet
+        dcc_decoder_decode_short(decoder, data);
+    }else if(data[0] >= 1 && data[0] <= 127){
+        // multi function decoder with 7-bit address
+        dcc_decoder_decode_short(decoder, data);
+    }
+
+    return DCC_DECODER_OK;
+}
+
+int dcc_decoder_set_short_address(struct dcc_decoder* decoder, uint8_t address){
+    if(!decoder){
+        return DCC_DECODER_ERROR_INVALID_ARG;
+    }
+
+    if(address > 128){
+        return DCC_DECODER_ERROR_INVALID_ARG;
+    }
+
+    decoder->short_addr = address;
+
+    return DCC_DECODER_OK;
+}
+
+int dcc_decoder_set_speed_dir_cb(struct dcc_decoder* decoder, dcc_decoder_incoming_speed_dir_packet speed_dir){
+    if(!decoder){
+        return DCC_DECODER_ERROR_INVALID_ARG;
+    }
+
+    decoder->speed_dir = speed_dir;
 
     return DCC_DECODER_OK;
 }
