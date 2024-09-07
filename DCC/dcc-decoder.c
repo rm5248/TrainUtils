@@ -115,6 +115,28 @@ static void dcc_decoder_decode_short(struct dcc_decoder* decoder, uint8_t* packe
     }
 }
 
+static void dcc_decoder_decode_accessory(struct dcc_decoder* decoder, uint8_t* packet){
+    uint16_t addr = 0;
+    uint16_t msb = 0;
+
+    addr |= (packet[0] & 0x3F);
+
+    // Get the MSB part of the address.  Note that for /some reason/ these
+    // bits are in 1-complement.
+    msb = (packet[1] & 0x30) >> 4;
+    msb = ~msb;
+    msb = msb & 0x03;
+    msb = msb << 8;
+    addr |= msb;
+
+    int activate = packet[1] & (0x01 << 3);
+    int data = packet[1] & 0x03;
+
+    activate = !!activate;
+
+    printf("accy decoder addr %d activate %d data %d\n", addr, activate, data);
+}
+
 struct dcc_decoder* dcc_decoder_new(void){
     // We're going to assume we can only have one DCC decoder,
     // since there should really be no reason to have more than one.
@@ -239,6 +261,9 @@ int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
     }else if(data[0] >= 1 && data[0] <= 127){
         // multi function decoder with 7-bit address
         dcc_decoder_decode_short(decoder, data);
+    }else if(data[0] >= 128 && data[0] <= 191){
+        // Accessory decoder range
+        dcc_decoder_decode_accessory(decoder, data);
     }
 
     return DCC_DECODER_OK;
