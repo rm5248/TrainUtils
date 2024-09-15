@@ -21,6 +21,11 @@ enum dcc_decoder_direction{
     DCC_DECODER_DIRECTION_REVERSE,
 };
 
+enum dcc_decoder_decoding_scheme{
+	DCC_DECODER_IRQ_BOTH,
+	DCC_DECODER_IRQ_RISING_OR_FALLING,
+};
+
 typedef void (*dcc_decoder_incoming_speed_dir_packet)(struct dcc_decoder* decoder, enum dcc_decoder_direction, uint8_t speed);
 
 typedef void (*dcc_decoder_incoming_estop)(struct dcc_decoder* decoder);
@@ -30,7 +35,7 @@ typedef void (*dcc_decoder_incoming_estop)(struct dcc_decoder* decoder);
  *
  * @return
  */
-struct dcc_decoder* dcc_decoder_new(void);
+struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme);
 
 void dcc_decoder_free(struct dcc_decoder* );
 

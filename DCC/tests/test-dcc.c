@@ -65,7 +65,7 @@ static void speed_dir_cb(struct dcc_decoder* decoder, enum dcc_decoder_direction
 }
 
 int basic_packet(){
-    struct dcc_decoder* decoder = dcc_decoder_new();
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_BOTH);
     struct speeddir sp = {0};
 
     dcc_decoder_set_speed_dir_cb(decoder, speed_dir_cb);

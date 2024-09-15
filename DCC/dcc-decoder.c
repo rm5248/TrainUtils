@@ -4,10 +4,15 @@
 
 #include "dcc-decoder.h"
 
-#define ONE_BIT_DURATION_MIN 52
-#define ONE_BIT_DURATION_MAX 64
-#define ZERO_BIT_DURATION_MIN 90
-#define ZERO_BIT_DURATION_MAX 10000
+#define ONE_HALF_BIT_DURATION_MIN 52
+#define ONE_HALF_BIT_DURATION_NOM 58
+#define ONE_HALF_BIT_DURATION_MAX 64
+#define ZERO_HALF_BIT_DURATION_MIN 90
+#define ZERO_HALF_BIT_DURATION_NOM 100
+#define ZERO_HALF_BIT_DURATION_MAX 10000
+
+#define ONE_BIT_DURATION_MAX (ONE_HALF_BIT_DURATION_MAX * 2)
+#define ZERO_BIT_DURATION_MAX (110 * 2)
 
 enum PacketParsingState{
     PARSING_PREAMBLE = 0,
@@ -36,14 +41,15 @@ struct dcc_decoder{
     void* user_data;
     dcc_decoder_incoming_speed_dir_packet speed_dir;
     dcc_decoder_incoming_estop estop_fn;
+    enum dcc_decoder_decoding_scheme decoding_scheme;
 };
 
 static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
-    if(timediff > ONE_BIT_DURATION_MIN &&
-            timediff < ONE_BIT_DURATION_MAX){
+    if(timediff > ONE_HALF_BIT_DURATION_MIN &&
+            timediff < ONE_HALF_BIT_DURATION_MAX){
         return ONE_BIT;
-    }else if(timediff > ZERO_BIT_DURATION_MIN &&
-                timediff < ZERO_BIT_DURATION_MAX){
+    }else if(timediff > ZERO_HALF_BIT_DURATION_MIN &&
+                timediff < ZERO_HALF_BIT_DURATION_MAX){
         return ZERO_BIT;
     }
 
@@ -98,11 +104,17 @@ static void dcc_decoder_decode_short(struct dcc_decoder* decoder, uint8_t* packe
     if((packet[1] & 0xC0) == 0x40){
         // speed packet
         int dir = packet[1] & (0x01 << 6);
-        int speed = packet[1] & 0x1F;
+        int speed = packet[1] & 0x0F;
+        int speed_lsb = packet[1] & 0x10;
+
+        speed = speed << 1;
+        if(speed_lsb){
+            speed |= 0x1;
+        }
 
         if(decoder->speed_dir && speed != 1){
             if(speed != 1){
-                speed--;
+                speed -= 3;
             }
             decoder->speed_dir(decoder,
                                dir ? DCC_DECODER_DIRECTION_FORWARD : DCC_DECODER_DIRECTION_REVERSE,
@@ -137,12 +149,13 @@ static void dcc_decoder_decode_accessory(struct dcc_decoder* decoder, uint8_t* p
     printf("accy decoder addr %d activate %d data %d\n", addr, activate, data);
 }
 
-struct dcc_decoder* dcc_decoder_new(void){
+struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme){
     // We're going to assume we can only have one DCC decoder,
     // since there should really be no reason to have more than one.
     static struct dcc_decoder decoder;
 
     memset(&decoder, 0, sizeof(struct dcc_decoder));
+    decoder.decoding_scheme = scheme;
 
     return &decoder;
 }
