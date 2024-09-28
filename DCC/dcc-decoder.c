@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "dcc-decoder.h"
+#include "dcc-packet-parser.h"
 
 #define ONE_HALF_BIT_DURATION_MIN 52
 #define ONE_HALF_BIT_DURATION_NOM 58
@@ -11,7 +12,9 @@
 #define ZERO_HALF_BIT_DURATION_NOM 100
 #define ZERO_HALF_BIT_DURATION_MAX 10000
 
+#define ONE_BIT_DURATION_MIN (ONE_HALF_BIT_DURATION_MIN * 2)
 #define ONE_BIT_DURATION_MAX (ONE_HALF_BIT_DURATION_MAX * 2)
+#define ZERO_BIT_DURATION_MIN (ZERO_HALF_BIT_DURATION_MIN * 2)
 #define ZERO_BIT_DURATION_MAX (110 * 2)
 
 enum PacketParsingState{
@@ -37,12 +40,22 @@ struct dcc_decoder{
     uint8_t working_byte;
     uint8_t working_byte_bit;
     uint8_t packet_data_pos;
-    uint8_t short_addr;
     void* user_data;
-    dcc_decoder_incoming_speed_dir_packet speed_dir;
-    dcc_decoder_incoming_estop estop_fn;
     enum dcc_decoder_decoding_scheme decoding_scheme;
+    struct dcc_packet_parser* packet_parser;
+    dcc_incoming_packet packet_cb;
 };
+
+static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff){
+    if(timediff > ONE_BIT_DURATION_MIN &&
+            timediff < ONE_BIT_DURATION_MAX){
+        return ONE_BIT;
+    }else if(timediff > ZERO_BIT_DURATION_MIN){
+        return ZERO_BIT;
+    }
+
+    return INVALID_BIT;
+}
 
 static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
     if(timediff > ONE_HALF_BIT_DURATION_MIN &&
@@ -88,67 +101,6 @@ static int dcc_decoder_is_packet_valid(uint8_t* data, int len){
     return 0;
 }
 
-static void dcc_decoder_decode_short(struct dcc_decoder* decoder, uint8_t* packet){
-    if(packet[0] == 0xFF
-            && packet[1] == 0x00
-            && packet[2] == 0xFF){
-        // Idle packet
-        return;
-    }
-
-    if(decoder->short_addr != packet[0] && packet[0] != 0){
-        return;
-    }
-
-    // This is either for us or a broadcast packet, take the appropriate action
-    if((packet[1] & 0xC0) == 0x40){
-        // speed packet
-        int dir = packet[1] & (0x01 << 6);
-        int speed = packet[1] & 0x0F;
-        int speed_lsb = packet[1] & 0x10;
-
-        speed = speed << 1;
-        if(speed_lsb){
-            speed |= 0x1;
-        }
-
-        if(decoder->speed_dir && speed != 1){
-            if(speed != 1){
-                speed -= 3;
-            }
-            decoder->speed_dir(decoder,
-                               dir ? DCC_DECODER_DIRECTION_FORWARD : DCC_DECODER_DIRECTION_REVERSE,
-                               speed);
-        }
-
-        if(decoder->estop_fn && speed == 1){
-            decoder->estop_fn(decoder);
-        }
-    }
-}
-
-static void dcc_decoder_decode_accessory(struct dcc_decoder* decoder, uint8_t* packet){
-    uint16_t addr = 0;
-    uint16_t msb = 0;
-
-    addr |= (packet[0] & 0x3F);
-
-    // Get the MSB part of the address.  Note that for /some reason/ these
-    // bits are in 1-complement.
-    msb = (packet[1] & 0x30) >> 4;
-    msb = ~msb;
-    msb = msb & 0x03;
-    msb = msb << 8;
-    addr |= msb;
-
-    int activate = packet[1] & (0x01 << 3);
-    int data = packet[1] & 0x03;
-
-    activate = !!activate;
-
-    printf("accy decoder addr %d activate %d data %d\n", addr, activate, data);
-}
-
 struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme){
     // We're going to assume we can only have one DCC decoder,
     // since there should really be no reason to have more than one.
@@ -184,21 +136,7 @@ void* dcc_decoder_userdata(struct dcc_decoder* decoder){
     return decoder->user_data;
 }
 
-int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff){
-    if(timediff == 0){
-        // Make sure that we get reset to the initial parsing state
-        memset(decoder, 0, sizeof(struct dcc_decoder));
-        return DCC_DECODER_OK;
-    }
-
-    if(decoder->previous_timing == 0){
-        decoder->previous_timing = timediff;
-        return DCC_DECODER_OK;
-    }
-
-    enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff);
-    decoder->previous_timing = 0;
-
+static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTiming timing){
     if(timing == INVALID_BIT || timing == ZERO_TO_ONE_BIT || timing == ONE_TO_ZERO_BIT){
         // It looks like we're off for half a bit or something?
         // Don't do any processing on this bit
@@ -245,6 +183,43 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
             decoder->parse_state = PARSING_DONE;
         }
     }
+
+    return DCC_DECODER_OK;
+}
+
+int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff){
+    if(timediff == 0){
+        // Make sure that we get reset to the initial parsing state
+        memset(decoder, 0, sizeof(struct dcc_decoder));
+        return DCC_DECODER_OK;
+    }
+
+    if(decoder->previous_timing == 0){
+        decoder->previous_timing = timediff;
+        return DCC_DECODER_OK;
+    }
+
+    enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff);
+    decoder->previous_timing = 0;
+
+    return dcc_decoder_process_whole_bit(decoder, timing);
+}
+
+int dcc_decoder_rising_or_falling(struct dcc_decoder* decoder, uint32_t timediff){
+    if(timediff == 0){
+        // Make sure that we get reset to the initial parsing state
+        memset(decoder, 0, sizeof(struct dcc_decoder));
+        return DCC_DECODER_OK;
+    }
+
+    enum BitTiming timing = whole_bit_timing_to_bittiming(timediff);
+    if(timing == INVALID_BIT){
+        // It looks like we're off for half a bit or something?
+        // Don't do any processing on this bit
+        return DCC_DECODER_ERROR_BIT_TIMING;
+    }
+
+    return dcc_decoder_process_whole_bit(decoder, timing);
 }
 
 int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
@@ -267,41 +242,31 @@ int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
         return DCC_DECODER_ERROR_INVALID_PACKET;
     }
 
-    // We have a valid packet at this point, so let's decode it and call the callback(s)
-    if(data[0] == 0){
-        // Broadcast packet
-        dcc_decoder_decode_short(decoder, data);
-    }else if(data[0] >= 1 && data[0] <= 127){
-        // multi function decoder with 7-bit address
-        dcc_decoder_decode_short(decoder, data);
-    }else if(data[0] >= 128 && data[0] <= 191){
-        // Accessory decoder range
-        dcc_decoder_decode_accessory(decoder, data);
+    if(decoder->packet_cb){
+        decoder->packet_cb(decoder, data, len);
+    }
+
+    if(decoder->packet_parser){
+        return dcc_packet_parser_parse(decoder->packet_parser, data, len);
     }
 
     return DCC_DECODER_OK;
 }
 
-int dcc_decoder_set_short_address(struct dcc_decoder* decoder, uint8_t address){
+int dcc_decoder_set_packet_parser(struct dcc_decoder* decoder, struct dcc_packet_parser* parser){
     if(!decoder){
         return DCC_DECODER_ERROR_INVALID_ARG;
     }
-
-    if(address > 128){
-        return DCC_DECODER_ERROR_INVALID_ARG;
-    }
-
-    decoder->short_addr = address;
+    decoder->packet_parser = parser;
 
     return DCC_DECODER_OK;
 }
 
-int dcc_decoder_set_speed_dir_cb(struct dcc_decoder* decoder, dcc_decoder_incoming_speed_dir_packet speed_dir){
+int dcc_decoder_set_packet_callback(struct dcc_decoder* decoder, dcc_incoming_packet packet_cb){
     if(!decoder){
         return DCC_DECODER_ERROR_INVALID_ARG;
     }
-
-    decoder->speed_dir = speed_dir;
+    decoder->packet_cb = packet_cb;
 
     return DCC_DECODER_OK;
 }
