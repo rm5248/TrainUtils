@@ -35,6 +35,35 @@ static int decode_2048_2(){
     return 1;
 }
 
+static int decode_2048_3(){
+    uint64_t event_id = 0x0101020000ff0025; // turnout 15
+    struct lcc_accessory_address addr;
+
+    if(lcc_event_id_to_accessory_decoder_2040(event_id, &addr) != LCC_OK){
+        return 1;
+    }
+
+    if(addr.dcc_accessory_address == 15 && addr.active == 1){
+        return 0;
+    }
+    return 1;
+}
+
+
+static int decode_2048_4(){
+    uint64_t event_id = 0x0101020000ff0024; // turnout 15
+    struct lcc_accessory_address addr;
+
+    if(lcc_event_id_to_accessory_decoder_2040(event_id, &addr) != LCC_OK){
+        return 1;
+    }
+
+    if(addr.dcc_accessory_address == 15 && addr.active == 1){
+        return 0;
+    }
+    return 1;
+}
+
 static int report_time(){
     uint64_t event_id = 0x0101000001000900;
     enum lcc_clock_type type;
@@ -94,6 +123,10 @@ int main(int argc, char** argv){
         return decode_2048_1();
     }else if(strcmp(argv[1], "decode_2048_2") == 0){
         return decode_2048_2();
+    }else if(strcmp(argv[1], "decode_2048_3") == 0){
+        return decode_2048_3();
+    }else if(strcmp(argv[1], "decode_2048_4") == 0){
+        return decode_2048_4();
     }else if(strcmp(argv[1], "report_time") == 0){
         return report_time();
     }else if(strcmp(argv[1], "encode_2048_1") == 0){

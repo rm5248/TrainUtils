@@ -49,6 +49,33 @@ int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
     return LCC_OK;
 }
 
+int lcc_event_remove_event_consumed(struct lcc_event_context* ctx,
+                                    uint64_t event_id){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    event_list_remove_event(&ctx->events_consumed, event_id);
+
+    return LCC_OK;
+}
+
+int lcc_event_clear_events(struct lcc_event_context* ctx, int event_flags){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    if(event_flags & LCC_EVENT_CONTEXT_CLEAR_EVENTS_PRODUCED){
+        event_list_clear(&ctx->events_produced);
+    }
+
+    if(event_flags & LCC_EVENT_CONTEXT_CLEAR_EVENTS_CONSUMED){
+        event_list_clear(&ctx->events_consumed);
+    }
+
+    return LCC_OK;
+}
+
 int lcc_event_add_event_consumed_query_fn(struct lcc_event_context* ctx,
                                           lcc_query_consumer_state_fn consumer_state){
     if(!ctx){

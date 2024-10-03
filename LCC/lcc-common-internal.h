@@ -191,6 +191,10 @@ uint64_t lcc_get_eventid_from_data(struct lcc_can_frame* frame);
 
 void event_list_add_event(struct event_list* list, uint64_t event_id);
 
+void event_list_remove_event(struct event_list* list, uint64_t event_id);
+
+void event_list_clear(struct event_list* list);
+
 int event_list_has_event(struct event_list* list, uint64_t event_id);
 
 /**

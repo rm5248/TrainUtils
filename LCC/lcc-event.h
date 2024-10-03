@@ -8,6 +8,9 @@
 struct lcc_event_context;
 struct lcc_context;
 
+#define LCC_EVENT_CONTEXT_CLEAR_EVENTS_PRODUCED (0x01 << 0)
+#define LCC_EVENT_CONTEXT_CLEAR_EVENTS_CONSUMED (0x01 << 1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,6 +52,25 @@ int lcc_event_set_incoming_event_function(struct lcc_event_context* ctx,
  */
 int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
                                    uint64_t event_id);
+
+/**
+ * Remove this event from the context that we are interested in.
+ *
+ * @param ctx The context to remove the event from
+ * @param event_id The event to remove
+ * @return
+ */
+int lcc_event_remove_event_consumed(struct lcc_event_context* ctx,
+                                   uint64_t event_id);
+
+/**
+ * Clear events from this context
+ *
+ * @param ctx The context to clear events from
+ * @param event_flags Flags determining what events to clear.
+ * @return
+ */
+int lcc_event_clear_events(struct lcc_event_context* ctx, int event_flags);
 
 /**
  * Set a function that will be called in order to determine the current state of an event

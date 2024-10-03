@@ -113,6 +113,33 @@ void event_list_add_event(struct event_list* list, uint64_t event_id){
     qsort(list->event_array, list->len, sizeof(int64_t), event_list_compare);
 }
 
+void event_list_remove_event(struct event_list* list, uint64_t event_id){
+    if(list->event_array == NULL){
+        return;
+    }
+
+    // Search through the array, moving everything down after the event that we remove.
+    int move_down = 0;
+    int found = 0;
+    for(int x = 0; x < list->len; x++ ){
+        if(list->event_array[x] == event_id){
+            move_down = 1;
+        }
+
+        if(move_down && (x < (list->len - 2))){
+            list->event_array[x] = list->event_array[x + 1];
+        }
+    }
+
+    if(found){
+        list->len = list->len - 1;
+    }
+}
+
+void event_list_clear(struct event_list* list){
+    list->len = 0;
+}
+
 int event_list_has_event(struct event_list* list, uint64_t event_id){
     if(list->event_array == NULL){
         return 0;
