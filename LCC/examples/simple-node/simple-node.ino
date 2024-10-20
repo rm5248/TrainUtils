@@ -5,6 +5,13 @@
 // Earlier shields use the MCP2515
 #define CAN_CHIP CAN_CHIP_MCP2515
 
+// Set to 0 to not blink the builtin LED.
+// On the Uno, the builtin LED uses the same line as the SPI SCK.
+// This must be set to 0 on the Uno R4, as otherwise the SCK line
+// will stay high all the time.  The Uno R3(AVR-based) doesn't
+// need this to be set to 0, but it's probably a good idea.
+#define BUILTIN_LED_BLINK 1
+
 #if CAN_CHIP == CAN_CHIP_MCP2518
 #include <ACAN2517.h>
 #else if CAN_CHIP == CAN_CHIP_MCP1515
@@ -17,7 +24,7 @@
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-// Updated 2024-05-06
+// Updated 2024-10-20
 
 static const byte MCP_CS  = 8 ; // CS input of CAN controller
 static const byte MCP_INT =  2 ; // INT output of CAN controller
@@ -161,9 +168,10 @@ void setup () {
   lcc_event_add_event_produced(evt_ctx, event_id + 1);
   lcc_event_add_event_produced(evt_ctx, event_id + 2);
 
-
-  pinMode (LED_BUILTIN, OUTPUT) ;
-  digitalWrite (LED_BUILTIN, HIGH) ;
+  if(BUILTIN_LED_BLINK){
+    pinMode (LED_BUILTIN, OUTPUT) ;
+    digitalWrite (LED_BUILTIN, HIGH) ;
+  }
 
   // Pin 4 is used as a sample digital input that will generate LCC events when it
   // changes state.  Make sure to put a pull-down on this pin, and you can then trigger
@@ -182,6 +190,7 @@ void setup () {
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   // We need to lower the transmit and receive buffer size(at least on the Uno), as otherwise
   // the ACAN2515 library will allocate too much memory
+  // These numbers may be increased when runnging on a Mega
   settings.mReceiveBufferSize = 4;
   settings.mTransmitBuffer0Size = 8;
   // OpenLCB uses the following CAN propogation settings with the MCP2515:
@@ -200,6 +209,12 @@ void setup () {
   if (errorCode != 0) {
     Serial.print ("Configuration error 0x") ;
     Serial.println (errorCode, HEX) ;
+    while(1){
+      delay (250) ;
+      digitalWrite (LED_BUILTIN, 1) ;
+      delay (50) ;
+      digitalWrite (LED_BUILTIN, 0) ;
+    }
   }
 
   // Generate an LCC alias and request it.
@@ -224,7 +239,7 @@ void loop() {
     lcc_context_incoming_frame(ctx, &lcc_frame);
   }
 
-  if (gBlinkLedDate < millis ()) {
+  if (BUILTIN_LED_BLINK && gBlinkLedDate < millis ()) {
     gBlinkLedDate += 1000 ;
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
   }
