@@ -140,10 +140,14 @@ static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTi
     if(timing == INVALID_BIT || timing == ZERO_TO_ONE_BIT || timing == ONE_TO_ZERO_BIT){
         // It looks like we're off for half a bit or something?
         // Don't do any processing on this bit
+        if(decoder->parse_state == PARSING_PREAMBLE){
+            decoder->num_1_bits = 0;
+        }
         return DCC_DECODER_ERROR_BIT_TIMING;
     }
 
-    if(timing == ONE_BIT){
+    if(timing == ONE_BIT &&
+            decoder->parse_state == PARSING_PREAMBLE){
         decoder->num_1_bits++;
     }
 
@@ -157,6 +161,12 @@ static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTi
         decoder->working_byte = 0;
         decoder->working_byte_bit = 7;
         decoder->packet_data_pos = 0;
+        return DCC_DECODER_OK;
+    }else if(timing == ZERO_BIT &&
+             decoder->num_1_bits < 10 &&
+             decoder->parse_state == PARSING_PREAMBLE){
+        // We need to re-sync, we got a zero bit before the entire preamble
+        decoder->num_1_bits = 0;
         return DCC_DECODER_OK;
     }
 
@@ -181,6 +191,7 @@ static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTi
             decoder->parse_state = PARSING_DATA_BYTE;
         }else{
             decoder->parse_state = PARSING_DONE;
+            decoder->num_1_bits = 0;
         }
     }
 
@@ -200,7 +211,12 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
     }
 
     enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff);
-    decoder->previous_timing = 0;
+    if(timing == ZERO_BIT ||
+            timing == ONE_BIT){
+        decoder->previous_timing = 0;
+    }else{
+        decoder->previous_timing = timediff;
+    }
 
     return dcc_decoder_process_whole_bit(decoder, timing);
 }
