@@ -338,6 +338,14 @@ int lcc_context_claim_alias(struct lcc_context* ctx){
         return LCC_ERROR_ALIAS_FAILURE;
     }
 
+    if( ctx->write_buffer_avail_function &&
+            (ctx->write_buffer_avail_function( ctx ) > 0) ){
+        // We can't claim the alias if the messages we still need to write
+        // have not been sent.  Probably this is because there is nobody ACKing
+        // the CAN messages
+        return LCC_ERROR_ALIAS_TX_NOT_EMPTY;
+    }
+
     ctx->node_alias_state = LCC_NODE_ALIAS_GOOD;
     ctx->state = LCC_STATE_PERMITTED;
 

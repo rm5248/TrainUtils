@@ -200,6 +200,8 @@ typedef void (*lcc_firmware_upgrade_finished)(struct lcc_firmware_upgrade_contex
 #define LCC_ERROR_EVENT_NOT_REPORT_TIME -14
 /** The given function was called at the incorrect time, e.g. the state required for this method to execute is not met */
 #define LCC_ERROR_INVALID_PROGRAM_STATE -15
+/** The transmit buffer is not empty, so alias cannot be claimed */
+#define LCC_ERROR_ALIAS_TX_NOT_EMPTY -16
 
 /**
  * Struct used to pass frames to/from the library.

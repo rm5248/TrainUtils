@@ -38,8 +38,7 @@ int lcc_context_incoming_frame(struct lcc_context* ctx, struct lcc_can_frame* fr
  * @param write_fn The function that will write out CAN frames to the bus
  * @param write_buffer_avail_fn A function that will return how many CAN frames can be queued up to be sent.
  * If there is not enough space to queue up CAN frames for a specific message, the message will not be queued.
- * This parameter may be NULL, in which case the size is not checked.  This is currently only relevant for datagram messages,
- * as it is possible to determine how many frames we need before we try to send them.
+ * If this is NULL, proper standards-compliant behavior may not occur.
  *
  * @return
  */
@@ -80,7 +79,9 @@ int lcc_context_generate_alias(struct lcc_context* ctx);
  *
  * @param ctx
  * @return LCC_OK if the alias did not collide.  If there was a failure, restart
- * the alias negotiation by calling lcc_context_generate_alias()
+ * the alias negotiation by calling lcc_context_generate_alias().
+ * If LCC_ERROR_ALIAS_TX_NOT_EMPTY is returned, this method may be called again without
+ * first calling lcc_context_generate_alias().
  */
 int lcc_context_claim_alias(struct lcc_context* ctx);
 
