@@ -11,5 +11,6 @@ add_library(dcc-util
 )
 
 if(BUILD_TESTING)
+    include(CTest)
     add_subdirectory(tests)
 endif()

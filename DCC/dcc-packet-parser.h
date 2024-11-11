@@ -10,9 +10,16 @@
 extern "C" {
 #endif
 
-typedef void (*dcc_decoder_incoming_speed_dir_packet)(struct dcc_packet_parser* decoder, enum dcc_decoder_direction, uint8_t speed);
+enum dcc_accessory_direction{
+    ACCESSORY_NORMAL,
+    ACCESSORY_REVERSE,
+};
 
-typedef void (*dcc_decoder_incoming_estop)(struct dcc_packet_parser* decoder);
+typedef void (*dcc_decoder_incoming_speed_dir_packet)(struct dcc_packet_parser* parser, enum dcc_decoder_direction, uint8_t speed);
+
+typedef void (*dcc_decoder_incoming_estop)(struct dcc_packet_parser* parser);
+
+typedef void (*dcc_decoder_incoming_accessory)(struct dcc_packet_parser* parser, uint16_t accy_number, enum dcc_accessory_direction accy_dir);
 
 struct dcc_packet_parser;
 
@@ -37,6 +44,8 @@ int dcc_packet_parser_parse(struct dcc_packet_parser* decoder, const uint8_t* da
 int dcc_packet_parser_set_short_address(struct dcc_packet_parser* decoder, uint8_t address);
 
 int dcc_packet_parser_set_speed_dir_cb(struct dcc_packet_parser* decoder, dcc_decoder_incoming_speed_dir_packet speed_dir);
+
+int dcc_packet_parset_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy);
 
 
 #ifdef __cplusplus

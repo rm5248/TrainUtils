@@ -255,6 +255,7 @@ int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
 
     // Okay, now let's decode the data
     if(!dcc_decoder_is_packet_valid(data, len)){
+        printf("invalid packet\n");
         return DCC_DECODER_ERROR_INVALID_PACKET;
     }
 

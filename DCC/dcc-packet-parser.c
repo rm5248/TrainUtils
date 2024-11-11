@@ -11,6 +11,7 @@ struct dcc_packet_parser{
 
     dcc_decoder_incoming_speed_dir_packet speed_dir;
     dcc_decoder_incoming_estop estop_fn;
+    dcc_decoder_incoming_accessory accy_fn;
 };
 
 static void dcc_packet_parser_decode_short(struct dcc_packet_parser* decoder, const uint8_t* packet){
@@ -21,7 +22,7 @@ static void dcc_packet_parser_decode_short(struct dcc_packet_parser* decoder, co
     // This is either for us or a broadcast packet, take the appropriate action
     if((packet[1] & 0xC0) == 0x40){
         // speed packet
-        int dir = packet[1] & (0x01 << 6);
+        int dir = packet[1] & (0x01 << 5);
         int speed = packet[1] & 0x0F;
         int speed_lsb = packet[1] & 0x10;
 
@@ -119,29 +120,32 @@ int dcc_packet_parser_set_speed_dir_cb(struct dcc_packet_parser* decoder, dcc_de
     return DCC_DECODER_OK;
 }
 
-int dcc_packet_parser_parse(struct dcc_packet_parser* decoder, const uint8_t* data, int len){
-	static int bb = 0;
+int dcc_packet_parset_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy){
+    if(!parser){
+        return DCC_DECODER_ERROR_INVALID_ARG;
+    }
 
+    parser->accy_fn = incoming_accy;
+
+    return DCC_DECODER_OK;
+}
+
+int dcc_packet_parser_parse(struct dcc_packet_parser* decoder, const uint8_t* data, int len){
     if(len == 3
     		&& data[0] == 0xFF
             && data[1] == 0x00
             && data[2] == 0xFF){
         // Idle packet
-    	bb++;
         return DCC_DECODER_OK;
     }
-
-//    printf("Packet[%d]: ", bb);
-//    for(int x = 0; x < len; x++){
-//    	printf("0x%02X ", data[x]);
-//    }
-//    printf("\n");
 
     // We have a valid packet at this point, so let's decode it and call the callback(s)
     if(data[0] == 0){
         // Broadcast packet
         dcc_packet_parser_decode_short(decoder, data);
-    }else if(data[0] >= 1 && data[0] <= 127){
+    }else if(data[0] >= 1 &&
+             data[0] <= 127 &&
+             data[0] == decoder->short_addr){
         // multi function decoder with 7-bit address
         dcc_packet_parser_decode_short(decoder, data);
     }else if(data[0] >= 128 && data[0] <= 191){
