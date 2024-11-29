@@ -34,12 +34,15 @@ enum BitTiming{
 
 struct dcc_decoder{
     uint8_t num_1_bits;
-    uint8_t packet_data[12];
+    uint8_t packet_data[6];
+    uint8_t last_packet[6];
     enum PacketParsingState parse_state;
     uint32_t previous_timing;
     uint8_t working_byte;
     uint8_t working_byte_bit;
     uint8_t packet_data_pos;
+    uint8_t last_packet_valid;
+    uint8_t last_packet_len;
     void* user_data;
     enum dcc_decoder_decoding_scheme decoding_scheme;
     struct dcc_packet_parser* packet_parser;
@@ -47,10 +50,10 @@ struct dcc_decoder{
 };
 
 static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff){
-    if(timediff > ONE_BIT_DURATION_MIN &&
-            timediff < ONE_BIT_DURATION_MAX){
+    if(timediff >= ONE_BIT_DURATION_MIN &&
+            timediff <= ONE_BIT_DURATION_MAX){
         return ONE_BIT;
-    }else if(timediff > ZERO_BIT_DURATION_MIN){
+    }else if(timediff >= ZERO_BIT_DURATION_MIN){
         return ZERO_BIT;
     }
 
@@ -58,11 +61,11 @@ static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff){
 }
 
 static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
-    if(timediff > ONE_HALF_BIT_DURATION_MIN &&
-            timediff < ONE_HALF_BIT_DURATION_MAX){
+    if(timediff >= ONE_HALF_BIT_DURATION_MIN &&
+            timediff <= ONE_HALF_BIT_DURATION_MAX){
         return ONE_BIT;
-    }else if(timediff > ZERO_HALF_BIT_DURATION_MIN &&
-                timediff < ZERO_HALF_BIT_DURATION_MAX){
+    }else if(timediff >= ZERO_HALF_BIT_DURATION_MIN &&
+                timediff <= ZERO_HALF_BIT_DURATION_MAX){
         return ZERO_BIT;
     }
 
@@ -126,6 +129,8 @@ int dcc_decoder_set_userdata(struct dcc_decoder* decoder, void* user_data){
     }
 
     decoder->user_data = user_data;
+
+    return DCC_DECODER_OK;
 }
 
 void* dcc_decoder_userdata(struct dcc_decoder* decoder){
@@ -182,6 +187,11 @@ static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTi
             decoder->working_byte = 0;
             decoder->working_byte_bit = 8;
             decoder->parse_state = PARSING_BYTE_START_BIT;
+            if(decoder->packet_data_pos > 5){
+                // DCC packets are only 6 bytes.  Reset our parsing.
+                decoder->parse_state = PARSING_PREAMBLE;
+                decoder->num_1_bits = 0;
+            }
         }
         decoder->working_byte_bit--;
     }else if(decoder->parse_state == PARSING_BYTE_START_BIT){
@@ -195,13 +205,24 @@ static int dcc_decoder_process_whole_bit(struct dcc_decoder* decoder, enum BitTi
         }
     }
 
+    if(decoder->parse_state == PARSING_DONE){
+        memcpy(decoder->last_packet, decoder->packet_data, sizeof(decoder->packet_data));
+        memset(decoder->packet_data, 0, sizeof(decoder->packet_data));
+        decoder->last_packet_valid = 1;
+        decoder->parse_state = PARSING_PREAMBLE;
+        decoder->last_packet_len = decoder->packet_data_pos;
+        decoder->num_1_bits = 0;
+        return 1;
+    }
+
     return DCC_DECODER_OK;
 }
 
 int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff){
     if(timediff == 0){
         // Make sure that we get reset to the initial parsing state
-        memset(decoder, 0, sizeof(struct dcc_decoder));
+        decoder->num_1_bits = 0;
+        decoder->parse_state = PARSING_PREAMBLE;
         return DCC_DECODER_OK;
     }
 
@@ -213,18 +234,23 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
     enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff);
     if(timing == ZERO_BIT ||
             timing == ONE_BIT){
+        // If this is a valid bit, sync up on the next half-bit
         decoder->previous_timing = 0;
     }else{
+        // This is an invalid bit or on a transition, set the previous timing so the next
+        // half-bit will be synced properly
         decoder->previous_timing = timediff;
     }
 
-    return dcc_decoder_process_whole_bit(decoder, timing);
+    int ret = dcc_decoder_process_whole_bit(decoder, timing);
+    return ret;
 }
 
 int dcc_decoder_rising_or_falling(struct dcc_decoder* decoder, uint32_t timediff){
     if(timediff == 0){
         // Make sure that we get reset to the initial parsing state
-        memset(decoder, 0, sizeof(struct dcc_decoder));
+        decoder->num_1_bits = 0;
+        decoder->parse_state = PARSING_PREAMBLE;
         return DCC_DECODER_OK;
     }
 
@@ -243,31 +269,31 @@ int dcc_decoder_pump_packet(struct dcc_decoder* decoder){
         return DCC_DECODER_ERROR_GENERIC;
     }
 
-    if(decoder->parse_state != PARSING_DONE){
+    if(!decoder->last_packet_valid){
         return DCC_DECODER_OK;
     }
 
-    // Grab the data and let's do something with it.
-    uint8_t data[12];
-    uint8_t len = decoder->packet_data_pos;
-    memcpy(data, decoder->packet_data, sizeof(data));
-    decoder->parse_state = PARSING_PREAMBLE;
+    decoder->last_packet_valid = 0;
 
     // Okay, now let's decode the data
-    if(!dcc_decoder_is_packet_valid(data, len)){
-        printf("invalid packet\n");
+    if(!dcc_decoder_is_packet_valid(decoder->last_packet, decoder->last_packet_len)){
+//        printf("bad[%d]: ", decoder->last_packet_len);
+//        for(int x = 0; x < decoder->last_packet_len; x++){
+//            printf("0x%02X,", decoder->last_packet[x]);
+//        }
+//        printf("\n");
         return DCC_DECODER_ERROR_INVALID_PACKET;
     }
 
     if(decoder->packet_cb){
-        decoder->packet_cb(decoder, data, len);
+        decoder->packet_cb(decoder, decoder->last_packet, decoder->last_packet_len);
     }
 
     if(decoder->packet_parser){
-        return dcc_packet_parser_parse(decoder->packet_parser, data, len);
+        return dcc_packet_parser_parse(decoder->packet_parser, decoder->last_packet, decoder->last_packet_len);
     }
 
-    return DCC_DECODER_OK;
+    return 1;
 }
 
 int dcc_decoder_set_packet_parser(struct dcc_decoder* decoder, struct dcc_packet_parser* parser){

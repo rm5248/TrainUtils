@@ -53,6 +53,8 @@ void* dcc_decoder_userdata(struct dcc_decoder* decoder);
  * @param timediff The time difference(in microseconds) since the last time that
  * the polarity changed.  If this is the first time the polarity has changed,
  * timediff should be 0.
+ * @return DCC_DECODER_OK if nothing bad happened.  If a full packet has been parsed, returns 1.
+ * If an error occured, return an error code(<0)
  */
 int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff);
 

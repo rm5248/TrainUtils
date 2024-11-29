@@ -45,7 +45,7 @@ int dcc_packet_parser_set_short_address(struct dcc_packet_parser* decoder, uint8
 
 int dcc_packet_parser_set_speed_dir_cb(struct dcc_packet_parser* decoder, dcc_decoder_incoming_speed_dir_packet speed_dir);
 
-int dcc_packet_parset_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy);
+int dcc_packet_parser_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy);
 
 
 #ifdef __cplusplus

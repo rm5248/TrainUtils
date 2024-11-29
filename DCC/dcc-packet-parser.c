@@ -46,26 +46,29 @@ static void dcc_packet_parser_decode_short(struct dcc_packet_parser* decoder, co
     }
 }
 
-static void dcc_packet_parser_decode_accessory(struct dcc_packet_parser* decoder, uint8_t* packet){
-    uint16_t addr = 0;
-    uint16_t msb = 0;
+static void dcc_packet_parser_decode_accessory(struct dcc_packet_parser* parser, uint8_t* packet){
+    uint16_t board_addr = 0;
+    uint16_t activate = packet[1] & (0x01 << 3);
+    uint16_t pair_index = (packet[1] & 0x6) >> 1;
+    uint16_t msb = packet[1] & 0x70;
 
-    addr |= (packet[0] & 0x3F);
-
-    // Get the MSB part of the address.  Note that for /some reason/ these
-    // bits are in 1-complement.
-    msb = (packet[1] & 0x30) >> 4;
+    msb = msb >> 4;
     msb = ~msb;
-    msb = msb & 0x03;
-    msb = msb << 8;
-    addr |= msb;
+    msb &= 0x3;
 
-    int activate = packet[1] & (0x01 << 3);
-    int data = packet[1] & 0x03;
-
+    // Nobody really uses the 'activate' bit, but it is parsed right here if we need it
     activate = !!activate;
 
-    printf("accy decoder addr %d activate %d data %d\n", addr, activate, data);
+    board_addr = packet[0] & 0x3F;
+    board_addr |= (msb << 6);
+
+    uint16_t output_addr = (((board_addr - 1) << 2) | pair_index) + 1;
+
+    if(parser->accy_fn){
+        parser->accy_fn(parser,
+                        output_addr,
+                        packet[1] & 0x1 ? ACCESSORY_NORMAL : ACCESSORY_REVERSE);
+    }
 }
 
 struct dcc_packet_parser* dcc_packet_parser_new(void){
@@ -120,7 +123,7 @@ int dcc_packet_parser_set_speed_dir_cb(struct dcc_packet_parser* decoder, dcc_de
     return DCC_DECODER_OK;
 }
 
-int dcc_packet_parset_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy){
+int dcc_packet_parser_set_accessory_cb(struct dcc_packet_parser* parser, dcc_decoder_incoming_accessory incoming_accy){
     if(!parser){
         return DCC_DECODER_ERROR_INVALID_ARG;
     }

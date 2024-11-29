@@ -10,3 +10,7 @@ target_include_directories(test-packet-parse PRIVATE "${CMAKE_CURRENT_SOURCE_DIR
 
 add_test( NAME test-short-addr1 COMMAND test-packet-parse short-addr1)
 add_test( NAME test-short-addr2 COMMAND test-packet-parse short-addr2)
+add_test( NAME accy30-normal COMMAND test-packet-parse accy30-normal)
+add_test( NAME accy30-reverse COMMAND test-packet-parse accy30-reverse)
+add_test( NAME accy1-normal COMMAND test-packet-parse accy1-normal)
+add_test( NAME accy1-reverse COMMAND test-packet-parse accy1-reverse)

@@ -464,6 +464,46 @@ int test_halfbit_many_2(){
     return 0;
 }
 
+static int raw_data_halfbit(){
+    const uint8_t data[] = {
+        39,107,
+        56,56,55,57,57,57,56,57,56,56,55,57,56,58,56,57, // 0xff
+        106,107,106,107,106,107,106,107,106,106,106,106,105,106,105,106, // 0x00
+        105,106, // 0 bit
+        105,106, // 0 bit
+        55,57,57,57,56,57,56,56,55,57,56,58,56,57,56,57,
+        55,56,56,57,57,57,56,57,56,56,55,57,57,57,56,57,
+        56,56,55,57,57,57,56,57,56,56,55,57,56,58,56,57,
+        56,57,55,56,
+        106,107,
+        56,57,57,57,56,57,55,56,56,57,57,57,56,57,56,56,
+        105,107,105,107,106,107,106,107,106,107,106,107,106,107,106,107,106,107,107,105,106,106,106,105,106,55,56,56,57,106,107,106,107,106,107,56,57,56,57,
+
+    };
+
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_packet pkt = {0};
+
+    dcc_decoder_set_userdata(decoder, &pkt);
+    dcc_decoder_set_packet_callback(decoder, packet_cb);
+
+    // TODO need to properly decode the data to make sure that it is working correctly
+    for( int x = 0; x < (sizeof(data) / sizeof(data[0])); x++ ){
+        dcc_decoder_polarity_changed(decoder, data[x]);
+        dcc_decoder_pump_packet(decoder);
+        if(pkt.len != 0){
+            printf("Packet(loc: %d): ", x);
+            for(int y = 0; y < pkt.len; y++){
+                printf("0x%02X ", pkt.bytes[y]);
+            }
+            printf("\n");
+            memset(&pkt, 0, sizeof(pkt));
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -475,6 +515,8 @@ int main(int argc, char** argv){
         return multiple_fullbit_packets();
     }else if(strcmp(argv[1], "multiple-halfbit-packets") == 0){
         return multiple_halfbit_packets();
+    }else if(strcmp(argv[1], "raw-data-halfbit") == 0){
+        return raw_data_halfbit();
     }
 
     return 1;
