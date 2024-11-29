@@ -47,11 +47,12 @@ struct dcc_decoder{
     enum dcc_decoder_decoding_scheme decoding_scheme;
     struct dcc_packet_parser* packet_parser;
     dcc_incoming_packet packet_cb;
+    uint8_t flags;
 };
 
-static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff){
-    if(timediff >= ONE_BIT_DURATION_MIN &&
-            timediff <= ONE_BIT_DURATION_MAX){
+static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff, int expand){
+    if(timediff >= (ONE_BIT_DURATION_MIN - expand * 2) &&
+            timediff <= (ONE_BIT_DURATION_MAX + expand * 2)){
         return ONE_BIT;
     }else if(timediff >= ZERO_BIT_DURATION_MIN){
         return ZERO_BIT;
@@ -60,9 +61,9 @@ static enum BitTiming whole_bit_timing_to_bittiming(uint32_t timediff){
     return INVALID_BIT;
 }
 
-static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
-    if(timediff >= ONE_HALF_BIT_DURATION_MIN &&
-            timediff <= ONE_HALF_BIT_DURATION_MAX){
+static enum BitTiming single_timing_to_bit_type(uint32_t timediff, int expand){
+    if(timediff >= (ONE_HALF_BIT_DURATION_MIN - expand) &&
+            timediff <= (ONE_HALF_BIT_DURATION_MAX + expand)){
         return ONE_BIT;
     }else if(timediff >= ZERO_HALF_BIT_DURATION_MIN &&
                 timediff <= ZERO_HALF_BIT_DURATION_MAX){
@@ -72,9 +73,9 @@ static enum BitTiming single_timing_to_bit_type(uint32_t timediff){
     return INVALID_BIT;
 }
 
-static enum BitTiming two_timing_to_bit_type(uint32_t timediff1, uint32_t timediff2){
-    enum BitTiming one = single_timing_to_bit_type(timediff1);
-    enum BitTiming two = single_timing_to_bit_type(timediff2);
+static enum BitTiming two_timing_to_bit_type(uint32_t timediff1, uint32_t timediff2, int expand){
+    enum BitTiming one = single_timing_to_bit_type(timediff1, expand);
+    enum BitTiming two = single_timing_to_bit_type(timediff2, expand);
 
     if(one == ONE_BIT && two == ONE_BIT){
         return ONE_BIT;
@@ -104,13 +105,14 @@ static int dcc_decoder_is_packet_valid(uint8_t* data, int len){
     return 0;
 }
 
-struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme){
+struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme, uint32_t flags){
     // We're going to assume we can only have one DCC decoder,
     // since there should really be no reason to have more than one.
     static struct dcc_decoder decoder;
 
     memset(&decoder, 0, sizeof(struct dcc_decoder));
     decoder.decoding_scheme = scheme;
+    decoder.flags = flags;
 
     return &decoder;
 }
@@ -231,7 +233,11 @@ int dcc_decoder_polarity_changed(struct dcc_decoder* decoder, uint32_t timediff)
         return DCC_DECODER_OK;
     }
 
-    enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff);
+    int expand = 0;
+    if(decoder->flags & DCC_DECODER_FLAG_EXPAND_ONE_BIT_DURATION){
+        expand = 7;
+    }
+    enum BitTiming timing = two_timing_to_bit_type(decoder->previous_timing, timediff, expand);
     if(timing == ZERO_BIT ||
             timing == ONE_BIT){
         // If this is a valid bit, sync up on the next half-bit
@@ -254,7 +260,11 @@ int dcc_decoder_rising_or_falling(struct dcc_decoder* decoder, uint32_t timediff
         return DCC_DECODER_OK;
     }
 
-    enum BitTiming timing = whole_bit_timing_to_bittiming(timediff);
+    int expand = 0;
+    if(decoder->flags & DCC_DECODER_FLAG_EXPAND_ONE_BIT_DURATION){
+        expand = 7;
+    }
+    enum BitTiming timing = whole_bit_timing_to_bittiming(timediff, expand);
     if(timing == INVALID_BIT){
         // It looks like we're off for half a bit or something?
         // Don't do any processing on this bit

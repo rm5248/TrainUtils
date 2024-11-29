@@ -125,7 +125,7 @@ static void speed_dir_cb(struct dcc_packet_parser* decoder, enum dcc_decoder_dir
 }
 
 int basic_packet_halfbit(){
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_BOTH);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_BOTH, 0);
     struct speeddir sp = {0};
     struct dcc_packet_parser* parser = dcc_packet_parser_new();
 
@@ -149,7 +149,7 @@ int basic_packet_halfbit(){
 }
 
 int basic_packet_fullbit(){
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING, 0);
     struct speeddir sp = {0};
     struct dcc_packet_parser* parser = dcc_packet_parser_new();
 
@@ -237,7 +237,7 @@ int multiple_fullbit_packets(){
     158,116,121,112,116,116,122,111,116,116,116,126,107,115,116,127,
     108,114,174,162,124,109,116,116,124,109,116,169,218,220,219,221,
     218,222,217,223,219,162,128};
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING, 0);
 
     for( int x = 0; x < (sizeof(data) / sizeof(data[0])); x++ ){
         dcc_decoder_rising_or_falling(decoder, data[x]);
@@ -363,7 +363,7 @@ int multiple_halfbit_packets(){
         57,57,56,57,56,56,55,56,56,58,56
     };
 
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING, 0);
     struct dcc_packet pkt = {0};
 
     dcc_decoder_set_userdata(decoder, &pkt);
@@ -441,7 +441,7 @@ int test_halfbit_many_2(){
         106,107,105,107,106,107,106,107,57
     };
 
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING, 0);
     struct dcc_packet pkt = {0};
 
     dcc_decoder_set_userdata(decoder, &pkt);
@@ -481,7 +481,7 @@ static int raw_data_halfbit(){
 
     };
 
-    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING);
+    struct dcc_decoder* decoder = dcc_decoder_new(DCC_DECODER_IRQ_RISING_OR_FALLING, 0);
     struct dcc_packet pkt = {0};
 
     dcc_decoder_set_userdata(decoder, &pkt);

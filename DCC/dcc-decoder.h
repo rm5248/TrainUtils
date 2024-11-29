@@ -10,6 +10,11 @@
 #define DCC_DECODER_ERROR_INVALID_PACKET -3
 #define DCC_DECODER_ERROR_INVALID_ARG -4
 
+/**
+ * Expand the period of time that a one bit is valid for
+ */
+#define DCC_DECODER_FLAG_EXPAND_ONE_BIT_DURATION 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,7 +39,7 @@ enum dcc_decoder_decoding_scheme{
  *
  * @return
  */
-struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme);
+struct dcc_decoder* dcc_decoder_new(enum dcc_decoder_decoding_scheme scheme, uint32_t flags);
 
 void dcc_decoder_free(struct dcc_decoder* );
 
