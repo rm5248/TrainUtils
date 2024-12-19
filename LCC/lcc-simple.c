@@ -18,7 +18,7 @@ static int lcc_handle_producer_query(struct lcc_context* ctx, struct lcc_can_fra
     uint64_t event_id = lcc_get_eventid_from_data(frame);
     enum lcc_producer_state state = LCC_PRODUCER_UNKNOWN;
 
-    if(event_list_has_event(&ctx->event_context->events_consumed, event_id)){
+    if(event_list_has_event(&ctx->event_context->events_produced, event_id)){
         struct lcc_can_frame frame;
 
         if(ctx->event_context->producer_state_fn){
