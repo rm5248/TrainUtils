@@ -44,7 +44,7 @@ int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
         return LCC_ERROR_INVALID_ARG;
     }
 
-    event_list_add_event(&ctx->events_consumed, event_id);
+    event_list_add_event(&ctx->events_consumed, event_id, !ctx->in_add_consumed_event_transaction);
 
     return LCC_OK;
 }
@@ -93,7 +93,50 @@ int lcc_event_add_event_produced(struct lcc_event_context* ctx,
         return LCC_ERROR_INVALID_ARG;
     }
 
-    event_list_add_event(&ctx->events_produced, event_id);
+    event_list_add_event(&ctx->events_produced, event_id, !ctx->in_add_produced_event_transaction);
+
+    return LCC_OK;
+}
+
+int lcc_event_add_event_produced_transaction_start(struct lcc_event_context* ctx){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->in_add_produced_event_transaction = 1;
+
+    return LCC_OK;
+}
+int lcc_event_add_event_produced_transaction_end(struct lcc_event_context* ctx){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->in_add_produced_event_transaction = 0;
+
+    event_list_sort(&ctx->events_produced);
+
+    return LCC_OK;
+}
+
+int lcc_event_add_event_consumed_transaction_start(struct lcc_event_context* ctx){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->in_add_consumed_event_transaction = 1;
+
+    return LCC_OK;
+}
+
+int lcc_event_add_event_consumed_transaction_end(struct lcc_event_context* ctx){
+    if(!ctx){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->in_add_consumed_event_transaction = 0;
+
+    event_list_sort(&ctx->events_consumed);
 
     return LCC_OK;
 }

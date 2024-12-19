@@ -54,6 +54,20 @@ int lcc_event_add_event_consumed(struct lcc_event_context* ctx,
                                    uint64_t event_id);
 
 /**
+ * Start a transaction to add many events consumed.
+ * @param ctx
+ * @return
+ */
+int lcc_event_add_event_consumed_transaction_start(struct lcc_event_context* ctx);
+
+/**
+ * End a transaction that added many events at once.
+ * @param ctx
+ * @return
+ */
+int lcc_event_add_event_consumed_transaction_end(struct lcc_event_context* ctx);
+
+/**
  * Remove this event from the context that we are interested in.
  *
  * @param ctx The context to remove the event from
@@ -86,12 +100,29 @@ int lcc_event_add_event_consumed_query_fn(struct lcc_event_context* ctx,
 /**
  * Add an event that is logically produced by this node.
  *
+ * If you are adding many events, consider using lcc_event_add_event_produced_transaction_start
+ * to wrap this function in a transaction when many events are added at once.
+ *
  * @param ctx
  * @param event_id The event ID to add
  * @return
  */
 int lcc_event_add_event_produced(struct lcc_event_context* ctx,
                                    uint64_t event_id);
+
+/**
+ * Start a transaction to add many events produced.
+ * @param ctx
+ * @return
+ */
+int lcc_event_add_event_produced_transaction_start(struct lcc_event_context* ctx);
+
+/**
+ * End a transaction that added many events at once.
+ * @param ctx
+ * @return
+ */
+int lcc_event_add_event_produced_transaction_end(struct lcc_event_context* ctx);
 
 /**
  * Turn on/off the listening of all events.  Note that if all events are listened to,

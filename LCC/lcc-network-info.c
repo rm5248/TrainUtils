@@ -278,7 +278,7 @@ static void lcc_network_add_event_produced_to_node(struct lcc_network_info* inf,
     }
 
     uint64_t event_id = lcc_get_eventid_from_data(frame);
-    event_list_add_event(&node->produced_events, event_id);
+    event_list_add_event(&node->produced_events, event_id, 1);
 
     if(inf->node_update_cb){
         inf->node_update_cb(inf, node);
@@ -306,7 +306,7 @@ static void lcc_network_add_event_consumed_to_node(struct lcc_network_info* inf,
     }
 
     uint64_t event_id = lcc_get_eventid_from_data(frame);
-    event_list_add_event(&node->consumed_events, event_id);
+    event_list_add_event(&node->consumed_events, event_id, 1);
 
     if(inf->node_update_cb){
         inf->node_update_cb(inf, node);

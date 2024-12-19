@@ -83,7 +83,7 @@ static int event_list_compare(const void * arg1, const void * arg2){
     return 0;
 }
 
-void event_list_add_event(struct event_list* list, uint64_t event_id){
+void event_list_add_event(struct event_list* list, uint64_t event_id, int sort){
 #if defined(LIBLCC_EVENT_LIST_STATIC_SIZE)
     if(list->len > list->size){
         return;
@@ -109,8 +109,10 @@ void event_list_add_event(struct event_list* list, uint64_t event_id){
     }
 #endif
 
-    // Sort all of the event IDs to make the search(when they come in) easier
-    qsort(list->event_array, list->len, sizeof(int64_t), event_list_compare);
+    if(sort){
+        // Sort all of the event IDs to make sure that the bsearch works
+        qsort(list->event_array, list->len, sizeof(int64_t), event_list_compare);
+    }
 }
 
 void event_list_remove_event(struct event_list* list, uint64_t event_id){
@@ -151,6 +153,10 @@ int event_list_has_event(struct event_list* list, uint64_t event_id){
     }
 
     return 1;
+}
+
+void event_list_sort(struct event_list* list){
+    qsort(list->event_array, list->len, sizeof(int64_t), event_list_compare);
 }
 
 int lcc_send_events_produced(struct lcc_context* ctx){

@@ -123,6 +123,8 @@ struct lcc_event_context{
     struct event_list events_produced;
     lcc_query_producer_state_fn producer_state_fn;
     lcc_query_consumer_state_fn consumer_state_fn;
+    uint8_t in_add_produced_event_transaction : 1;
+    uint8_t in_add_consumed_event_transaction : 1;
 };
 
 struct lcc_firmware_upgrade_context{
@@ -190,13 +192,19 @@ void lcc_set_eventid_in_data(struct lcc_can_frame* frame, uint64_t event_id);
 
 uint64_t lcc_get_eventid_from_data(struct lcc_can_frame* frame);
 
-void event_list_add_event(struct event_list* list, uint64_t event_id);
+void event_list_add_event(struct event_list* list, uint64_t event_id, int sort);
 
 void event_list_remove_event(struct event_list* list, uint64_t event_id);
 
 void event_list_clear(struct event_list* list);
 
 int event_list_has_event(struct event_list* list, uint64_t event_id);
+
+/**
+ * Sort the event list.  Required for the bsearch to work properly.
+ * @param list
+ */
+void event_list_sort(struct event_list* list);
 
 /**
  * Send out all of the events that we produce.  Internal method, do not call.
