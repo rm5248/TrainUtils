@@ -3,7 +3,14 @@
 
 // Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
 // Earlier shields use the MCP2515
-#define CAN_CHIP CAN_CHIP_MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2518
+
+// Set to 0 to not blink the builtin LED.
+// On the Uno, the builtin LED uses the same line as the SPI SCK.
+// This must be set to 0 on the Uno R4, as otherwise the SCK line
+// will stay high all the time.  The Uno R3(AVR-based) doesn't
+// need this to be set to 0, but it's probably a good idea.
+#define BUILTIN_LED_BLINK 0
 
 #if CAN_CHIP == CAN_CHIP_MCP2518
 #include <ACAN2517.h>
@@ -158,8 +165,10 @@ void setup () {
   // is received from the LCC bus
   lcc_event_set_incoming_event_function(evt_ctx, incoming_lcc_event);
 
-  pinMode (LED_BUILTIN, OUTPUT) ;
-  digitalWrite (LED_BUILTIN, HIGH) ;
+  if(BUILTIN_LED_BLINK){
+    pinMode (LED_BUILTIN, OUTPUT) ;
+    digitalWrite (LED_BUILTIN, HIGH) ;
+  }
 
   // The LEDs that correspond to the switches we are controlling
   // LED 5 corresponds to switch 10
@@ -215,7 +224,7 @@ void loop() {
     lcc_context_incoming_frame(ctx, &lcc_frame);
   }
 
-  if (gBlinkLedDate < millis ()) {
+  if (gBlinkLedDate < millis () && BUILTIN_LED_BLINK) {
     gBlinkLedDate += 1000 ;
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
   }

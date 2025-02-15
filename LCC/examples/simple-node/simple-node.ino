@@ -3,7 +3,7 @@
 
 // Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
 // Earlier shields use the MCP2515
-#define CAN_CHIP CAN_CHIP_MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2518
 
 // Set to 0 to not blink the builtin LED.
 // On the Uno, the builtin LED uses the same line as the SPI SCK.
@@ -24,7 +24,7 @@
 #include <lcc-datagram.h>
 #include <lcc-event.h>
 
-// Updated 2024-10-20
+// Updated 2025-02-15
 
 static const byte MCP_CS  = 8 ; // CS input of CAN controller
 static const byte MCP_INT =  2 ; // INT output of CAN controller

@@ -7,16 +7,18 @@
  * to the user(and can be used by other LCC connected nodes).
  *
  * This example handles just a single track crossing.
+ *
+ * NOTE: This will not work on an AVR based UNO due to RAM restrictions.  It does work on a Mega.
  */
 
- // Updated 2024-05-06
+ // Updated 2025-02-15
 
 #define CAN_CHIP_MCP2518 2518
 #define CAN_CHIP_MCP2515 2515
 
 // Select which CAN chip to use.  The new Snowball Creek shields(Rev 4) use the MCP2518(compatible with MCP2517)
 // Earlier shields use the MCP2515
-#define CAN_CHIP CAN_CHIP_MCP2515
+#define CAN_CHIP CAN_CHIP_MCP2518
 
 #if CAN_CHIP == CAN_CHIP_MCP2518
 #include <ACAN2517.h>
@@ -512,7 +514,7 @@ void setup() {
   lcc_datagram_context_new(ctx);
   struct lcc_memory_context* mem_ctx = lcc_memory_new(ctx);
 
-  lcc_memory_set_cdi(mem_ctx, cdi, sizeof(cdi), LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM);
+  lcc_memory_set_cdi(mem_ctx, (void*)cdi, sizeof(cdi), LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM);
   lcc_memory_set_memory_functions(mem_ctx, 
     mem_address_space_information_query,
     mem_address_space_read,
