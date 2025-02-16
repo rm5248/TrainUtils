@@ -593,7 +593,7 @@ uint32_t lcc_library_version(){
     // On Arduino, we can't get the library version from the cmake configuration file.
     // We can at least check the versions when using CMake.
 #define MAJOR 0ll
-#define MINOR 6ll
+#define MINOR 7ll
 #define MICRO 0ll
 
 #ifdef LIBLCC_MAJOR
