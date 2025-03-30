@@ -39,6 +39,8 @@ struct lcc_can_frame;
 
 struct lcc_firmware_upgrade_context;
 
+struct lcc_cdi_control;
+
 enum lcc_producer_state{
     LCC_PRODUCER_VALID,
     LCC_PRODUCER_INVALID,

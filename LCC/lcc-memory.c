@@ -7,6 +7,7 @@
 #include "lcc-memory.h"
 #include "lcc-common-internal.h"
 #include "lcc-datagram.h"
+#include "lcc-cdi-control.h"
 
 #ifdef ARDUINO
 #include <avr/pgmspace.h>
@@ -60,7 +61,11 @@ int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_l
 
     ctx->cdi_data = cdi_data;
     ctx->cdi_flags = flags;
-    ctx->cdi_length = cdi_len;
+    if(flags & LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT){
+        ctx->cdi_length = lcc_cdi_control_xml_length(cdi_data);
+    }else{
+        ctx->cdi_length = cdi_len;
+    }
 
     return LCC_OK;
 }

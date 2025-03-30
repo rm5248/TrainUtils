@@ -14,6 +14,7 @@
 #define LCC_MEMORY_CDI_FLAG_NONE    0
 //#define LCC_MEMORY_CDI_FLAG_COMPRESSED (0x01 << 0)
 #define LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM (0x01 << 1)
+#define LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT (0x01 << 2)
 
 #define LCC_MEMORY_FLAG_SPACE_READ_ONLY (0x01)
 #define LCC_MEMORY_FLAG_SPACE_WRITEABLE (0x00)
@@ -43,9 +44,13 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx);
  *
  * If you need special handling for your CDI, do not set this data.
  *
+ * Note: cdi_data is assumed to be a string, unless the LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT is set,
+ * in which case it is assumed to be of type struct lcc_cdi_control
+ *
  * @param ctx
  * @param cdi_data the raw CDI data
- * @param cdi_len The length of the CDI data.
+ * @param cdi_len The length of the CDI data, when the data is a string.  Ignored if the
+ * CDI data is of type struct lcc_cdi_control
  * @param flags Flags for the data.
  * @return
  */

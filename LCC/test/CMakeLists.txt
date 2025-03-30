@@ -40,3 +40,12 @@ add_test( NAME encode_2048_2 COMMAND lcc-test-events encode_2048_2 )
 add_executable(lcc-test-implementation test-implementation.c)
 target_link_libraries(lcc-test-implementation lcc)
 target_include_directories(lcc-test-implementation PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+#
+# Test CDI
+#
+add_executable(lcc-test-cdi test-cdi.c)
+target_link_libraries(lcc-test-cdi lcc)
+target_include_directories(lcc-test-cdi PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+add_test( NAME cdi_control1 COMMAND lcc-test-cdi control1 )

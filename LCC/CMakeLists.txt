@@ -49,6 +49,8 @@ add_library(lcc STATIC
     lcc-clock.c
     lcc-firmware-upgrade.h
     lcc-firmware-upgrade.c
+    lcc-cdi-control.h
+    lcc-cdi-control.c
 )
 target_compile_definitions(lcc PRIVATE
     LIBLCC_BUILD
