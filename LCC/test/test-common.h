@@ -16,8 +16,8 @@ struct lcc_context** lcctest_create_contexts(int num);
 /**
  * Free the lcc_contexts created by lcctest_create_context.
  */
-void lcctest_free_contexts();
+void lcctest_free_contexts(void);
 
-void lcctest_pump_frames();
+void lcctest_pump_frames(void);
 
 #endif

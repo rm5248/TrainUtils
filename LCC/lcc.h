@@ -170,7 +170,7 @@ struct lcc_remote_memory_context* lcc_context_get_remote_memory_context(struct l
  * Get the version of LibLCC.
  * @return
  */
-uint32_t lcc_library_version();
+uint32_t lcc_library_version(void);
 
 #ifdef __cplusplus
 } /* extern C */

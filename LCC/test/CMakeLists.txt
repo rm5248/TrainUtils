@@ -44,7 +44,10 @@ target_include_directories(lcc-test-implementation PRIVATE "${CMAKE_CURRENT_SOUR
 #
 # Test CDI
 #
-add_executable(lcc-test-cdi test-cdi.c)
+configure_file(xml-logical-difftool/logic-xml-diff.sh xml-logical-difftool/logic-xml-diff.sh COPYONLY)
+configure_file(xml-logical-difftool/indent-and-sort-attr.xsl xml-logical-difftool/indent-and-sort-attr.xsl COPYONLY)
+
+add_executable(lcc-test-cdi test-cdi.c test-common.c)
 target_link_libraries(lcc-test-cdi lcc)
 target_include_directories(lcc-test-cdi PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 

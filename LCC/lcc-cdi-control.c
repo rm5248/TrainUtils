@@ -66,9 +66,11 @@ static void output_input(struct lcc_cdi_input* input, lcc_cdi_xml_data xml_cb, v
     append_string(input->name, xml_cb, cb_data);
     append_string("</name>", xml_cb, cb_data);
 
-    append_string("<description>", xml_cb, cb_data);
-    append_string(input->description, xml_cb, cb_data);
-    append_string("</description>", xml_cb, cb_data);
+    if(input->description != NULL){
+        append_string("<description>", xml_cb, cb_data);
+        append_string(input->description, xml_cb, cb_data);
+        append_string("</description>", xml_cb, cb_data);
+    }
 
     if(input->min != 0){
         snprintf(tmp_buffer, sizeof(tmp_buffer), "<min>%d</min>",
@@ -127,7 +129,7 @@ static void output_group(struct lcc_cdi_group* group, lcc_cdi_xml_data xml_cb, v
     }
 
     struct lcc_cdi_input* input = group->inputs;
-    while(input != NULL){
+    while(input != NULL && input->name != NULL){
         output_input(input, xml_cb, cb_data);
         input++;
     }
@@ -177,14 +179,14 @@ xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">", x
 
         // Output all of our groups
         struct lcc_cdi_group* group = segment->groups;
-        while(group != NULL){
+        while(group != NULL && group->name != NULL){
             output_group(group, xml_cb, cb_data);
             group++;
         }
 
         // Output all of our inputs
         struct lcc_cdi_input* input = segment->inputs;
-        while(input != NULL){
+        while(input != NULL && input->name != NULL){
             output_input(input, xml_cb, cb_data);
             input++;
         }
