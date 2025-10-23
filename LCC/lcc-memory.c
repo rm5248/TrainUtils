@@ -309,6 +309,10 @@ static int lcc_memory_handle_datagram_cdi_memory_space(struct lcc_memory_context
     return 0;
 }
 
+static void cdi_data_callback(const char* str, int len, void* cb_data){
+    memcpy(cb_data, str, len);
+}
+
 static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
     if(data_len < 6 || data_len > 7){
         return 0;
@@ -337,7 +341,23 @@ static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* 
     // Let's go and read the data and return it.
     uint32_t starting_address = lcc_uint32_from_data(data + 2);
 
-    int stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, ctx->cdi_data + starting_address, num_bytes_to_read);
+    int stat;
+    if(ctx->cdi_flags & LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT){
+        // Generate the CDI on-demand and send it
+        char cdi_buffer[64];
+        int cdi_offset = 0;
+        stat = 0;
+
+        stat = lcc_cdi_control_to_xml(ctx->cdi_data, cdi_data_callback, cdi_buffer);
+        while(cdi_offset < starting_address){
+            cdi_offset += 64;
+            stat = lcc_cdi_control_to_xml(ctx->cdi_data, cdi_data_callback, cdi_buffer);
+        }
+
+        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, cdi_buffer + (starting_address % 64), num_bytes_to_read);
+    }else{
+        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, ctx->cdi_data + starting_address, num_bytes_to_read);
+    }
 
     if(stat == 0){
         return 1;

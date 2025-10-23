@@ -227,6 +227,43 @@ static int control2(void){
     return WEXITSTATUS(val);
 }
 
+static int control_set_cdi_context(){
+    const char* xml = "<cdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/schema/cdi/1/1/cdi.xsd'> \
+    <identification> \
+    <manufacturer>MyMFG</manufacturer> \
+    <model>MyModel</model> \
+    <hardwareVersion>HW-1.2.3</hardwareVersion> \
+    <softwareVersion>SW-4.5.6</softwareVersion> \
+    </identification> \
+    </cdi>";
+
+    struct lcc_cdi_control cdi_control = {0};
+
+    struct lcc_context** both_ctx = lcctest_create_contexts(2);
+    lcc_context_set_simple_node_information(both_ctx[0],
+                                            "MyMFG",
+                                            "MyModel",
+                                            "HW-1.2.3",
+                                            "SW-4.5.6");
+    struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(both_ctx[0]);
+    struct lcc_memory_context* mem_ctx = lcc_memory_new(both_ctx[0]);
+    lcc_memory_set_cdi(mem_ctx, &cdi_control, 0, LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT);
+
+    struct test_file_info expected = create_tmp_file_and_write(xml);
+    struct test_file_info actual = create_tmp_file_and_write(NULL);
+
+    // TODO need to finish up here by writing
+
+    char to_exec[512];
+    snprintf(to_exec, sizeof(to_exec), "xml-logical-difftool/logic-xml-diff.sh %s %s", expected.file_name, actual.file_name);
+    int val = system(to_exec);
+
+    delete_file(expected);
+    delete_file(actual);
+
+    return WEXITSTATUS(val);
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -234,6 +271,8 @@ int main(int argc, char** argv){
         return control1();
     }else if(strcmp(argv[1], "control2") == 0){
         return control2();
+    }else if(strcmp(argv[1], "control-set-cdi-context") == 0){
+        return control_set_cdi_context();
     }
 
     return 1;
