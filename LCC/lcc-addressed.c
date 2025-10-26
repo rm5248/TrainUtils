@@ -44,6 +44,7 @@ int lcc_handle_addressed(struct lcc_context* ctx, struct lcc_can_frame* frame){
             // TODO this should maybe be a bit smarter(e.g. pass in CDI as configuration
             // option to the lcc_context), but this suffices for now.
             ret_frame.data[3] |= 0x08; /* CDI protocol */
+            ret_frame.data[2] |= 0x10; /* Assume if we have CDI, we can configure our memory */
         }
         ret_frame.data[4] = 0;
         if(ctx->firmware_upgrade_context){
