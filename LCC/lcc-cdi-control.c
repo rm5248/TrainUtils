@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "lcc-cdi-control.h"
 #include "lcc-common.h"
@@ -10,9 +11,29 @@ static char cdi_buffer[64];
 static int cdi_buffer_loc = 0;
 static char tmp_buffer[64];
 
+struct OffsetParseState{
+    int current_offset;
+    int desired_offset;
+    int success;
+    char* buffer_output;
+};
+
 static void lcc_cdi_xml_data_count(const char*, int len, void* cb_data){
     int* i = cb_data;
     *i += len;
+}
+
+static void lcc_cdi_xml_data_at_offset(const char* data, int len, void* cb_data){
+    struct OffsetParseState* state = cb_data;
+
+    // For now, assume that CDI data is only requested on 64-byte
+    // boundaries.
+    if(state->current_offset == state->desired_offset){
+        state->success = 1;
+        memcpy(state->buffer_output, data, len);
+    }
+
+    state->current_offset += len;
 }
 
 static void append_char(char c, lcc_cdi_xml_data xml_cb, void* cb_data){
@@ -206,7 +227,7 @@ xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">", x
 
 int lcc_cdi_control_xml_length(struct lcc_cdi_control* cdi_control){
     if(cdi_control == NULL){
-        return LCC_ERRCODE_INVALID_ARG;
+        return LCC_ERROR_INVALID_ARG;
     }
 
     int len = 0;
@@ -216,4 +237,29 @@ int lcc_cdi_control_xml_length(struct lcc_cdi_control* cdi_control){
     }
 
     return len;
+}
+
+int lcc_cdi_control_to_xml_at_offset(struct lcc_cdi_control* cdi_control, int offset, char* data_buffer){
+    struct OffsetParseState parse_state;
+    parse_state.current_offset = 0;
+    parse_state.desired_offset = offset;
+    parse_state.buffer_output = data_buffer;
+    parse_state.success = 0;
+
+    if(cdi_control == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    memset(data_buffer, 0, 64);
+
+    int ret = lcc_cdi_control_to_xml(cdi_control, lcc_cdi_xml_data_at_offset, &parse_state);
+    if(ret < 0){
+        return ret;
+    }
+
+    if(parse_state.success){
+        return LCC_OK;
+    }
+
+    return LCC_ERROR_GENERIC;
 }

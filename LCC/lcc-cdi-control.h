@@ -70,4 +70,14 @@ int lcc_cdi_control_to_xml(struct lcc_cdi_control* cdi_control, lcc_cdi_xml_data
  */
 int lcc_cdi_control_xml_length(struct lcc_cdi_control* cdi_control);
 
+/**
+ * Get a chunk of the CDI at the pscified offset
+ *
+ * @param cdi_control
+ * @param offset Offset of the CDI to get
+ * @param data_buffer The buffer to put XML data in to.  Must be at least 64 bytes long
+ * @return
+ */
+int lcc_cdi_control_to_xml_at_offset(struct lcc_cdi_control* cdi_control, int offset, char* data_buffer);
+
 #endif // LCC_CDI_CONTROL_H
