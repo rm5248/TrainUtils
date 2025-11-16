@@ -54,3 +54,5 @@ target_include_directories(lcc-test-cdi PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/.."
 add_test( NAME cdi_control1 COMMAND lcc-test-cdi control1 )
 add_test( NAME cdi_control2 COMMAND lcc-test-cdi control2 )
 add_test( NAME control-set-cdi-context COMMAND lcc-test-cdi control-set-cdi-context )
+add_test( NAME control-xml-offset-0 COMMAND lcc-test-cdi control-xml-offset-0)
+add_test( NAME control-xml-offset-128 COMMAND lcc-test-cdi control-xml-offset-128)
