@@ -1,5 +1,5 @@
 name=LibLCC
-version=0.7.0
+version=${LIBLCC_VERSION}
 author=Robert Middleton
 sentence=A library for interfacing with LCC(Layout Command Control)
 paragraph=

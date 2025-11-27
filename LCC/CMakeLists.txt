@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.31)
 include(lcc-version)
 project( LibLCC
         VERSION ${LIBLCC_VERSION}
@@ -19,8 +19,8 @@ set(headers
     simplelogger_defs.h
 )
 
-add_library(lcc STATIC
-    ${headers}
+set(lcc_sources
+    simplelogger.h
     lcc-simple.h
     lcc-common-internal.h
     lcc-common-internal.c
@@ -51,6 +51,11 @@ add_library(lcc STATIC
     lcc-firmware-upgrade.c
     lcc-cdi-control.h
     lcc-cdi-control.c
+)
+
+add_library(lcc STATIC
+    ${headers}
+    ${lcc_sources}
 )
 target_compile_definitions(lcc PRIVATE
     LIBLCC_BUILD
@@ -141,6 +146,40 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/liblccConfigVersio
 )
 install(FILES   "${CMAKE_CURRENT_BINARY_DIR}/liblccConfigVersion.cmake"
   DESTINATION   ${CMAKE_INSTALL_LIBDIR}/cmake/liblcc
+)
+
+#
+# Arduino package creation
+#
+set(arduino-dir "${CMAKE_CURRENT_BINARY_DIR}/liblcc-arduino-${LIBLCC_VERSION}")
+file(MAKE_DIRECTORY "${arduino-dir}")
+file(MAKE_DIRECTORY "${arduino-dir}/src")
+configure_file(library.properties.in "${arduino-dir}/library.properties")
+# Copy the README and COPYING files
+configure_file(arduino-files/README.md
+    "${arduino-dir}/README.md"
+    COPYONLY
+)
+configure_file(arduino-files/COPYING
+    "${arduino-dir}/COPYING"
+    COPYONLY
+)
+# Copy all of the source code and examples
+foreach(file IN LISTS headers lcc_sources)
+    configure_file(${file}
+        "${arduino-dir}/src/${file}"
+        COPYONLY
+    )
+endforeach()
+file(COPY examples
+    DESTINATION "${arduino-dir}"
+)
+# Now let's create a ZIP file with everything in it
+file(ARCHIVE_CREATE
+    OUTPUT liblcc-arduino-${LIBLCC_VERSION}.zip
+    FORMAT zip
+    PATHS "liblcc-arduino-${LIBLCC_VERSION}/"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 #

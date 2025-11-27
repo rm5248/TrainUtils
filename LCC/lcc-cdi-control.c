@@ -18,7 +18,7 @@ struct OffsetParseState{
     char* buffer_output;
 };
 
-static void lcc_cdi_xml_data_count(const char*, int len, void* cb_data){
+static void lcc_cdi_xml_data_count(const char* ignore, int len, void* cb_data){
     int* i = cb_data;
     *i += len;
 }
@@ -158,6 +158,11 @@ static void output_group(struct lcc_cdi_group* group, lcc_cdi_xml_data xml_cb, v
     append_string("</group>", xml_cb, cb_data);
 }
 
+#ifdef LCC_SIMPLE_NODE_INFO_SMALL
+int lcc_cdi_control_to_xml(struct lcc_cdi_control* cdi_control, lcc_cdi_xml_data xml_cb, void* cb_data){
+    return 0;
+}
+#else
 int lcc_cdi_control_to_xml(struct lcc_cdi_control* cdi_control, lcc_cdi_xml_data xml_cb, void* cb_data){
     cdi_buffer_loc = 0;
 
@@ -224,6 +229,7 @@ xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/cdi/1/1/cdi.xsd\">", x
 
     return LCC_OK;
 }
+#endif
 
 int lcc_cdi_control_xml_length(struct lcc_cdi_control* cdi_control){
     if(cdi_control == NULL){
