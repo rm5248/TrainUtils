@@ -140,7 +140,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
         const char* message_string = NULL;
 
         if(data_len > data_starting_byte){
-            message_string = data[data_starting_byte + 2];
+            message_string = &data[data_starting_byte + 2];
         }
 
         if(ctx->read_rejected){
