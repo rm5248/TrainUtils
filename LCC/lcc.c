@@ -590,31 +590,9 @@ struct lcc_remote_memory_context* lcc_context_get_remote_memory_context(struct l
 }
 
 uint32_t lcc_library_version(){
-    // On Arduino, we can't get the library version from the cmake configuration file.
-    // We can at least check the versions when using CMake.
-#define MAJOR 0ll
-#define MINOR 7ll
-#define MICRO 0ll
-
-#ifdef LIBLCC_MAJOR
-
-#if LIBLCC_MAJOR != MAJOR
-#error "Major number bad!"
-#endif
-
-#if LIBLCC_MINOR != MINOR
-#error "Minor number bad!"
-#endif
-
-#if LIBLCC_MICRO != MICRO
-#error "Micro number bad!"
-#endif
-
-#endif
-
-    const uint32_t lib_version = MAJOR << 16 |
-                                          MINOR << 8 |
-                                          MICRO << 0;
+    const uint32_t lib_version = LIBLCC_MAJOR << 16 |
+                                          LIBLCC_MINOR << 8 |
+                                          LIBLCC_MICRO << 0;
     return lib_version;
 }
 

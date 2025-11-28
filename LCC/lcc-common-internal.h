@@ -18,15 +18,7 @@
 #define LCC_SIMPLE_NODE_INFO_SMALL 1
 #endif
 
-#ifdef LIBLCC_HAS_CONFIG_H
 #include "lcc-config.h"
-#endif
-
-#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
-#ifndef LIBLCC_EVENT_LIST_STATIC_SIZE
-#define LIBLCC_EVENT_LIST_STATIC_SIZE 10
-#endif
-#endif
 
 #define SIMPLELOGGER_LOG_FUNCTION_NAME lcc_global_log
 #include "simplelogger.h"

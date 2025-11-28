@@ -59,10 +59,6 @@ add_library(lcc STATIC
 )
 target_compile_definitions(lcc PRIVATE
     LIBLCC_BUILD
-    LIBLCC_MAJOR=${PROJECT_VERSION_MAJOR}
-    LIBLCC_MINOR=${PROJECT_VERSION_MINOR}
-    LIBLCC_MICRO=${PROJECT_VERSION_PATCH}
-    LIBLCC_HAS_CONFIG_H
 )
 target_include_directories( lcc INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
@@ -164,6 +160,7 @@ configure_file(arduino-files/COPYING
     "${arduino-dir}/COPYING"
     COPYONLY
 )
+configure_file( lcc-config-arduino.h.cmake "${arduino-dir}/src/lcc-config.h" )
 # Copy all of the source code and examples
 foreach(file IN LISTS headers lcc_sources)
     configure_file(${file}
