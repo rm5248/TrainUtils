@@ -51,6 +51,8 @@ set(lcc_sources
     lcc-firmware-upgrade.c
     lcc-cdi-control.h
     lcc-cdi-control.c
+    lcc-train-control.h
+    lcc-train-control.c
 )
 
 add_library(lcc STATIC

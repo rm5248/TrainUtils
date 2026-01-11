@@ -168,6 +168,9 @@ void lcc_context_free(struct lcc_context* ctx){
     if(ctx->memory_context){
         free(ctx->memory_context);
     }
+    if(ctx->train_control){
+        free(ctx->train_control);
+    }
     free(ctx);
 #endif
 }

@@ -163,6 +163,9 @@ struct lcc_context{
 
     // Firmware upgrade handling
     struct lcc_firmware_upgrade_context* firmware_upgrade_context;
+
+    // Train control
+    struct lcc_train_control_context* train_control;
 };
 
 #define LCC_FLAG_FRAME_ONLY 0
