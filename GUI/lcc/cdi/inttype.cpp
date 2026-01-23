@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <QStack>
-#include <QStringRef>
 #include <QXmlStreamReader>
 #include "inttype.h"
 
@@ -19,7 +18,7 @@ IntType IntType::createFromXML(QXmlStreamReader* xml){
         return i;
     }
 
-    QStack<QStringRef> tagStack;
+    QStack<QStringView> tagStack;
     type = xml->readNext();
 
     while(!xml->atEnd()){

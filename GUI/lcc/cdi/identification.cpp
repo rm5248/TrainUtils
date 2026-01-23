@@ -34,7 +34,7 @@ Identification Identification::createFromXML(QXmlStreamReader* xml){
         return i;
     }
 
-    QStack<QStringRef> tagStack;
+    QStack<QStringView> tagStack;
     type = xml->readNext();
 
     while(!xml->atEnd()){

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <QXmlStreamReader>
 #include <QStack>
-#include <QStringRef>
 
 #include "grouptype.h"
 
@@ -26,7 +25,7 @@ GroupType GroupType::createFromXML(QXmlStreamReader* xml){
         g.m_replication = attrs.value("replication").toInt();
     }
 
-    QStack<QStringRef> tagStack;
+    QStack<QStringView> tagStack;
     type = xml->readNext();
 
     while(!xml->atEnd()){

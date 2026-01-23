@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <QXmlStreamReader>
 #include <QStack>
-#include <QStringRef>
 
 #include "segment.h"
 #include "grouptype.h"
@@ -21,7 +20,7 @@ Segment Segment::createFromXML(QXmlStreamReader* xml){
         return s;
     }
 
-    QStack<QStringRef> tagStack;
+    QStack<QStringView> tagStack;
     type = xml->readNext();
 
     while(!xml->atEnd()){

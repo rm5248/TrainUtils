@@ -29,7 +29,7 @@ void LCCNetworkConnection::connectToRemote(QHostAddress addr, uint16_t port){
 }
 
 void LCCNetworkConnection::stateChanged(QAbstractSocket::SocketState state){
-    LOG4CXX_DEBUG_FMT(logger, "LCC socket state: {}", state);
+    LOG4CXX_DEBUG_FMT(logger, "LCC socket state: {}", (int)state);
 
     if(state == QAbstractSocket::ConnectedState){
         connectedToSystem();

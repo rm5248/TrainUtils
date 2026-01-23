@@ -4,6 +4,7 @@
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
 #include <QHostAddress>
+#include <QAbstractSocket>
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.loconet.LoconetNetworkConnection" );
 
@@ -26,7 +27,7 @@ void LoconetNetworkConnection::connectToRemote(QHostAddress addr, uint16_t port)
 }
 
 void LoconetNetworkConnection::stateChanged(QAbstractSocket::SocketState state){
-    LOG4CXX_DEBUG_FMT(logger, "Loconet socket state: {}", state);
+    LOG4CXX_DEBUG_FMT(logger, "Loconet socket state: {}", (int)state);
 
     if(state == QAbstractSocket::ConnectedState){
         connectedToSystem();

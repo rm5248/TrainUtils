@@ -163,13 +163,13 @@ pkg_check_modules( train-required REQUIRED
 )
 find_package(log4cxx CONFIG REQUIRED)
 find_package(log4cxx-qt CONFIG REQUIRED)
-find_package(qtadvanceddocking CONFIG REQUIRED)
+find_package(qtadvanceddocking-qt6 CONFIG REQUIRED)
 
 target_link_libraries(train-gui PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::SerialPort
     Qt${QT_VERSION_MAJOR}::Network
-    ads::qtadvanceddocking
+    ads::qtadvanceddocking-qt6
     ${train-required_LIBRARIES}
     ${train-required-dbus_LIBRARIES}
     lcc
