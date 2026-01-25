@@ -111,6 +111,9 @@ set(PROJECT_SOURCES
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
         trainutils.qrc
+        panels/paneldisplay.h panels/paneldisplay.cpp
+        panels/turnoutdisplay.h panels/turnoutdisplay.cpp
+        panels/panellayout.h panels/panellayout.cpp
 )
 
 if(UNIX)

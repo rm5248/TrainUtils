@@ -16,6 +16,7 @@
 #include "throttledisplay.h"
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
+#include "panels/paneldisplay.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -356,5 +357,14 @@ void MainWindow::on_action_loconet_manual_Serial_triggered()
         addSubmenusLoconetConnection(menu, conn->name());
         newConnectionMade(conn);
     }
+}
+
+
+void MainWindow::on_actionPanel_triggered()
+{
+    ads::CDockWidget* DockWidget = new ads::CDockWidget("Panel");
+    PanelDisplay* panelDisp = new PanelDisplay(this);
+    DockWidget->setWidget(panelDisp);
+    m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 }
 

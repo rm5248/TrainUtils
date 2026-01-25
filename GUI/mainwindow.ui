@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>24</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuTrainGUI">
@@ -70,10 +70,17 @@
     <addaction name="menu_lcc_Connect_To"/>
     <addaction name="separator"/>
    </widget>
+   <widget class="QMenu" name="menuPanels">
+    <property name="title">
+     <string>Panels</string>
+    </property>
+    <addaction name="actionPanel"/>
+   </widget>
    <addaction name="menuTrainGUI"/>
    <addaction name="menuLoconet"/>
    <addaction name="menuNCE"/>
    <addaction name="menuLCC"/>
+   <addaction name="menuPanels"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionExit">
@@ -119,6 +126,11 @@
   <action name="action_lcc_Manual_Serial">
    <property name="text">
     <string>Manual Serial</string>
+   </property>
+  </action>
+  <action name="actionPanel">
+   <property name="text">
+    <string>Panel</string>
    </property>
   </action>
  </widget>
