@@ -6,6 +6,7 @@
 #include "lcc-common-internal.h"
 #include "lcc-memory.h"
 #include "lcc-datagram.h"
+#include "lcc-firmware-upgrade.h"
 
 struct lcc_firmware_upgrade_context* lcc_firmware_upgrade_new(struct lcc_context* parent){
 #ifdef LIBLCC_ENABLE_STATIC_CONTEXT
