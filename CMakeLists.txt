@@ -6,10 +6,10 @@ include( GNUInstallDirs )
 
 option (BUILD_CABBUS_SNIFFER
         "Build the CabBus sniffer project"
-		ON)
+                OFF)
 option (BUILD_LOCONET_SNIFFER
         "Build the LocoNet sniffer project"
-		ON)
+                OFF)
 option (BUILD_CAB2LOCONET_COMPUTER
         "Build the Cab2Loconet program for use with a computer"
 		OFF)
@@ -31,7 +31,7 @@ ENDIF( NOT UNIX )
 
 IF( UNIX )
     include( FindPkgConfig )
-    pkg_check_modules( CSERIAL REQUIRED cserial )
+    pkg_check_modules( CSERIAL cserial )
 ENDIF( UNIX )
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
@@ -54,9 +54,12 @@ endif()
 #    -fsanitize=enum" )
 
 add_subdirectory(CabBusCommunications)
-add_subdirectory(CabBusSniffer)
+
+if(BUILD_CABBUS_SNIFFER)
+  add_subdirectory(CabBusSniffer)
+endif()
+
 add_subdirectory(LocoNetCommunications)
-add_subdirectory(LoconetSniffer)
 add_subdirectory(LoconetTCPUtil)
 add_subdirectory(LCC)
 
@@ -66,16 +69,21 @@ endif()
 if(BUILD_DCC_UTIL)
     add_subdirectory(DCC)
 endif()
+if(BUILD_LOCONET_SNIFFER)
+  add_subdirectory(LoconetSniffer)
+endif()
+
 
 IF( BUILD_CAB2LOCONET_COMPUTER )
-    IF( UNIX )
-        pkg_check_modules( POPT REQUIRED popt )
-    ENDIF( UNIX )
+  add_subdirectory(CabBusToLoconetComputer)
+    # IF( UNIX )
+    #     # pkg_check_modules( POPT REQUIRED popt )
+    # ENDIF( UNIX )
 
-    include_directories( LocoNetCommunications CabBusCommunications )
+    # include_directories( LocoNetCommunications CabBusCommunications )
     
-    add_executable( Cab2Loconet  CabBusToLoconetComputer/CabBusToLoconet.c CabBusToLoconetComputer/main_linux.c )
-    target_link_libraries( Cab2Loconet PRIVATE cabbus_utils loconet_utils ${POPT_LIBRARIES} ${CSERIAL_LIBRARIES} )
+    # add_executable( Cab2Loconet  CabBusToLoconetComputer/CabBusToLoconet.c CabBusToLoconetComputer/main_linux.c )
+    # target_link_libraries( Cab2Loconet PRIVATE cabbus_utils loconet_utils ${POPT_LIBRARIES} ${CSERIAL_LIBRARIES} )
 ENDIF( BUILD_CAB2LOCONET_COMPUTER )
 
 if(UNIX)
