@@ -198,3 +198,5 @@ install(TARGETS train-gui
         RUNTIME DESTINATION bin
         CONFIGURATIONS Release
 )
+
+configure_file(log4cxx.xml ${CMAKE_CURRENT_BINARY_DIR}/log4cxx.xml COPYONLY)

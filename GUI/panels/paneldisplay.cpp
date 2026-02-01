@@ -18,7 +18,7 @@ PanelDisplay::PanelDisplay(QWidget *parent)
 //    PanelLayout* pl = new PanelLayout(this);
 //    QHBoxLayout* pl = new QHBoxLayout(this);
     TurnoutDisplay* td = new TurnoutDisplay(this);
-    td->setGeometry(50, 50, 200, 200);
+    td->setGeometry(50, 50, td->width(), td->height());
 //    pl->addWidget(td);
 //    this->setLayout(pl);
 }
@@ -48,4 +48,40 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
                       event->pos().x(),
                       event->pos().y(),
                       widgetAtPos ? "valid" : "invalid");
+
+    if(!widgetAtPos){
+        m_movingWidget = nullptr;
+        return;
+    }
+
+    if(event->button() == Qt::RightButton){
+        m_movingWidget = widgetAtPos;
+        m_movingWidgetStart = widgetAtPos->pos();
+        m_mouseStart = event->pos();
+    }else{
+        m_movingWidget = nullptr;
+    }
+}
+
+void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
+    if(m_movingWidget == nullptr){
+        return;
+    }
+
+    int newX = m_movingWidgetStart.x();
+    int newY = m_movingWidgetStart.y();
+    int diffX = std::abs(m_mouseStart.x() - event->pos().x());
+    int diffY = std::abs(m_mouseStart.y() - event->pos().y());
+    if(event->pos().x() < m_mouseStart.x()){
+        newX -= diffX;
+    }else{
+        newX += diffX;
+    }
+    if(event->pos().y() < m_mouseStart.y()){
+        newY -= diffY;
+    }else{
+        newY += diffY;
+    }
+
+    m_movingWidget->setGeometry(newX, newY, m_movingWidget->width(), m_movingWidget->height());
 }

@@ -16,10 +16,14 @@ protected:
     QSize sizeHint() const override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
     QVector<TurnoutDisplay*> m_turnouts;
-
+    QWidget* m_movingWidget = nullptr;
+    QPoint m_movingWidgetStart;
+    QPoint m_mouseStart;
+    bool m_editing = false;
 };
 
 #endif // PANELDISPLAY_H
