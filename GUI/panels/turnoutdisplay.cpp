@@ -62,3 +62,12 @@ QSize TurnoutDisplay::sizeHint() const
 
 // void TurnoutDisplay::mouseMoveEvent(QMouseEvent* event){
 // }
+
+
+QString TurnoutDisplay::turnout(){
+    return m_turnout;
+}
+
+void TurnoutDisplay::setTurnout(QString turnout){
+    m_turnout = turnout;
+}

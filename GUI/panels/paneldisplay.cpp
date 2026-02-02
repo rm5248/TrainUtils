@@ -9,6 +9,7 @@
 
 #include "paneldisplay.h"
 #include "panellayout.h"
+#include "paneltoolswidget.h"
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.PanelDisplay");
 
@@ -51,8 +52,10 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
 
     if(!widgetAtPos){
         m_movingWidget = nullptr;
+        m_tools->setCurrentSelectedWidget(nullptr);
         return;
     }
+    m_tools->setCurrentSelectedWidget(widgetAtPos);
 
     if(event->button() == Qt::RightButton){
         m_movingWidget = widgetAtPos;
@@ -84,4 +87,8 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
     }
 
     m_movingWidget->setGeometry(newX, newY, m_movingWidget->width(), m_movingWidget->height());
+}
+
+void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
+    m_tools = widget;
 }

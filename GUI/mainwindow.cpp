@@ -17,6 +17,7 @@
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
 #include "panels/paneldisplay.h"
+#include "panels/paneltoolswidget.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -33,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ads::CDockManager::setAutoHideConfigFlags(ads::CDockManager::DefaultAutoHideConfig);
     m_dockManager = new ads::CDockManager(this);
 
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
@@ -366,5 +368,12 @@ void MainWindow::on_actionPanel_triggered()
     PanelDisplay* panelDisp = new PanelDisplay(this);
     DockWidget->setWidget(panelDisp);
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+    ads::CDockWidget* toolboxWidget = new ads::CDockWidget("Panel Toolbox");
+    PanelToolsWidget* panelTools = new PanelToolsWidget(this);
+    toolboxWidget->setWidget(panelTools);
+    m_dockManager->addAutoHideDockWidget(ads::SideBarLeft, toolboxWidget);
+
+    panelDisp->setPanelToolsWidget(panelTools);
 }
 

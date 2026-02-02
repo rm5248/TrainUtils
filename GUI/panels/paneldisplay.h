@@ -4,11 +4,15 @@
 #include <QWidget>
 #include "turnoutdisplay.h"
 
+class PanelToolsWidget;
+
 class PanelDisplay : public QWidget
 {
     Q_OBJECT
 public:
     explicit PanelDisplay(QWidget *parent = nullptr);
+
+    void setPanelToolsWidget(PanelToolsWidget* widget);
 
 Q_SIGNALS:
 
@@ -24,6 +28,7 @@ private:
     QPoint m_movingWidgetStart;
     QPoint m_mouseStart;
     bool m_editing = false;
+    PanelToolsWidget* m_tools = nullptr;
 };
 
 #endif // PANELDISPLAY_H

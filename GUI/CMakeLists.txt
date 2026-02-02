@@ -148,6 +148,7 @@ endif()
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui
         ${PROJECT_SOURCES}
+        panels/paneltoolswidget.h panels/paneltoolswidget.cpp panels/paneltoolswidget.ui
     )
 else()
     if(ANDROID)

@@ -6,8 +6,12 @@
 class TurnoutDisplay : public QWidget
 {
     Q_OBJECT
+    Q_PROPERTY(QString traingui_turnout READ turnout WRITE setTurnout)
 public:
     explicit TurnoutDisplay(QWidget *parent = nullptr);
+
+    QString turnout();
+    void setTurnout(QString turnout);
 
 Q_SIGNALS:
 
@@ -19,6 +23,7 @@ protected:
     // void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
+    QString m_turnout;
 };
 
 #endif // TURNOUTDISPLAY_H
