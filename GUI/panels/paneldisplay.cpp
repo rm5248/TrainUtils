@@ -57,7 +57,7 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
     }
     m_tools->setCurrentSelectedWidget(widgetAtPos);
 
-    if(event->button() == Qt::RightButton){
+    if(event->button() == Qt::RightButton && m_allowMoving){
         m_movingWidget = widgetAtPos;
         m_movingWidgetStart = widgetAtPos->pos();
         m_mouseStart = event->pos();
@@ -91,4 +91,12 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
 
 void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
     m_tools = widget;
+}
+
+void PanelDisplay::allowMovingChanged(bool allow_moving){
+    m_allowMoving = allow_moving;
+
+    if(!m_allowMoving){
+        m_movingWidget = nullptr;
+    }
 }

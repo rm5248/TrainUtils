@@ -10,6 +10,9 @@ PanelToolsWidget::PanelToolsWidget(QWidget *parent)
 {
     ui->setupUi(this);
     new QVBoxLayout(ui->toolboxWidget);
+
+    connect(ui->allowMoving, &QCheckBox::clicked,
+            this, &PanelToolsWidget::allowMovingChanged);
 }
 
 PanelToolsWidget::~PanelToolsWidget()

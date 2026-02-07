@@ -21,6 +21,9 @@ public:
      */
     void setCurrentSelectedWidget(QWidget* widget);
 
+Q_SIGNALS:
+    void allowMovingChanged(bool new_moving);
+
 private:
     Ui::PanelToolsWidget *ui;
     QVector<QWidget*> m_currentProps;

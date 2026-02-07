@@ -22,6 +22,9 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
 
+public Q_SLOTS:
+    void allowMovingChanged(bool allow_moving);
+
 private:
     QVector<TurnoutDisplay*> m_turnouts;
     QWidget* m_movingWidget = nullptr;
@@ -29,6 +32,7 @@ private:
     QPoint m_mouseStart;
     bool m_editing = false;
     PanelToolsWidget* m_tools = nullptr;
+    bool m_allowMoving = false;
 };
 
 #endif // PANELDISPLAY_H

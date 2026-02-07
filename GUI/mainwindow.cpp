@@ -374,6 +374,9 @@ void MainWindow::on_actionPanel_triggered()
     toolboxWidget->setWidget(panelTools);
     m_dockManager->addAutoHideDockWidget(ads::SideBarLeft, toolboxWidget);
 
+    connect(panelTools, &PanelToolsWidget::allowMovingChanged,
+            panelDisp, &PanelDisplay::allowMovingChanged);
+
     panelDisp->setPanelToolsWidget(panelTools);
 }
 
