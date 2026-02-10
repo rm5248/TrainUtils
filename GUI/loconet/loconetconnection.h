@@ -10,6 +10,7 @@
 #include "loconet_buffer.h"
 #include "loconet_turnout.h"
 #include "../systemconnection.h"
+#include "loconetturnout.h"
 
 class LoconetThrottle;
 
@@ -38,6 +39,8 @@ public:
      */
     std::shared_ptr<LoconetThrottle> newThrottle();
 
+    std::shared_ptr<Turnout> getDCCTurnout(int switch_num);
+
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
     void incomingLoconetMessage(loconet_message message);
@@ -52,6 +55,8 @@ private:
     static void writeCB( struct loconet_context* ctx, uint8_t* data, int len );
     static void incomingLoconetCB(struct loconet_context* ctx, struct loconet_message* msg);
     void incomingLoconet(struct loconet_message* msg);
+    static void incomingLoconetSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state);
+    void incomingLoconetSwitchChanged(int switch_num, enum loconet_turnout_status state);
 
 protected:
     struct loconet_context* m_locoContext;
@@ -61,6 +66,7 @@ private:
     QQueue<loconet_message> m_sendQueue;
     QTimer m_sendTimer;
     QVector<std::shared_ptr<LoconetThrottle>> m_throttles;
+    QMap<int,std::shared_ptr<LoconetTurnout>> m_turnouts;
 };
 
 #endif // LOCONETCONNECTION_H

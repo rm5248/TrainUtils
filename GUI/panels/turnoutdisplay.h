@@ -3,15 +3,16 @@
 
 #include <QWidget>
 
+#include "../common/turnout.h"
+
 class TurnoutDisplay : public QWidget
 {
     Q_OBJECT
-    Q_PROPERTY(QString traingui_turnout READ turnout WRITE setTurnout)
+    // Q_PROPERTY(QString traingui_turnout READ turnout WRITE setTurnout)
 public:
     explicit TurnoutDisplay(QWidget *parent = nullptr);
 
-    QString turnout();
-    void setTurnout(QString turnout);
+    void setTurnout(std::shared_ptr<Turnout> turnout);
 
 Q_SIGNALS:
 
@@ -23,7 +24,10 @@ protected:
     // void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
-    QString m_turnout;
+    void stateChanged();
+
+private:
+    std::shared_ptr<Turnout> m_turnout;
 };
 
 #endif // TURNOUTDISPLAY_H

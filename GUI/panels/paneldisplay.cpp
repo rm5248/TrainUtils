@@ -18,8 +18,6 @@ PanelDisplay::PanelDisplay(QWidget *parent)
 {
 //    PanelLayout* pl = new PanelLayout(this);
 //    QHBoxLayout* pl = new QHBoxLayout(this);
-    TurnoutDisplay* td = new TurnoutDisplay(this);
-    td->setGeometry(50, 50, td->width(), td->height());
 //    pl->addWidget(td);
 //    this->setLayout(pl);
 }
@@ -35,6 +33,12 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
 
 //    QPainter painter(this);
 //    painter.drawPath(path);
+}
+
+void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
+    TurnoutDisplay* td = new TurnoutDisplay(this);
+    td->setTurnout(turnout);
+    td->setGeometry(50, 50, td->width(), td->height());
 }
 
 QSize PanelDisplay::sizeHint() const

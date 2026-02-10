@@ -18,6 +18,7 @@
 #include "lccmemorydisplay.h"
 #include "panels/paneldisplay.h"
 #include "panels/paneltoolswidget.h"
+#include "systemconnection.h"
 
 #include <QInputDialog>
 #include <QHostAddress>
@@ -346,6 +347,7 @@ void MainWindow::newConnectionMade(std::shared_ptr<SystemConnection> conn){
     SystemConnectionStatusWidget* newStatusWidget = new SystemConnectionStatusWidget();
     newStatusWidget->setSystemConnection(conn);
     ui->statusbar->addPermanentWidget(newStatusWidget);
+    m_state->m_connections.push_back(conn);
 }
 
 
@@ -377,6 +379,9 @@ void MainWindow::on_actionPanel_triggered()
     ads::CDockWidget* DockWidget = new ads::CDockWidget("Panel");
     PanelDisplay* panelDisp = new PanelDisplay(this);
     DockWidget->setWidget(panelDisp);
+    if(!m_state->m_connections.empty()){
+        panelDisp->addTurnout(m_state->m_connections[0]->getDCCTurnout(1));
+    }
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
     ads::CDockWidget* toolboxWidget = new ads::CDockWidget("Panel Toolbox");

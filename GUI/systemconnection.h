@@ -4,6 +4,8 @@
 
 #include <QObject>
 
+#include "common/turnout.h"
+
 /**
  * Represents an abstract connection to a system of some kind.
  */
@@ -24,6 +26,14 @@ public:
     virtual bool open() = 0;
 
     bool isConnected() const;
+
+    /**
+     * Get a turnout associated with the given DCC switch number.
+     *
+     * @param switch_num The switch number, 1-2048.
+     * @return
+     */
+    virtual std::shared_ptr<Turnout> getDCCTurnout(int switch_num) = 0;
 
 Q_SIGNALS:
     void systemNameChanged();

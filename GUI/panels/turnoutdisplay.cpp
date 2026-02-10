@@ -64,10 +64,13 @@ QSize TurnoutDisplay::sizeHint() const
 // }
 
 
-QString TurnoutDisplay::turnout(){
-    return m_turnout;
+void TurnoutDisplay::setTurnout(std::shared_ptr<Turnout> turnout){
+    m_turnout = turnout;
+
+    connect(m_turnout.get(), &Turnout::stateChanged,
+            this, &TurnoutDisplay::stateChanged);
 }
 
-void TurnoutDisplay::setTurnout(QString turnout){
-    m_turnout = turnout;
+void TurnoutDisplay::stateChanged(){
+    repaint();
 }

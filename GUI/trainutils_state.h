@@ -3,6 +3,9 @@
 #define TRAINUTILS_STATE_H
 
 #include <memory>
+#include <QVector>
+
+class SystemConnection;
 
 namespace DBus::Qt{
 class QtDispatcher;
@@ -16,6 +19,7 @@ struct TrainUtilsState{
     LCCManager* lccManager;
     MDNSManager* mdnsManager;
     LoconetManager* loconetManager;
+    QVector<std::shared_ptr<SystemConnection>> m_connections;
 };
 
 #endif // TRAINUTILS_STATE_H

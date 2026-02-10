@@ -7,12 +7,6 @@
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.loconet.LoconetConnection" );
 
-static void LoconetConnectionSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state){
-    LoconetConnection* conn = static_cast<LoconetConnection*>(loconet_turnout_manager_userdata(manager));
-
-    LOG4CXX_DEBUG_FMT(logger, "switch {} is {}", switch_num, state == LOCONET_TURNOUT_THROWN ? "thrown" : "closed");
-}
-
 LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)
 {
     m_locoContext = loconet_context_new_interlocked(LoconetConnection::writeCB);
@@ -21,7 +15,7 @@ LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)
 
     m_switchManager = loconet_turnout_manager_new(m_locoContext);
     loconet_turnout_manager_set_userdata(m_switchManager, this);
-    loconet_turnout_manager_set_turnout_state_changed_callback(m_switchManager, LoconetConnectionSwitchChangedCB);
+    loconet_turnout_manager_set_turnout_state_changed_callback(m_switchManager, LoconetConnection::incomingLoconetSwitchChangedCB);
 
     m_sendTimer.start(50);
 
@@ -102,4 +96,28 @@ std::shared_ptr<LoconetThrottle> LoconetConnection::newThrottle(){
     m_throttles.push_back(newThrottle);
 
     return newThrottle;
+}
+
+void LoconetConnection::incomingLoconetSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state){
+    LoconetConnection* conn = static_cast<LoconetConnection*>(loconet_turnout_manager_userdata(manager));
+    conn->incomingLoconetSwitchChanged(switch_num, state);
+}
+
+void LoconetConnection::incomingLoconetSwitchChanged(int switch_num, enum loconet_turnout_status state){
+    LOG4CXX_DEBUG_FMT(logger, "switch {} is {}", switch_num, state == LOCONET_TURNOUT_THROWN ? "thrown" : "closed");
+
+    if(m_turnouts.contains(switch_num)){
+        std::shared_ptr<LoconetTurnout> turnout = m_turnouts[switch_num];
+        turnout->incomingTurnoutCommand(state);
+    }
+}
+
+std::shared_ptr<Turnout> LoconetConnection::getDCCTurnout(int switch_num){
+    if(m_turnouts.contains(switch_num)){
+        return m_turnouts[switch_num];
+    }else{
+        std::shared_ptr<LoconetTurnout> lnTurnout = std::make_shared<LoconetTurnout>();
+        m_turnouts[switch_num] = lnTurnout;
+        return lnTurnout;
+    }
 }

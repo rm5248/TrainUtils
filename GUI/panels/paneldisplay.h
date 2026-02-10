@@ -14,6 +14,8 @@ public:
 
     void setPanelToolsWidget(PanelToolsWidget* widget);
 
+    void addTurnout(std::shared_ptr<Turnout> turnout);
+
 Q_SIGNALS:
 
 protected:
