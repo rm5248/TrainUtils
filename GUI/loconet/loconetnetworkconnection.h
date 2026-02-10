@@ -16,7 +16,9 @@ public:
 
     ~LoconetNetworkConnection();
 
-    void connectToRemote(QHostAddress addr, uint16_t port);
+    void setRemote(QHostAddress addr, uint16_t port);
+
+    bool open();
 
 Q_SIGNALS:
 
@@ -35,6 +37,8 @@ private:
     QTcpSocket m_socket;
     loconet::LoconetTCP m_loconetTCP;
     loconet_message m_messageBuffer;
+    QHostAddress m_addr;
+    uint16_t m_port;
 };
 
 #endif // LOCONETNETWORKCONNECTION_H

@@ -22,6 +22,7 @@
 #include <QInputDialog>
 #include <QHostAddress>
 #include <QSerialPortInfo>
+#include <QErrorMessage>
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
 
@@ -303,10 +304,19 @@ void MainWindow::scanForLoconetConnections(){
 
 void MainWindow::connectToLoconetSerial(QAction* requestAction){
     std::shared_ptr<LoconetConnection> conn = m_state->loconetManager->createNewLocalLoconet(QString(), requestAction->text());
-    if(conn){
+    if(conn && conn->isConnected()){
         QMenu* menu = ui->menuLoconet->addMenu(conn->name());
         addSubmenusLoconetConnection(menu, conn->name());
         newConnectionMade(conn);
+    }else{
+        QErrorMessage* msg = new QErrorMessage(this);
+        QString errorMsg = QString("Unable to open serial port: %1")
+                               .arg(conn->errorString());
+        msg->showMessage(errorMsg);
+        connect(msg, &QErrorMessage::finished,
+                [msg](int){
+                    msg->deleteLater();
+        });
     }
 }
 

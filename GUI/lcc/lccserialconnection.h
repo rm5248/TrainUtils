@@ -18,6 +18,7 @@ public:
     ~LCCSerialConnection();
 
     void connectToSerialPort(QString serialPort);
+    bool open();
 
 };
 

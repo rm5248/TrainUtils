@@ -22,10 +22,17 @@ LCCNetworkConnection::LCCNetworkConnection(QObject *parent) : LCCQIoConnection(p
 LCCNetworkConnection::~LCCNetworkConnection(){
 }
 
-void LCCNetworkConnection::connectToRemote(QHostAddress addr, uint16_t port){
-    LOG4CXX_DEBUG_FMT(logger, "LCC Connecting to {}:{}", addr.toString().toStdString(), port );
+void LCCNetworkConnection::setRemote(QHostAddress addr, uint16_t port){
+    LOG4CXX_DEBUG_FMT(logger, "LCC set remote to {}:{}", addr.toString().toStdString(), port );
+    m_addr = addr;
+    m_port = port;
+}
+
+bool LCCNetworkConnection::open(){
     QTcpSocket* socket = qobject_cast<QTcpSocket*>(m_ioDevice);
-    socket->connectToHost(addr, port);
+    socket->connectToHost(m_addr, m_port);
+
+    return true;
 }
 
 void LCCNetworkConnection::stateChanged(QAbstractSocket::SocketState state){

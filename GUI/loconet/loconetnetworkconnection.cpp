@@ -21,9 +21,16 @@ LoconetNetworkConnection::LoconetNetworkConnection(QObject *parent) : LoconetCon
 
 LoconetNetworkConnection::~LoconetNetworkConnection(){}
 
-void LoconetNetworkConnection::connectToRemote(QHostAddress addr, uint16_t port){
-    LOG4CXX_DEBUG_FMT(logger, "Loconet Connecting to {}:{}", addr.toString().toStdString(), port );
-    m_socket.connectToHost(addr, port);
+void LoconetNetworkConnection::setRemote(QHostAddress addr, uint16_t port){
+    LOG4CXX_DEBUG_FMT(logger, "Loconet set connection to {}:{}", addr.toString().toStdString(), port );
+    m_addr = addr;
+    m_port = port;
+}
+
+bool LoconetNetworkConnection::open(){
+    m_socket.connectToHost(m_addr, m_port);
+
+    return true;
 }
 
 void LoconetNetworkConnection::stateChanged(QAbstractSocket::SocketState state){

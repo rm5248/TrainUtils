@@ -29,8 +29,9 @@ std::shared_ptr<LCCConnection> LCCManager::createNewNetworkLCC(QString connectio
     }
 
     std::shared_ptr<LCCNetworkConnection> newConn = std::make_shared<LCCNetworkConnection>();
-    newConn->connectToRemote(addr, port);
+    newConn->setRemote(addr, port);
     newConn->setName(connectionName);
+    newConn->open();
     setHardcodedInformation(newConn);
 
     m_lccConnections[connectionName] = newConn;

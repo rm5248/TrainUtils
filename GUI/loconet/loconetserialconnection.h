@@ -18,6 +18,8 @@ public:
 
     void writeData(uint8_t* data, int len);
 
+    bool open();
+
 Q_SIGNALS:
 
 private Q_SLOTS:

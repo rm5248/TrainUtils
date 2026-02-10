@@ -22,13 +22,22 @@ void LCCSerialConnection::connectToSerialPort(QString serialPort){
 
     QSerialPort* serial = static_cast<QSerialPort*>(m_ioDevice);
     serial->setPortName(serialPort);
+}
+
+bool LCCSerialConnection::open(){
+    QSerialPort* serial = static_cast<QSerialPort*>(m_ioDevice);
     bool open = serial->open(QIODevice::ReadWrite);
     if(!open){
-        LOG4CXX_WARN_FMT(logger, "Can't connect to port {}:{}", serialPort.toStdString(), serial->errorString().toStdString());
-        return;
+        m_error = serial->errorString();
+        LOG4CXX_WARN_FMT(logger, "Can't connect to port {}:{}",
+                         serial->portName().toStdString(),
+                         serial->errorString().toStdString());
+        return open;
     }
 
     connectedToSystem();
     generateAlias();
+
+    return open;
 }
 

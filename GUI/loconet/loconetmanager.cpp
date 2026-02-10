@@ -26,9 +26,9 @@ std::shared_ptr<LoconetConnection> LoconetManager::createNewNetworkLoconet(QStri
     }
 
     std::shared_ptr<LoconetNetworkConnection> newConn = std::make_shared<LoconetNetworkConnection>();
-    newConn->connectToRemote(addr, port);
+    newConn->setRemote(addr, port);
     newConn->setName(connectionName);
-
+    newConn->open();
     m_loconetConnections[connectionName] = newConn;
 
     return newConn;
@@ -47,6 +47,7 @@ std::shared_ptr<LoconetConnection> LoconetManager::createNewLocalLoconet(QString
 
     conn->setName(connectionName);
     conn->setSerialPortName(serialPort);
+    conn->open();
 
     m_loconetConnections[connectionName] = conn;
 

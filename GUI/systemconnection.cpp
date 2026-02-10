@@ -41,3 +41,7 @@ void SystemConnection::disconnectedFromSystem(){
     m_isConnected = false;
     Q_EMIT isConnectedChanged();
 }
+
+QString SystemConnection::errorString() const{
+    return m_error;
+}

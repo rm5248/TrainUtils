@@ -16,13 +16,18 @@ public:
 
     ~LCCNetworkConnection();
 
-    void connectToRemote(QHostAddress addr, uint16_t port);
+    void setRemote(QHostAddress addr, uint16_t port);
+
+    bool open();
 
 Q_SIGNALS:
 
 private Q_SLOTS:
     void stateChanged(QAbstractSocket::SocketState state);
 
+private:
+    QHostAddress m_addr;
+    uint16_t m_port;
 };
 
 #endif // LCCNETWORKCONNECTION_H

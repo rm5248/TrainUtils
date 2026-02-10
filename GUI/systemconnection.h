@@ -20,12 +20,15 @@ public:
 
     void setName(QString name);
     QString name() const;
+    QString errorString() const;
+    virtual bool open() = 0;
 
     bool isConnected() const;
 
 Q_SIGNALS:
     void systemNameChanged();
     void isConnectedChanged();
+    void unableToConnectToSystem();
 
 protected:
     void connectedToSystem();
@@ -34,6 +37,9 @@ protected:
 private:
     QString m_name;
     bool m_isConnected = false;
+
+protected:
+    QString m_error;
 };
 
 #endif // SYSTEMCONNECTION_H

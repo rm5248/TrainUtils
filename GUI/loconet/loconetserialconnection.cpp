@@ -20,15 +20,6 @@ void LoconetSerialConnection::setSerialPortName(QString port){
     }
 
     m_serialPort.setPortName(port);
-
-    if(!m_serialPort.open(QIODevice::ReadWrite)){
-        LOG4CXX_ERROR_FMT(logger, "Can't open {}: {}",
-                          port.toStdString(),
-                          m_serialPort.errorString().toStdString() );
-        return;
-    }
-
-    connectedToSystem();
 }
 
 void LoconetSerialConnection::writeData(uint8_t* data, int len){
@@ -45,4 +36,18 @@ void LoconetSerialConnection::dataAvailable(){
     }
 
     loconet_context_process(m_locoContext);
+}
+
+bool LoconetSerialConnection::open(){
+    if(!m_serialPort.open(QIODevice::ReadWrite)){
+        m_error = m_serialPort.errorString();
+        LOG4CXX_ERROR_FMT(logger, "Can't open {}: {}",
+                          m_serialPort.portName().toStdString(),
+                          m_serialPort.errorString().toStdString() );
+
+        return false;
+    }
+
+    connectedToSystem();
+    return true;
 }
