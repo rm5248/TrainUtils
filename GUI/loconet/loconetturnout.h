@@ -15,6 +15,7 @@ public:
     explicit LoconetTurnout(QObject *parent = nullptr);
 
     void setConnection(LoconetConnection* lnConn);
+    void setNumber(int number);
 
 Q_SIGNALS:
 
@@ -25,7 +26,8 @@ private:
     void incomingTurnoutCommand(enum loconet_turnout_status state);
 
 private:
-    LoconetConnection* m_conn;
+    LoconetConnection* m_conn = nullptr;
+    int m_number = 0;
 
     friend class LoconetConnection;
 };

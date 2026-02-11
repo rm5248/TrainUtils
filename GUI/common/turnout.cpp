@@ -38,3 +38,15 @@ void Turnout::closeTurnout(){
     sendCommandOverBus();
     Q_EMIT stateChanged();
 }
+
+void Turnout::toggleTurnout(){
+    if(m_state == TurnoutState::Closed){
+        m_state = TurnoutState::Thrown;
+    }else if(m_state == TurnoutState::Thrown ||
+               m_state == TurnoutState::Unknown){
+        m_state = TurnoutState::Closed;
+    }
+
+    sendCommandOverBus();
+    Q_EMIT stateChanged();
+}

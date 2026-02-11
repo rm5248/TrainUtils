@@ -27,7 +27,17 @@ void LoconetTurnout::incomingTurnoutCommand(enum loconet_turnout_status state){
 }
 
 void LoconetTurnout::sendCommandOverBus(){
+    assert(m_conn);
 
+    if(m_state == TurnoutState::Closed){
+        m_conn->closeTurnout(m_number);
+    }else if(m_state == TurnoutState::Thrown){
+        m_conn->throwTurnout(m_number);
+    }
+}
+
+void LoconetTurnout::setNumber(int number){
+    m_number = number;
 }
 
 void LoconetTurnout::setConnection(LoconetConnection* lnConn){

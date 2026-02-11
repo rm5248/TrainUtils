@@ -3,6 +3,7 @@
 #include <QMouseEvent>
 
 #include "turnoutdisplay.h"
+#include "../common/turnout.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -38,7 +39,23 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
     QFont f;
     f.setPointSize(8);
     painter.setFont(f);
-    painter.drawText(QPoint(0, this->height() / 4), "Turnout");
+    QString turnoutInfoString;
+    if(m_turnout){
+        switch(m_turnout->getState()){
+        case Turnout::TurnoutState::Unknown:
+            turnoutInfoString = "unknown";
+            break;
+        case Turnout::TurnoutState::Closed:
+            turnoutInfoString = "closed";
+            break;
+        case Turnout::TurnoutState::Thrown:
+            turnoutInfoString = "thrown";
+            break;
+        }
+    }else{
+        turnoutInfoString = "N/A";
+    }
+    painter.drawText(QPoint(0, this->height() / 4), turnoutInfoString);
 }
 
 QSize TurnoutDisplay::sizeHint() const
@@ -46,19 +63,51 @@ QSize TurnoutDisplay::sizeHint() const
     return QSize(50, 50);
 }
 
-// void TurnoutDisplay::mousePressEvent(QMouseEvent* event){
-//     LOG4CXX_DEBUG_FMT(logger, "press button: {} pos: {},{}",
-//                       (int)event->button(),
-//                       event->pos().x(),
-//                       event->pos().y());
-// }
+void TurnoutDisplay::mousePressEvent(QMouseEvent* event){
+    if(!m_interactive){
+        event->ignore();
+        return;
+    }
 
-// void TurnoutDisplay::mouseReleaseEvent(QMouseEvent* event){
-//     LOG4CXX_DEBUG_FMT(logger, "release button: {} pos: {},{}",
-//                       (int)event->button(),
-//                       event->pos().x(),
-//                       event->pos().y());
-// }
+    LOG4CXX_DEBUG_FMT(logger, "press button: {} pos: {},{}",
+                      (int)event->button(),
+                      event->pos().x(),
+                      event->pos().y());
+    if(event->button() == Qt::MouseButton::LeftButton){
+        m_mousePressStart = QDateTime::currentDateTime();
+        m_mousePressLocation = event->pos();
+    }
+}
+
+void TurnoutDisplay::mouseReleaseEvent(QMouseEvent* event){
+    if(!m_interactive){
+        event->ignore();
+        return;
+    }
+
+    LOG4CXX_DEBUG_FMT(logger, "release button: {} pos: {},{}",
+                      (int)event->button(),
+                      event->pos().x(),
+                      event->pos().y());
+
+    if(event->button() != Qt::MouseButton::LeftButton){
+        return;
+    }
+
+    // make sure that we're not trying to move anything.
+    // if not, toggle the turnout
+    int absX = std::abs(m_mousePressLocation.x() - event->pos().x());
+    int absY = std::abs(m_mousePressLocation.y() - event->pos().y());
+    int64_t msecs_diff = m_mousePressStart.msecsTo(QDateTime::currentDateTime());
+    if((absX < 10) &&
+        (absY < 10) &&
+        (msecs_diff < 1000) &&
+        (msecs_diff > 0) &&
+        m_turnout){
+        LOG4CXX_DEBUG_FMT(logger, "Toggle turnout");
+        m_turnout->toggleTurnout();
+    }
+}
 
 // void TurnoutDisplay::mouseMoveEvent(QMouseEvent* event){
 // }
@@ -73,4 +122,8 @@ void TurnoutDisplay::setTurnout(std::shared_ptr<Turnout> turnout){
 
 void TurnoutDisplay::stateChanged(){
     repaint();
+}
+
+void TurnoutDisplay::configureInteraction(bool interaction){
+    m_interactive = interaction;
 }

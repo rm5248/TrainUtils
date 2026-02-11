@@ -117,6 +117,8 @@ std::shared_ptr<Turnout> LoconetConnection::getDCCTurnout(int switch_num){
         return m_turnouts[switch_num];
     }else{
         std::shared_ptr<LoconetTurnout> lnTurnout = std::make_shared<LoconetTurnout>();
+        lnTurnout->setConnection(this);
+        lnTurnout->setNumber(switch_num);
         m_turnouts[switch_num] = lnTurnout;
         return lnTurnout;
     }
