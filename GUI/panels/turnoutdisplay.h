@@ -11,14 +11,23 @@ class TurnoutDisplay : public QWidget
     Q_OBJECT
     // Q_PROPERTY(QString traingui_turnout READ turnout WRITE setTurnout)
 public:
-    explicit TurnoutDisplay(QWidget *parent = nullptr);
+    enum class TurnoutType{
+        Left,
+        Right
+    };
+    Q_ENUM(TurnoutType)
+    Q_PROPERTY(TurnoutType traingui_turnout_type READ turnoutType WRITE setTurnoutType)
+
+    explicit TurnoutDisplay(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 
     void setTurnout(std::shared_ptr<Turnout> turnout);
+    TurnoutType turnoutType();
 
 Q_SIGNALS:
 
 public Q_SLOTS:
     void configureInteraction(bool interaction);
+    void setTurnoutType(TurnoutType type);
 
 protected:
     QSize sizeHint() const override;
@@ -35,6 +44,7 @@ private:
     bool m_interactive = true;
     QDateTime m_mousePressStart;
     QPoint m_mousePressLocation;
+    TurnoutType m_turnoutType = TurnoutType::Right;
 };
 
 #endif // TURNOUTDISPLAY_H

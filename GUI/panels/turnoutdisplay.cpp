@@ -10,8 +10,8 @@
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.TurnoutDisplay");
 
-TurnoutDisplay::TurnoutDisplay(QWidget *parent)
-    : QWidget{parent}
+TurnoutDisplay::TurnoutDisplay(QWidget *parent, Qt::WindowFlags f)
+    : QWidget{parent, f}
 {
 
 }
@@ -27,6 +27,10 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
     QPainter painter(this);
     // painter.drawPath(path);
 
+    if(m_turnoutType == TurnoutType::Left){
+        painter.translate(0, this->height());
+        painter.scale(1, -1);
+    }
 
     painter.drawLine(0, this->height() / 4, this->width(), this->height() / 4);
     // Go 1/3 of the way and draw our diverging route
@@ -36,6 +40,8 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
     painter.drawLine(this->width() / 2 + this->width() / 4, this->height() / 2 + this->height() / 4,
                     this->width(), this->height() / 2 + this->height() / 4);
 
+
+    painter.setTransform(QTransform());
     QFont f;
     f.setPointSize(8);
     painter.setFont(f);
@@ -121,9 +127,19 @@ void TurnoutDisplay::setTurnout(std::shared_ptr<Turnout> turnout){
 }
 
 void TurnoutDisplay::stateChanged(){
-    repaint();
+    update();
 }
 
 void TurnoutDisplay::configureInteraction(bool interaction){
     m_interactive = interaction;
+}
+
+TurnoutDisplay::TurnoutType TurnoutDisplay::turnoutType(){
+    return m_turnoutType;
+}
+
+void TurnoutDisplay::setTurnoutType(TurnoutType type){
+    LOG4CXX_DEBUG(logger, "Turnout type changed");
+    m_turnoutType = type;
+    update(this->rect());
 }

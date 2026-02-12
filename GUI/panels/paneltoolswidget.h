@@ -23,6 +23,15 @@ public:
 
 Q_SIGNALS:
     void allowMovingChanged(bool new_moving);
+    void addDCCTurnout();
+
+protected:
+    void mousePressEvent(QMouseEvent* event) override;
+    // void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
+private Q_SLOTS:
+    void on_addTurnoutButton_clicked();
 
 private:
     Ui::PanelToolsWidget *ui;

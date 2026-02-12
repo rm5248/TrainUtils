@@ -152,6 +152,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui
         ${PROJECT_SOURCES}
         loconet/loconetturnout.h loconet/loconetturnout.cpp
+        panels/propertyeditor.h panels/propertyeditor.cpp panels/propertyeditor.ui
     )
 else()
     if(ANDROID)

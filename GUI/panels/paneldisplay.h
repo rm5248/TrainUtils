@@ -26,10 +26,11 @@ protected:
 
 public Q_SLOTS:
     void allowMovingChanged(bool allow_moving);
+    void addBlankTurnout();
 
 private:
     QVector<TurnoutDisplay*> m_turnouts;
-    QWidget* m_movingWidget = nullptr;
+    QWidget* m_selectedWidget = nullptr;
     QPoint m_movingWidgetStart;
     QPoint m_mouseStart;
     bool m_editing = false;
