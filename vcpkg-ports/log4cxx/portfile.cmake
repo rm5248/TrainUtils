@@ -1,30 +1,34 @@
-set(VERSION 1.0.0)
 vcpkg_download_distfile(ARCHIVE
     URLS "https://archive.apache.org/dist/logging/log4cxx/${VERSION}/apache-log4cxx-${VERSION}.tar.gz"
     FILENAME "apache-log4cxx-${VERSION}.tar.gz"
-    SHA512 a6b928d7b5b4fb60a67504be082f436a6d1a750b752a89df51d0660670b6c008e7376cf56c1749fd5fc17777ae8a2d957f72879c9a89487ecb0f179999dc1283
+    SHA512 6ee406314bd7ab02a46c98cc8a0d5ad5aec8928a23716a81a152775ca315cd3b950d600b2e221d5b4a88416ae9bbda1215fae43626107feea4df2f3e074303ad
 )
 
 vcpkg_extract_source_archive(
     SOURCE_PATH ARCHIVE "${ARCHIVE}"
-    PATCHES
-        expat.patch
-        log4cxx-qt-config-correct-location.patch
 )
 
+vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
+    FEATURES
+        qt        LOG4CXX_QT_SUPPORT
+        fmt       ENABLE_FMT_LAYOUT
+        fmt       ENABLE_FMT_ASYNC
+        fmt       VCPKG_LOCK_FIND_PACKAGE_fmt
+        mprfa     LOG4CXX_MULTIPROCESS_ROLLING_FILE_APPENDER
+)
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
+        ${FEATURE_OPTIONS}
         -DLOG4CXX_INSTALL_PDB=OFF # Installing pdbs failed on debug static. So, disable it and let vcpkg_copy_pdbs() do it
         -DBUILD_TESTING=OFF
-        -DLOG4CXX_QT_SUPPORT=ON
+        -DVCPKG_LOCK_FIND_PACKAGE_fmt=${VCPKG_LOCK_FIND_PACKAGE_fmt}
 )
 
 vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 
-vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx DO_NOT_DELETE_PARENT_CONFIG_PATH)
-vcpkg_cmake_config_fixup(PACKAGE_NAME log4cxx-qt CONFIG_PATH lib/cmake/log4cxx-qt)
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx)
 
 if(VCPKG_TARGET_IS_LINUX OR VCPKG_TARGET_IS_OSX)
     vcpkg_fixup_pkgconfig()
@@ -39,5 +43,4 @@ ${_contents}"
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include" "${CURRENT_PACKAGES_DIR}/debug/share")
 
-# Handle copyright
-file(INSTALL "${SOURCE_PATH}/LICENSE" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")
