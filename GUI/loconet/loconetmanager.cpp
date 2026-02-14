@@ -2,9 +2,13 @@
 #include "loconetmanager.h"
 #include "loconetnetworkconnection.h"
 #include "loconetserialconnection.h"
+#include "loconetconnection.h"
 
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <QMap>
+#include <QString>
+#include <memory>
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>

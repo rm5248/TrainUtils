@@ -9,13 +9,21 @@ PropertyEditor::PropertyEditor(QWidget *parent, QObject* modifyObj, QMetaPropert
     m_objToModify = modifyObj;
     m_objProperty = prop;
 
-    ui->name_label->setText(prop.name());
+    QVariant prop_value = prop.read(modifyObj);
+
+    ui->name_label->setText(QString(prop.name()).remove(0, 9));
     if(prop.isEnumType()){
+        int proper_idx = 0;
         ui->lineEdit->hide();
         QMetaEnum enumMeta = prop.enumerator();
         for(int x = 0; x < enumMeta.keyCount(); x++){
             ui->comboBox->addItem(enumMeta.key(x));
+            if(enumMeta.value(x) == prop_value){
+                proper_idx = x;
+            }
         }
+
+        ui->comboBox->setCurrentIndex(proper_idx);
     }else{
         ui->comboBox->hide();
     }
