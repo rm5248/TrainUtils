@@ -29,6 +29,8 @@ PanelToolsWidget::PanelToolsWidget(QWidget *parent)
 
     connect(ui->allowMoving, &QCheckBox::clicked,
             this, &PanelToolsWidget::allowMovingChanged);
+    connect(ui->connectElements, &QCheckBox::clicked,
+            this, &PanelToolsWidget::drawConnectionPointsChanged);
 }
 
 PanelToolsWidget::~PanelToolsWidget()

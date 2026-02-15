@@ -1,6 +1,7 @@
 #include <QPainterPath>
 #include <QPainter>
 #include <QMouseEvent>
+#include <QTransform>
 
 #include "turnoutdisplay.h"
 #include "../common/turnout.h"
@@ -32,13 +33,31 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
         painter.scale(1, -1);
     }
 
-    painter.drawLine(0, this->height() / 4, this->width(), this->height() / 4);
+    QPoint straight_start(0, this->height() / 4);
+    QPoint straight_end(this->width(), this->height() / 4);
+    painter.drawLine(straight_start, straight_end);
     // Go 1/3 of the way and draw our diverging route
-    painter.drawLine(this->width() / 3, this->height() / 4,
-                     this->width() / 2 + this->width() / 4, this->height() / 2 + this->height() / 4);
+    QPoint start_diverge(this->width() / 3, this->height() / 4);
+    QPoint end_diverge(this->width() / 2 + this->width() / 4, this->height() / 2 + this->height() / 4);
+    painter.drawLine(start_diverge, end_diverge);
     // draw the remainder of the diverging route
-    painter.drawLine(this->width() / 2 + this->width() / 4, this->height() / 2 + this->height() / 4,
-                    this->width(), this->height() / 2 + this->height() / 4);
+    QPoint diverged_start = end_diverge;
+    QPoint diverged_end(this->width(), this->height() / 2 + this->height() / 4);
+    painter.drawLine(diverged_start, diverged_end);
+
+    if(m_updateConnectionPoints){
+        QTransform transform = painter.worldTransform();
+        m_updateConnectionPoints = false;
+        // Connection points:
+        // 0 = incoming
+        // 1 = normal outgoing
+        // 2 = diverged outgoing
+        m_connectionPoints.clear();
+        m_connectionPoints.push_back(transform.map(straight_start));
+        m_connectionPoints.push_back(transform.map(straight_end));
+        m_connectionPoints.push_back(transform.map(diverged_end));
+        Q_EMIT connectionPointsUpdated();
+    }
 
 
     painter.setTransform(QTransform());
@@ -140,6 +159,11 @@ TurnoutDisplay::TurnoutType TurnoutDisplay::turnoutType(){
 
 void TurnoutDisplay::setTurnoutType(TurnoutType type){
     LOG4CXX_DEBUG(logger, "Turnout type changed");
+    m_updateConnectionPoints = true;
     m_turnoutType = type;
     update(this->rect());
+}
+
+QVector<QPoint> TurnoutDisplay::connectionPoints(){
+    return m_connectionPoints;
 }

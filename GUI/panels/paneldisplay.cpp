@@ -55,6 +55,52 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
 
         painter.drawPath(path);
     }
+
+    if(m_drawConnectionPoints){
+        // Create a list of all of the connection points, and let's go draw them
+        m_connectionPoints.clear();
+        for(TurnoutDisplay* disp : m_turnouts){
+            for(QPoint& p : disp->connectionPoints()){
+                QPoint newPoint(disp->pos() + p);
+                newPoint.setX(newPoint.x() - 5);
+                newPoint.setY(newPoint.y() - 5);
+                m_connectionPoints.push_back(newPoint);
+            }
+        }
+
+
+        for(QPoint& center : m_connectionPoints){
+            painter.save();
+            painter.translate(center);
+
+            // a connection point is just a white semi-transparent box
+            // with a black border
+            QPoint topLeft(0, 0);
+            QPoint topRight(10, 0);
+            QPoint bottomRight(10, 10);
+            QPoint bottomLeft(0, 10);
+            QRect box(topLeft, bottomRight);
+
+            // draw the semi-transparent part first
+            QBrush semiTransparent(QColor(255, 255, 255, 128));
+            painter.fillRect(box, semiTransparent);
+
+            QPainterPath path;
+            path.moveTo(topLeft);
+            path.lineTo(topRight);
+            path.lineTo(bottomRight);
+            path.lineTo(bottomLeft);
+            path.lineTo(topLeft);
+
+            QPen pen;
+            pen.setWidth(2);
+            pen.setBrush(Qt::black);
+            painter.setPen(pen);
+
+            painter.drawPath(path);
+            painter.restore();
+        }
+    }
 }
 
 void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
@@ -63,6 +109,9 @@ void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
     td->setGeometry(50, 50, td->width(), td->height());
     td->setVisible(true);
     m_turnouts.push_back(td);
+
+    connect(td, &TurnoutDisplay::connectionPointsUpdated,
+            this, &PanelDisplay::connectionPointsUpdated);
 }
 
 QSize PanelDisplay::sizeHint() const
@@ -77,6 +126,20 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
                       event->pos().x(),
                       event->pos().y(),
                       widgetAtPos ? "valid" : "invalid");
+
+    // First let's check to see if we are selecting a connection point
+    if(m_drawConnectionPoints && event->button() == Qt::LeftButton){
+        QPoint mousePos = event->pos();
+        for(QPoint& point : m_connectionPoints){
+            QPoint distance = point - mousePos;
+            if(distance.manhattanLength() < 5){
+                // We are in a connection point!
+                m_connectingState = ConnectingState::Connecting;
+                m_startConnectingPoint = point;
+            }
+        }
+        return;
+    }
 
     if(!widgetAtPos){
         m_selectedWidget = nullptr;
@@ -126,6 +189,8 @@ void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
 
     connect(widget, &PanelToolsWidget::addDCCTurnout,
             this, &PanelDisplay::addBlankTurnout);
+    connect(widget, &PanelToolsWidget::drawConnectionPointsChanged,
+            this, &PanelDisplay::drawConnectionPointsChanged);
 }
 
 void PanelDisplay::allowMovingChanged(bool allow_moving){
@@ -148,4 +213,16 @@ void PanelDisplay::addBlankTurnout(){
     m_turnouts.push_back(td);
     update(this->rect());
     td->update();
+
+    connect(td, &TurnoutDisplay::connectionPointsUpdated,
+            this, &PanelDisplay::connectionPointsUpdated);
+}
+
+void PanelDisplay::connectionPointsUpdated(){
+    update(this->rect());
+}
+
+void PanelDisplay::drawConnectionPointsChanged(bool connection_points){
+    m_drawConnectionPoints = connection_points;
+    update(this->rect());
 }

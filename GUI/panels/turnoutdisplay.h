@@ -23,7 +23,10 @@ public:
     void setTurnout(std::shared_ptr<Turnout> turnout);
     TurnoutType turnoutType();
 
+    QVector<QPoint> connectionPoints();
+
 Q_SIGNALS:
+    void connectionPointsUpdated();
 
 public Q_SLOTS:
     void configureInteraction(bool interaction);
@@ -45,6 +48,8 @@ private:
     QDateTime m_mousePressStart;
     QPoint m_mousePressLocation;
     TurnoutType m_turnoutType = TurnoutType::Right;
+    QVector<QPoint> m_connectionPoints;
+    bool m_updateConnectionPoints = true;
 };
 
 #endif // TURNOUTDISPLAY_H

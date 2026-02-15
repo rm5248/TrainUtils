@@ -24,6 +24,7 @@ public:
 Q_SIGNALS:
     void allowMovingChanged(bool new_moving);
     void addDCCTurnout();
+    void drawConnectionPointsChanged(bool new_draw_connections);
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
