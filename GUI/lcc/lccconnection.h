@@ -60,6 +60,9 @@ Q_SIGNALS:
     void datagramRejected(uint16_t source_alias, uint16_t error_code, QByteArray optional_data);
 
 protected:
+    QString connectionType();
+
+protected:
     struct lcc_context* m_lcc;
     struct lcc_network_info* m_lccNetwork;
     QMap<uint64_t,std::shared_ptr<LCCNode>> m_nodes;

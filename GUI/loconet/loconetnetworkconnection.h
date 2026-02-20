@@ -28,6 +28,7 @@ private Q_SLOTS:
 
 protected:
     void writeData(uint8_t* data, int len);
+    void doSave(QSettings& settings);
 
 private:
     void writeDataTCP(uint8_t* data, int len);

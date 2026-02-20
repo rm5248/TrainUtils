@@ -76,3 +76,11 @@ void LoconetNetworkConnection::incomingRawData(const std::vector<uint8_t>& vec){
 
     Q_EMIT incomingRawPacket(ba);
 }
+
+void LoconetNetworkConnection::doSave(QSettings &settings){
+    settings.beginGroup("loconet");
+    settings.setValue("type", "network");
+    settings.setValue("port", m_port);
+    settings.setValue("address", m_addr.toString());
+    settings.endGroup();
+}

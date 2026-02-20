@@ -27,6 +27,12 @@
     <property name="title">
      <string>TrainGUI</string>
     </property>
+    <widget class="QMenu" name="menuConnect_To">
+     <property name="title">
+      <string>Connect To</string>
+     </property>
+    </widget>
+    <addaction name="menuConnect_To"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuLoconet">
@@ -131,6 +137,16 @@
   <action name="actionPanel">
    <property name="text">
     <string>Panel</string>
+   </property>
+  </action>
+  <action name="actionConnections">
+   <property name="text">
+    <string>Connections</string>
+   </property>
+  </action>
+  <action name="actionds">
+   <property name="text">
+    <string>ds</string>
    </property>
   </action>
  </widget>

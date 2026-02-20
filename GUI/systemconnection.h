@@ -3,6 +3,8 @@
 #define SYSTEMCONNECTION_H
 
 #include <QObject>
+#include <QUuid>
+#include <QSettings>
 
 #include "common/turnout.h"
 
@@ -14,6 +16,7 @@ class SystemConnection : public QObject
     Q_OBJECT
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY systemNameChanged)
     Q_PROPERTY(bool connected READ isConnected NOTIFY isConnectedChanged)
+    Q_PROPERTY(QUuid uuid READ uuid)
 
 public:
     explicit SystemConnection(QObject *parent = nullptr);
@@ -24,6 +27,7 @@ public:
     QString name() const;
     QString errorString() const;
     virtual bool open() = 0;
+    QUuid uuid();
 
     bool isConnected() const;
 
@@ -35,6 +39,13 @@ public:
      */
     virtual std::shared_ptr<Turnout> getDCCTurnout(int switch_num) = 0;
 
+    /**
+     * Default save behavior - save to our config directory with the connection name.
+     */
+    void save();
+
+    static std::shared_ptr<SystemConnection> createfromINI(QString fileLocation);
+
 Q_SIGNALS:
     void systemNameChanged();
     void isConnectedChanged();
@@ -43,10 +54,13 @@ Q_SIGNALS:
 protected:
     void connectedToSystem();
     void disconnectedFromSystem();
+    virtual void doSave(QSettings& settings) = 0;
+    virtual QString connectionType() = 0;
 
 private:
     QString m_name;
     bool m_isConnected = false;
+    QUuid m_uuid;
 
 protected:
     QString m_error;

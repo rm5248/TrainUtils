@@ -123,3 +123,7 @@ std::shared_ptr<Turnout> LoconetConnection::getDCCTurnout(int switch_num){
         return lnTurnout;
     }
 }
+
+QString LoconetConnection::connectionType(){
+    return "loconet";
+}

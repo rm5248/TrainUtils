@@ -20,6 +20,9 @@ public:
     void connectToSerialPort(QString serialPort);
     bool open();
 
+protected:
+    void doSave(QSettings& settings);
+
 };
 
 #endif // LCCSERIALCONNECTION_H

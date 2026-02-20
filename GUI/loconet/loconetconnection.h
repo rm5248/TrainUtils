@@ -41,6 +41,8 @@ public:
 
     std::shared_ptr<Turnout> getDCCTurnout(int switch_num);
 
+    QString connectionType();
+
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
     void incomingLoconetMessage(loconet_message message);

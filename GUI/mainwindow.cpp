@@ -51,6 +51,17 @@ MainWindow::~MainWindow()
 void MainWindow::setTrainUtilsState(TrainUtilsState* state){
     m_state = state;
 
+    for(QString connectionFile : m_state->connectionINIFileNames){
+        QAction* action = ui->menuConnect_To->addAction(connectionFile);
+        connect(action, &QAction::triggered,
+                [this,connectionFile](){
+            std::shared_ptr<SystemConnection> conn = SystemConnection::createfromINI(connectionFile);
+            this->m_state->m_connections.append(conn);
+
+            // TODO figure out the connection type, add the appropriate menus
+        });
+    }
+
     connect(m_state->mdnsManager, &MDNSManager::lccServerFound,
             this, &MainWindow::lccServerFound);
     connect(m_state->mdnsManager, &MDNSManager::lccServerLeft,
@@ -228,49 +239,113 @@ void MainWindow::connectToLoconetServer(QAction* requestAction){
 }
 
 void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName){
+    std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+    connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+            [loconetConn,parentMenu](){
+        parentMenu->setTitle(loconetConn->name());
+    });
+
+    QAction* actionRename = parentMenu->addAction("Rename connection");
+    connect(actionRename, &QAction::triggered,
+        [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        bool ok = false;
+        QString newName = QInputDialog::getText(this, "Input new connection name",
+            "New connection name:",
+            QLineEdit::Normal,
+            loconetConn->name(),
+            &ok);
+        if(ok){
+            loconetConn->setName(newName);
+        }
+    });
+
+    QAction* actionSave = parentMenu->addAction("Save connection");
+    connect(actionSave, &QAction::triggered,
+        [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        loconetConn->save();
+    });
+
     QAction* actionTrafficMonitor = parentMenu->addAction("Traffic Monitor");
     connect(actionTrafficMonitor, &QAction::triggered,
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
-        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Traffic Monitor").arg(loconetConn->name()));
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - Traffic Monitor").arg(loconetConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - Traffic Monitor").arg(loconetConn->name());
+        DockWidget->setWindowTitle(newName);
         LoconetTrafficMonitor* trafficMonitor = new LoconetTrafficMonitor(this);
         trafficMonitor->setLoconetConnection(loconetConn);
         DockWidget->setWidget(trafficMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+                [DockWidget,loconetConn](){
+            QString newName = QString("%1 - Traffic Monitor").arg(loconetConn->name());
+            DockWidget->setWindowTitle(newName);
+        });
     });
 
     QAction* actionSlotMonitor = parentMenu->addAction("Slot Monitor");
     connect(actionSlotMonitor, &QAction::triggered,
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
-        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Slot Monitor").arg(loconetConn->name()));
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - Slot Monitor").arg(loconetConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - Slot Monitor").arg(loconetConn->name());
+        DockWidget->setWindowTitle(newName);
         LoconetSlotMonitor* slotMonitor = new LoconetSlotMonitor(this);
         slotMonitor->setLoconetConnection(loconetConn);
         DockWidget->setWidget(slotMonitor);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+            [DockWidget,loconetConn](){
+                QString newName = QString("%1 - Slot Monitor").arg(loconetConn->name());
+                DockWidget->setWindowTitle(newName);
+        });
     });
 
     QAction* actionSwitchControl = parentMenu->addAction("Switch Control");
     connect(actionSwitchControl, &QAction::triggered,
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
-        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Slot Monitor").arg(loconetConn->name()));
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - Switch Control").arg(loconetConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - Switch Control").arg(loconetConn->name());
+        DockWidget->setWindowTitle(newName);
         LoconetSwitchControl* switchControl = new LoconetSwitchControl(this);
         switchControl->setLoconetConnection(loconetConn);
         DockWidget->setWidget(switchControl);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+            [DockWidget,loconetConn](){
+                QString newName = QString("%1 - Switch Control").arg(loconetConn->name());
+                DockWidget->setWindowTitle(newName);
+        });
     });
 
     QAction* actionNewThrottle = parentMenu->addAction("Throttle");
     connect(actionNewThrottle, &QAction::triggered,
             [connectionName,this](){
         std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
-        ads::CDockWidget* DockWidget = new ads::CDockWidget(QString("%1 - Throttle").arg(loconetConn->name()));
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - Throttle").arg(loconetConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - Throttle").arg(loconetConn->name());
+        DockWidget->setWindowTitle(newName);
         ThrottleDisplay* throttleDisp = new ThrottleDisplay(this);
         std::shared_ptr<LoconetThrottle> throttle = loconetConn->newThrottle();
         throttleDisp->setThrottle(throttle);
         DockWidget->setWidget(throttleDisp);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+            [DockWidget,loconetConn](){
+                QString newName = QString("%1 - Throttle").arg(loconetConn->name());
+                DockWidget->setWindowTitle(newName);
+        });
     });
 }
 

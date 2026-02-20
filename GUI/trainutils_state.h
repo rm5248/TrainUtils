@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <QVector>
+#include <QString>
 
 class SystemConnection;
 
@@ -20,6 +21,7 @@ struct TrainUtilsState{
     MDNSManager* mdnsManager;
     LoconetManager* loconetManager;
     QVector<std::shared_ptr<SystemConnection>> m_connections;
+    QVector<QString> connectionINIFileNames;
 };
 
 #endif // TRAINUTILS_STATE_H

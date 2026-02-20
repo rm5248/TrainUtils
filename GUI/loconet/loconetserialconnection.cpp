@@ -51,3 +51,24 @@ bool LoconetSerialConnection::open(){
     connectedToSystem();
     return true;
 }
+
+void LoconetSerialConnection::doSave(QSettings &settings){
+    QSerialPortInfo inf(m_serialPort);
+
+    settings.beginGroup("loconet");
+    settings.setValue("type", "serial");
+    settings.setValue("port", m_serialPort.portName());
+    if(inf.hasProductIdentifier()){
+        settings.setValue("pid", inf.productIdentifier());
+    }
+    if(inf.hasVendorIdentifier()){
+        settings.setValue("vid", inf.vendorIdentifier());
+    }
+    if(inf.serialNumber().size() > 1){
+        settings.setValue("serial_number", inf.serialNumber());
+    }
+    if(inf.description().size() > 1){
+        settings.setValue("description", inf.description());
+    }
+    settings.endGroup();
+}

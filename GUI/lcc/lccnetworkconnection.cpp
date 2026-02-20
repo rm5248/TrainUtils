@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <QHostAddress>
 #include <QTimer>
+#include <QSettings>
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -48,4 +49,7 @@ void LCCNetworkConnection::stateChanged(QAbstractSocket::SocketState state){
     }
 }
 
+void LCCNetworkConnection::doSave(QSettings &settings){
+
+}
 

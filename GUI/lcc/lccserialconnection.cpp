@@ -41,3 +41,7 @@ bool LCCSerialConnection::open(){
     return open;
 }
 
+void LCCSerialConnection::doSave(QSettings &settings){
+
+}
+

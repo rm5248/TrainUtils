@@ -1,8 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <QStandardPaths>
+
 #include "systemconnection.h"
 
-SystemConnection::SystemConnection(QObject *parent) : QObject(parent){
+#include <log4cxx/logger.h>
+#include <fmt/format.h>
 
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.SystemConnection" );
+
+SystemConnection::SystemConnection(QObject *parent) : QObject(parent){
+    m_uuid = QUuid::createUuid();
 }
 
 SystemConnection::~SystemConnection(){
@@ -44,4 +51,28 @@ void SystemConnection::disconnectedFromSystem(){
 
 QString SystemConnection::errorString() const{
     return m_error;
+}
+
+QUuid SystemConnection::uuid(){
+    return m_uuid;
+}
+
+void SystemConnection::save(){
+    QString configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QString fileName = QString("%1/%2.ini").arg(configDir).arg(m_name);
+    QSettings settingsFile(fileName, QSettings::Format::IniFormat);
+
+    settingsFile.beginGroup("connection");
+    settingsFile.setValue("name", m_name);
+    settingsFile.setValue("uuid", m_uuid);
+    settingsFile.setValue("type", connectionType());
+    settingsFile.endGroup();
+
+    doSave(settingsFile);
+}
+
+std::shared_ptr<SystemConnection> SystemConnection::createfromINI(QString fileLocation){
+    LOG4CXX_DEBUG_FMT(logger, "Create system connection from file name {}", fileLocation.toStdString());
+
+    return nullptr;
 }

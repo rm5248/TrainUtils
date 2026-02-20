@@ -25,6 +25,9 @@ Q_SIGNALS:
 private Q_SLOTS:
     void dataAvailable();
 
+protected:
+    void doSave(QSettings& settings);
+
 private:
     QSerialPort m_serialPort;
 };

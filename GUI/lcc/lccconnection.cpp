@@ -177,3 +177,7 @@ void LCCConnection::setCDI(QString cdi){
     lcc_memory_context* ctx = lcc_context_get_memory_context(m_lcc);
     lcc_memory_set_cdi(ctx, m_cdi.data(), m_cdi.length(), 0);
 }
+
+QString LCCConnection::connectionType(){
+    return "lcc";
+}

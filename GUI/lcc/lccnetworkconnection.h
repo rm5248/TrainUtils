@@ -25,6 +25,9 @@ Q_SIGNALS:
 private Q_SLOTS:
     void stateChanged(QAbstractSocket::SocketState state);
 
+protected:
+    void doSave(QSettings& settings);
+
 private:
     QHostAddress m_addr;
     uint16_t m_port;
