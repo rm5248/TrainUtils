@@ -53,6 +53,7 @@ bool LoconetSerialConnection::open(){
 }
 
 void LoconetSerialConnection::doSave(QSettings &settings){
+    LoconetConnection::doSave(settings);
     QSerialPortInfo inf(m_serialPort);
 
     settings.beginGroup("loconet");
@@ -74,7 +75,7 @@ void LoconetSerialConnection::doSave(QSettings &settings){
 }
 
 void LoconetSerialConnection::load(QSettings &settings){
-    SystemConnection::load(settings);
+    LoconetConnection::load(settings);
     settings.beginGroup("loconet");
 
     QString port = settings.value("port").toString();

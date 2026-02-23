@@ -129,3 +129,24 @@ std::shared_ptr<Turnout> LoconetConnection::getDCCTurnout(int switch_num){
 QString LoconetConnection::connectionType(){
     return "loconet";
 }
+
+void LoconetConnection::load(QSettings &settings){
+    SystemConnection::load(settings);
+
+    int numTurnouts = settings.beginReadArray("turnouts");
+    for(int x = 0; x < numTurnouts; x++){
+        int turnoutNum = settings.value("number").toInt();
+        getDCCTurnout(turnoutNum);
+    }
+    settings.endArray();
+}
+
+void LoconetConnection::doSave(QSettings &settings){
+    int idx = 0;
+    settings.beginWriteArray("turnouts");
+    for(std::shared_ptr<LoconetTurnout> turnout : m_turnouts.values()){
+        settings.setArrayIndex(idx);
+        settings.setValue("number", turnout->number());
+    }
+    settings.endArray();
+}

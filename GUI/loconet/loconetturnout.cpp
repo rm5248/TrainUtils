@@ -43,3 +43,7 @@ void LoconetTurnout::setNumber(int number){
 void LoconetTurnout::setConnection(LoconetConnection* lnConn){
     m_conn = lnConn;
 }
+
+int LoconetTurnout::number(){
+    return m_number;
+}

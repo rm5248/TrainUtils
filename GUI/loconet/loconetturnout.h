@@ -17,6 +17,8 @@ public:
     void setConnection(LoconetConnection* lnConn);
     void setNumber(int number);
 
+    int number();
+
 Q_SIGNALS:
 
 protected:

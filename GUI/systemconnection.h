@@ -42,9 +42,9 @@ public:
     virtual std::shared_ptr<Turnout> getDCCTurnout(int switch_num) = 0;
 
     /**
-     * Default save behavior - save to our config directory with the connection name.
+     * Default doSave behavior - doSave to our config directory with the connection name.
      */
-    void save();    
+    void save();
 
     virtual void load(QSettings& settings);
 

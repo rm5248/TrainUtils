@@ -43,6 +43,8 @@ public:
 
     QString connectionType();
 
+    void load(QSettings &settings);
+
 Q_SIGNALS:
     void incomingRawPacket(QByteArray);
     void incomingLoconetMessage(loconet_message message);
@@ -52,6 +54,7 @@ private Q_SLOTS:
 
 protected:
     virtual void writeData(uint8_t* data, int len) = 0;
+    void doSave(QSettings& settings);
 
 private:
     static void writeCB( struct loconet_context* ctx, uint8_t* data, int len );

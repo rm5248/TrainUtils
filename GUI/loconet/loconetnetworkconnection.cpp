@@ -78,6 +78,7 @@ void LoconetNetworkConnection::incomingRawData(const std::vector<uint8_t>& vec){
 }
 
 void LoconetNetworkConnection::doSave(QSettings &settings){
+    LoconetConnection::doSave(settings);
     settings.beginGroup("loconet");
     settings.setValue("type", "network");
     settings.setValue("port", m_port);
@@ -86,7 +87,7 @@ void LoconetNetworkConnection::doSave(QSettings &settings){
 }
 
 void LoconetNetworkConnection::load(QSettings &settings){
-    SystemConnection::load(settings);
+    LoconetConnection::load(settings);
     settings.beginGroup("loconet");
     m_port = settings.value("port").toInt();
     m_addr = QHostAddress(settings.value("address").toString());
