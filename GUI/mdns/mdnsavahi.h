@@ -3,6 +3,7 @@
 #define MDNSAVAHI_H
 
 #include <QObject>
+#include <QMap>
 
 #include "mdnsmanager.h"
 
