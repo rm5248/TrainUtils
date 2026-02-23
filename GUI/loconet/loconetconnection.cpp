@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "loconetconnection.h"
 #include "loconetthrottle.h"
+#include "loconetserialconnection.h"
+#include "loconetnetworkconnection.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>

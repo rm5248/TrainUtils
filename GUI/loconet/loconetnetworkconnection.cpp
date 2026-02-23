@@ -84,3 +84,11 @@ void LoconetNetworkConnection::doSave(QSettings &settings){
     settings.setValue("address", m_addr.toString());
     settings.endGroup();
 }
+
+void LoconetNetworkConnection::load(QSettings &settings){
+    SystemConnection::load(settings);
+    settings.beginGroup("loconet");
+    m_port = settings.value("port").toInt();
+    m_addr = QHostAddress(settings.value("address").toString());
+    settings.endGroup();
+}

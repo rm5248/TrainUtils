@@ -20,6 +20,8 @@ public:
 
     bool open();
 
+    void load(QSettings& settings);
+
 Q_SIGNALS:
 
 private Q_SLOTS:

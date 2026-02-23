@@ -8,6 +8,8 @@
 
 #include "common/turnout.h"
 
+struct TrainUtilsState;
+
 /**
  * Represents an abstract connection to a system of some kind.
  */
@@ -42,9 +44,11 @@ public:
     /**
      * Default save behavior - save to our config directory with the connection name.
      */
-    void save();
+    void save();    
 
-    static std::shared_ptr<SystemConnection> createfromINI(QString fileLocation);
+    virtual void load(QSettings& settings);
+
+    static std::shared_ptr<SystemConnection> createfromINI(QString fileLocation, TrainUtilsState* state);
 
 Q_SIGNALS:
     void systemNameChanged();

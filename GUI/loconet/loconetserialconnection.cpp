@@ -72,3 +72,15 @@ void LoconetSerialConnection::doSave(QSettings &settings){
     }
     settings.endGroup();
 }
+
+void LoconetSerialConnection::load(QSettings &settings){
+    SystemConnection::load(settings);
+    settings.beginGroup("loconet");
+
+    QString port = settings.value("port").toString();
+    // TODO read the other settings to make sure we cna validate the serial port properly
+
+    settings.endGroup();
+
+    setSerialPortName(port);
+}

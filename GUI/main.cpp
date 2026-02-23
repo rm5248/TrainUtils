@@ -36,11 +36,14 @@ static void initConfigFiles(TrainUtilsState* state){
             continue;
         }
         QSettings settings(inf.absoluteFilePath(), QSettings::Format::IniFormat);
+        ConnectionInfo connInfo;
 
         LOG4CXX_DEBUG_FMT(logger, "Checking file {}", inf.absoluteFilePath().toStdString());
         if(settings.value("connection/name").isValid()){
             LOG4CXX_DEBUG_FMT(logger, "File is connection file");
-            state->connectionINIFileNames.append(inf.fileName());
+            connInfo.connectionName = settings.value("connection/name").toString();
+            connInfo.connectionFileAbsolutePath = inf.absoluteFilePath();
+            state->connectionFiles.append(connInfo);
         }else{
             LOG4CXX_DEBUG_FMT(logger, "File is unknown type");
         }

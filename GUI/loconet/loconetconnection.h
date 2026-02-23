@@ -69,6 +69,8 @@ private:
     QTimer m_sendTimer;
     QVector<std::shared_ptr<LoconetThrottle>> m_throttles;
     QMap<int,std::shared_ptr<LoconetTurnout>> m_turnouts;
+
+    friend class LoconetManager;
 };
 
 #endif // LOCONETCONNECTION_H

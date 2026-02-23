@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include <QHostAddress>
+#include <QSettings>
 #include <memory>
 
 class LoconetConnection;
@@ -49,6 +50,8 @@ public:
      * @return
      */
     QStringList getAvailableLocalSerialPortConnections();
+
+    std::shared_ptr<LoconetConnection> createFromSettings(QSettings& settings);
 
 Q_SIGNALS:
 

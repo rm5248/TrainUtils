@@ -89,3 +89,21 @@ QStringList LoconetManager::getAvailableLocalSerialPortConnections(){
 
     return ret;
 }
+
+std::shared_ptr<LoconetConnection> LoconetManager::createFromSettings(QSettings& settings){
+    QString loconetType = settings.value("loconet/type").toString();
+    std::shared_ptr<LoconetConnection> retval;
+
+    if(loconetType == "serial"){
+        retval = std::make_shared<LoconetSerialConnection>();
+    }else if(loconetType == "network"){
+        retval = std::make_shared<LoconetNetworkConnection>();
+    }
+
+    if(retval){
+        retval->load(settings);
+        m_loconetConnections[retval->name()] = retval;
+    }
+
+    return retval;
+}

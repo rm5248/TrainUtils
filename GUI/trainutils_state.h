@@ -16,12 +16,17 @@ class LCCManager;
 class MDNSManager;
 class LoconetManager;
 
+struct ConnectionInfo{
+    QString connectionName;
+    QString connectionFileAbsolutePath;
+};
+
 struct TrainUtilsState{
     LCCManager* lccManager;
     MDNSManager* mdnsManager;
     LoconetManager* loconetManager;
     QVector<std::shared_ptr<SystemConnection>> m_connections;
-    QVector<QString> connectionINIFileNames;
+    QVector<ConnectionInfo> connectionFiles;
 };
 
 #endif // TRAINUTILS_STATE_H

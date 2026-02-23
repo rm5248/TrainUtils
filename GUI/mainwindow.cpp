@@ -51,12 +51,23 @@ MainWindow::~MainWindow()
 void MainWindow::setTrainUtilsState(TrainUtilsState* state){
     m_state = state;
 
-    for(QString connectionFile : m_state->connectionINIFileNames){
-        QAction* action = ui->menuConnect_To->addAction(connectionFile);
+    for(const ConnectionInfo& connInfo : m_state->connectionFiles){
+        QString connectionFile = connInfo.connectionFileAbsolutePath;
+        QAction* action = ui->menuConnect_To->addAction(connInfo.connectionName);
         connect(action, &QAction::triggered,
                 [this,connectionFile](){
-            std::shared_ptr<SystemConnection> conn = SystemConnection::createfromINI(connectionFile);
+            std::shared_ptr<SystemConnection> conn = SystemConnection::createfromINI(connectionFile, m_state);
+            if(!conn){
+                return;
+            }
             this->m_state->m_connections.append(conn);
+
+            LoconetConnection* lnConnection = qobject_cast<LoconetConnection*>(conn.get());
+            if(lnConnection){
+                QMenu* menu = ui->menuLoconet->addMenu(conn->name());
+                addSubmenusLoconetConnection(menu, conn->name());
+            }
+            newConnectionMade(conn);
 
             // TODO figure out the connection type, add the appropriate menus
         });

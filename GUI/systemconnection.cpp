@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <QStandardPaths>
+#include <QTimer>
 
 #include "systemconnection.h"
+#include "loconet/loconetconnection.h"
+#include "loconet/loconetmanager.h"
+#include "trainutils_state.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -71,8 +75,31 @@ void SystemConnection::save(){
     doSave(settingsFile);
 }
 
-std::shared_ptr<SystemConnection> SystemConnection::createfromINI(QString fileLocation){
+std::shared_ptr<SystemConnection> SystemConnection::createfromINI(QString fileLocation, TrainUtilsState* state){
     LOG4CXX_DEBUG_FMT(logger, "Create system connection from file name {}", fileLocation.toStdString());
 
-    return nullptr;
+    QSettings settings(fileLocation, QSettings::IniFormat);
+    std::shared_ptr<SystemConnection> retval;
+    QString connectionType = settings.value("connection/type").toString();
+
+    if(connectionType == "loconet"){
+        retval = state->loconetManager->createFromSettings(settings);
+    }
+
+    if(retval){
+        QTimer::singleShot(50, [retval](){
+            retval->open();
+        });
+    }
+
+    if(!retval){
+        LOG4CXX_ERROR_FMT(logger, "Unable to create new system connection!");
+    }
+
+    return retval;
+}
+
+void SystemConnection::load(QSettings &settings){
+    m_name = settings.value("connection/name").toString();
+    m_uuid = settings.value("connection/uuid").toUuid();
 }
