@@ -166,9 +166,6 @@ else()
     endif()
 endif()
 
-pkg_check_modules( train-required REQUIRED
-    sigc++-3.0
-)
 find_package(log4cxx CONFIG REQUIRED)
 find_package(log4cxx-qt CONFIG REQUIRED)
 find_package(qtadvanceddocking-qt6 CONFIG REQUIRED)
