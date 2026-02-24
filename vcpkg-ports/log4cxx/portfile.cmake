@@ -11,6 +11,7 @@ vcpkg_extract_source_archive(
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
         qt        LOG4CXX_QT_SUPPORT
+        qt6       LOG4CXX_QT_SUPPORT
         fmt       ENABLE_FMT_LAYOUT
         fmt       ENABLE_FMT_ASYNC
         fmt       VCPKG_LOCK_FIND_PACKAGE_fmt
@@ -28,7 +29,8 @@ vcpkg_cmake_configure(
 vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 
-vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx)
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx DO_NOT_DELETE_PARENT_CONFIG_PATH)
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/log4cxx-qt DO_NOT_DELETE_PARENT_CONFIG_PATH)
 
 if(VCPKG_TARGET_IS_LINUX OR VCPKG_TARGET_IS_OSX)
     vcpkg_fixup_pkgconfig()
