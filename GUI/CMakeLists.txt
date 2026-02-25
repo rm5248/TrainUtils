@@ -175,6 +175,11 @@ else()
 endif(WIN32)
 find_package(qtadvanceddocking-qt6 CONFIG REQUIRED)
 
+if(MSVC)
+	target_compile_options(train-gui PUBLIC
+   		/Zc:preprocessor /Zc:__cplusplus
+	)
+endif(MSVC)
 target_link_libraries(train-gui PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::SerialPort
