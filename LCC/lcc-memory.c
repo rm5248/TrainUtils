@@ -356,7 +356,7 @@ static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* 
 
         stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, cdi_buffer + (starting_address % 64), num_bytes_to_read);
     }else{
-        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, ctx->cdi_data + starting_address, num_bytes_to_read);
+        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, (uint8_t*)ctx->cdi_data + starting_address, num_bytes_to_read);
     }
 
     if(stat == 0){

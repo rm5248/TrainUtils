@@ -167,7 +167,12 @@ else()
 endif()
 
 find_package(log4cxx CONFIG REQUIRED)
-find_package(log4cxx-qt CONFIG REQUIRED)
+if(WIN32)
+	# vcpkg build a little buggy on windows at the moment with vcpkg
+	find_package(log4cxx-qt CONFIG REQUIRED PATHS ${log4cxx_DIR})
+else()
+	find_package(log4cxx-qt CONFIG REQUIRED)
+endif(WIN32)
 find_package(qtadvanceddocking-qt6 CONFIG REQUIRED)
 
 target_link_libraries(train-gui PRIVATE
