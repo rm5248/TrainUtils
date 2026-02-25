@@ -38,7 +38,7 @@ void LoconetUsage::clear(){
 }
 
 bool LoconetUsage::logStatsToFile(std::filesystem::path path){
-    QFile f(path.c_str());
+    QFile f(path);
     bool ret = f.open(QIODevice::WriteOnly);
     if(!ret){
         return ret;

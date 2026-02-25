@@ -20,7 +20,7 @@ public:
 
     ~LCCConnection();
 
-    std::shared_ptr<Turnout> getDCCTurnout(int switch_num){}
+    std::shared_ptr<Turnout> getDCCTurnout(int switch_num);
 
     void setSimpleNodeInformation(QString manufacturer,
                                   QString model,

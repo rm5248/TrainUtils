@@ -181,3 +181,7 @@ void LCCConnection::setCDI(QString cdi){
 QString LCCConnection::connectionType(){
     return "lcc";
 }
+
+std::shared_ptr<Turnout> LCCConnection::getDCCTurnout(int switch_num){
+    return nullptr;
+}

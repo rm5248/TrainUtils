@@ -7,5 +7,5 @@ MapType::MapType()
 }
 
 MapType MapType::createFromXML(QXmlStreamReader* xml){
-
+    return MapType();
 }
