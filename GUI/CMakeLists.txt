@@ -167,19 +167,9 @@ else()
 endif()
 
 find_package(log4cxx CONFIG REQUIRED)
-if(WIN32)
-	# vcpkg build a little buggy on windows at the moment with vcpkg
-	find_package(log4cxx-qt CONFIG REQUIRED PATHS ${log4cxx_DIR})
-else()
-	find_package(log4cxx-qt CONFIG REQUIRED)
-endif(WIN32)
+find_package(log4cxx-qt CONFIG REQUIRED)
 find_package(qtadvanceddocking-qt6 CONFIG REQUIRED)
 
-if(MSVC)
-	target_compile_options(train-gui PUBLIC
-   		/Zc:preprocessor /Zc:__cplusplus
-	)
-endif(MSVC)
 target_link_libraries(train-gui PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::SerialPort
@@ -212,3 +202,18 @@ install(TARGETS train-gui
 )
 
 configure_file(log4cxx.xml ${CMAKE_CURRENT_BINARY_DIR}/log4cxx.xml COPYONLY)
+
+if(WIN32)
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+            find_program(TOOL_WINDEPLOYQT NAMES windeployqt.debug.bat)
+    else()
+            find_program(TOOL_WINDEPLOYQT NAMES windeployqt)
+    endif()
+
+    add_custom_command(TARGET train-gui POST_BUILD
+        COMMAND ${TOOL_WINDEPLOYQT}
+                $<TARGET_FILE:train-gui>
+        COMMENT "Running windeployqt..."
+    )
+endif()
+
