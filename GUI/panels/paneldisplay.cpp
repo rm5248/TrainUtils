@@ -16,10 +16,7 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.PanelDis
 PanelDisplay::PanelDisplay(QWidget *parent)
     : QWidget{parent}
 {
-//    PanelLayout* pl = new PanelLayout(this);
-//    QHBoxLayout* pl = new QHBoxLayout(this);
-//    pl->addWidget(td);
-//    this->setLayout(pl);
+    m_name = "Panel";
 }
 
 void PanelDisplay::paintEvent(QPaintEvent *event){
@@ -225,4 +222,12 @@ void PanelDisplay::connectionPointsUpdated(){
 void PanelDisplay::drawConnectionPointsChanged(bool connection_points){
     m_drawConnectionPoints = connection_points;
     update(this->rect());
+}
+
+void PanelDisplay::setName(QString name){
+    m_name = name;
+}
+
+QString PanelDisplay::getName(){
+    return m_name;
 }

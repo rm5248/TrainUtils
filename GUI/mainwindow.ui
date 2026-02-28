@@ -80,7 +80,8 @@
     <property name="title">
      <string>Panels</string>
     </property>
-    <addaction name="actionPanel"/>
+    <addaction name="actionNewPanel"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuTrainGUI"/>
    <addaction name="menuLoconet"/>
@@ -134,9 +135,9 @@
     <string>Manual Serial</string>
    </property>
   </action>
-  <action name="actionPanel">
+  <action name="actionNewPanel">
    <property name="text">
-    <string>Panel</string>
+    <string>New Panel</string>
    </property>
   </action>
   <action name="actionConnections">

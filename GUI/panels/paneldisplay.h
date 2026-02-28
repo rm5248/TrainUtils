@@ -9,12 +9,17 @@ class PanelToolsWidget;
 class PanelDisplay : public QWidget
 {
     Q_OBJECT
+    Q_PROPERTY(QString getName READ getName WRITE setName)
+
 public:
     explicit PanelDisplay(QWidget *parent = nullptr);
 
     void setPanelToolsWidget(PanelToolsWidget* widget);
 
     void addTurnout(std::shared_ptr<Turnout> turnout);
+
+    void setName(QString name);
+    QString getName();
 
 Q_SIGNALS:
 
@@ -47,6 +52,9 @@ private:
     QVector<QPoint> m_connectionPoints;
     ConnectingState m_connectingState = ConnectingState::NotConnecting;
     QPoint m_startConnectingPoint;
+
+    // non-GUI properties
+    QString m_name;
 };
 
 #endif // PANELDISPLAY_H

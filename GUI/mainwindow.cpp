@@ -39,6 +39,10 @@ MainWindow::MainWindow(QWidget *parent)
     ads::CDockManager::setAutoHideConfigFlags(ads::CDockManager::DefaultAutoHideConfig);
     m_dockManager = new ads::CDockManager(this);
 
+    m_panelTools = new PanelToolsWidget(this);
+    m_panelToolboxWidget = new ads::CDockWidget("Panel Toolbox");
+    m_panelToolboxWidget->setWidget(m_panelTools);
+
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
             this, &MainWindow::scanForLoconetConnections);
 }
@@ -460,7 +464,7 @@ void MainWindow::on_action_loconet_manual_Serial_triggered()
 }
 
 
-void MainWindow::on_actionPanel_triggered()
+void MainWindow::on_actionNewPanel_triggered()
 {
     ads::CDockWidget* DockWidget = new ads::CDockWidget("Panel");
     PanelDisplay* panelDisp = new PanelDisplay(this);
@@ -470,14 +474,32 @@ void MainWindow::on_actionPanel_triggered()
     }
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
-    ads::CDockWidget* toolboxWidget = new ads::CDockWidget("Panel Toolbox");
-    PanelToolsWidget* panelTools = new PanelToolsWidget(this);
-    toolboxWidget->setWidget(panelTools);
-    m_dockManager->addAutoHideDockWidget(ads::SideBarLeft, toolboxWidget);
+    newPanelAdded(panelDisp);
+}
 
-    connect(panelTools, &PanelToolsWidget::allowMovingChanged,
-            panelDisp, &PanelDisplay::allowMovingChanged);
+void MainWindow::newPanelAdded(PanelDisplay* panel){
+    bool firstPanel = m_panels.empty();
 
-    panelDisp->setPanelToolsWidget(panelTools);
+    LOG4CXX_DEBUG_FMT(logger, "Added new panel");
+    m_panels.push_back(panel);
+
+    connect(m_panelTools, &PanelToolsWidget::allowMovingChanged,
+            panel, &PanelDisplay::allowMovingChanged);
+
+    panel->setPanelToolsWidget(m_panelTools);
+
+    if(firstPanel){
+        m_dockManager->addAutoHideDockWidget(ads::SideBarLeft, m_panelToolboxWidget);
+    }
+
+    QMenu* menu = ui->menuPanels->addMenu(panel->getName());
+    QAction* actionRename = menu->addAction("Rename panel");
+    connect(actionRename, &QAction::triggered,
+        [panel,this](){
+        QString oldName = panel->getName();
+        QString newName = QInputDialog::getText(this, "New Name", "Input new name of panel", QLineEdit::Normal, panel->getName());
+        LOG4CXX_DEBUG_FMT(logger, "Rename panel {} to {}", oldName.toStdString(), newName.toStdString());
+    });
+
 }
 
