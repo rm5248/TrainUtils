@@ -5,8 +5,9 @@
 #include <QDateTime>
 
 #include "../common/turnout.h"
+#include "connectable.h"
 
-class TurnoutDisplay : public QWidget
+class TurnoutDisplay : public QWidget, public Connectable
 {
     Q_OBJECT
     // Q_PROPERTY(QString traingui_turnout READ turnout WRITE setTurnout)
@@ -23,7 +24,7 @@ public:
     void setTurnout(std::shared_ptr<Turnout> turnout);
     TurnoutType turnoutType();
 
-    QVector<QPoint> connectionPoints();
+    QVector<QPoint> connectionPoints() override;
 
 Q_SIGNALS:
     void connectionPointsUpdated();

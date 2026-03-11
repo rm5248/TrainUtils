@@ -20,16 +20,8 @@ PanelDisplay::PanelDisplay(QWidget *parent)
 }
 
 void PanelDisplay::paintEvent(QPaintEvent *event){
-//    QWidget::paintEvent(event);
-//    QPainterPath path;
-//    path.moveTo(0, 0);
-//    path.lineTo(200, 200);
-
-//    path.moveTo(0, 200);
-//    path.lineTo(200, 0);
     QWidget::paintEvent(event);
     QPainter painter(this);
-//    painter.drawPath(path);
 
     if(m_selectedWidget){
         // Draw a box around the widget
@@ -53,19 +45,6 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
         painter.drawPath(path);
     }
 
-    // Draw permanent connections (always, not just in connection-point mode)
-    if(!m_connections.isEmpty()){
-        QPen connPen;
-        connPen.setWidth(2);
-        connPen.setBrush(Qt::blue);
-        painter.setPen(connPen);
-        for(const Connection& conn : m_connections){
-            QPoint a = conn.a.turnout->pos() + conn.a.turnout->connectionPoints()[conn.a.index];
-            QPoint b = conn.b.turnout->pos() + conn.b.turnout->connectionPoints()[conn.b.index];
-            painter.drawLine(a, b);
-        }
-    }
-
     if(m_drawConnectionPoints){
         // Rebuild the cached list of all connection points
         m_connectionPoints.clear();
@@ -75,6 +54,12 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
                 QPoint center = disp->pos() + p;
                 m_connectionPoints.push_back({disp, idx, center});
                 idx++;
+            }
+        }
+        for(const SegmentConnection& sc : m_segments){
+            int idx = 0;
+            for(const QPoint& p : sc.segment->connectionPoints()){
+                m_connectionPoints.push_back({sc.segment, idx++, sc.segment->pos() + p});
             }
         }
 
@@ -104,8 +89,9 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
 
         // Draw the in-progress connection line while dragging
         if(m_connectingState == ConnectingState::Connecting){
-            QPoint startCenter = m_startEndpoint.turnout->pos()
-                                 + m_startEndpoint.turnout->connectionPoints()[m_startEndpoint.index];
+            QWidget* startWidget = dynamic_cast<QWidget*>(m_startEndpoint.connectable);
+            QPoint startCenter = startWidget->pos()
+                                 + m_startEndpoint.connectable->connectionPoints()[m_startEndpoint.index];
             QPen linePen;
             linePen.setWidth(2);
             linePen.setBrush(Qt::darkGray);
@@ -121,6 +107,7 @@ void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
     td->setTurnout(turnout);
     td->setGeometry(50, 50, td->width(), td->height());
     td->setVisible(true);
+    td->configureInteraction(m_allowMoving);
     m_turnouts.push_back(td);
 
     connect(td, &TurnoutDisplay::connectionPointsUpdated,
@@ -147,7 +134,7 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
             QRect box(cp.center.x() - 5, cp.center.y() - 5, 10, 10);
             if(box.contains(mousePos)){
                 m_connectingState = ConnectingState::Connecting;
-                m_startEndpoint = {cp.turnout, cp.index};
+                m_startEndpoint = {cp.connectable, cp.index};
                 m_currentMousePos = mousePos;
                 return;
             }
@@ -201,6 +188,17 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
     }
 
     m_selectedWidget->setGeometry(newX, newY, m_selectedWidget->width(), m_selectedWidget->height());
+
+    // Update any segments whose endpoints are attached to the moved widget
+    Connectable* movedConnectable = dynamic_cast<Connectable*>(m_selectedWidget);
+    if(movedConnectable){
+        for(SegmentConnection& sc : m_segments){
+            if(sc.a.connectable == movedConnectable || sc.b.connectable == movedConnectable){
+                sc.segment->setEndpoints(endpointPos(sc.a), endpointPos(sc.b));
+            }
+        }
+    }
+
     update(this->rect());
 }
 
@@ -214,32 +212,35 @@ void PanelDisplay::mouseReleaseEvent(QMouseEvent* event){
     QPoint mousePos = event->pos();
     for(const CachedConnectionPoint& cp : m_connectionPoints){
         // Don't connect a point to itself
-        if(cp.turnout == m_startEndpoint.turnout && cp.index == m_startEndpoint.index){
+        if(cp.connectable == m_startEndpoint.connectable && cp.index == m_startEndpoint.index){
             continue;
         }
         QRect box(cp.center.x() - 5, cp.center.y() - 5, 10, 10);
         if(box.contains(mousePos)){
-            // Don't add duplicate connections
-            bool exists = false;
-            for(const Connection& conn : m_connections){
-                bool fwd = (conn.a.turnout == m_startEndpoint.turnout && conn.a.index == m_startEndpoint.index
-                            && conn.b.turnout == cp.turnout && conn.b.index == cp.index);
-                bool rev = (conn.a.turnout == cp.turnout && conn.a.index == cp.index
-                            && conn.b.turnout == m_startEndpoint.turnout && conn.b.index == m_startEndpoint.index);
-                if(fwd || rev){
-                    exists = true;
-                    break;
-                }
-            }
-            if(!exists){
-                m_connections.push_back({{m_startEndpoint.turnout, m_startEndpoint.index},
-                                         {cp.turnout, cp.index}});
-            }
-            break;
+            createSegment(m_startEndpoint, {cp.connectable, cp.index});
+            update(this->rect());
+            return;
         }
     }
 
     update(this->rect());
+}
+
+QPoint PanelDisplay::endpointPos(const ConnectionEndpoint& ep) const {
+    return dynamic_cast<QWidget*>(ep.connectable)->pos()
+           + ep.connectable->connectionPoints()[ep.index];
+}
+
+TrackSegment* PanelDisplay::createSegment(ConnectionEndpoint a, ConnectionEndpoint b) {
+    TrackSegment* seg = new TrackSegment(this);
+    seg->setEndpoints(endpointPos(a), endpointPos(b));
+    seg->configureInteraction(!m_drawConnectionPoints);
+    seg->setVisible(true);
+    seg->lower();
+    m_segments.push_back({seg, a, b});
+    connect(seg, &TrackSegment::connectionPointsUpdated,
+            this, &PanelDisplay::connectionPointsUpdated);
+    return seg;
 }
 
 void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
@@ -260,6 +261,9 @@ void PanelDisplay::allowMovingChanged(bool allow_moving){
 
     for(TurnoutDisplay* td : m_turnouts){
         td->configureInteraction(!allow_moving);
+    }
+    for(SegmentConnection& sc : m_segments){
+        sc.segment->configureInteraction(!allow_moving);
     }
 }
 
@@ -287,6 +291,9 @@ void PanelDisplay::drawConnectionPointsChanged(bool connection_points){
     }
     for(TurnoutDisplay* td : m_turnouts){
         td->configureInteraction(!connection_points);
+    }
+    for(SegmentConnection& sc : m_segments){
+        sc.segment->configureInteraction(!connection_points);
     }
     update(this->rect());
 }

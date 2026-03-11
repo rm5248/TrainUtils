@@ -153,6 +153,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${PROJECT_SOURCES}
         loconet/loconetturnout.h loconet/loconetturnout.cpp
         panels/propertyeditor.h panels/propertyeditor.cpp panels/propertyeditor.ui
+        panels/connectable.h panels/connectable.cpp
+        panels/tracksegment.h panels/tracksegment.cpp
     )
 else()
     if(ANDROID)
