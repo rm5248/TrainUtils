@@ -17,11 +17,22 @@ PanelDisplay::PanelDisplay(QWidget *parent)
     : QWidget{parent}
 {
     m_name = "Panel";
+    setFixedSize(m_panelSize);
 }
 
 void PanelDisplay::paintEvent(QPaintEvent *event){
     QWidget::paintEvent(event);
     QPainter painter(this);
+
+    // Draw border around the panel
+    {
+        QPen borderPen;
+        borderPen.setWidth(2);
+        borderPen.setBrush(Qt::black);
+        borderPen.setStyle(Qt::SolidLine);
+        painter.setPen(borderPen);
+        painter.drawRect(rect().adjusted(0, 0, -1, -1));
+    }
 
     if(m_selectedWidget){
         // Draw a box around the widget
@@ -116,7 +127,12 @@ void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
 
 QSize PanelDisplay::sizeHint() const
 {
-    return QSize(600, 600);
+    return m_panelSize;
+}
+
+void PanelDisplay::setPanelSize(QSize size) {
+    m_panelSize = size;
+    setFixedSize(size);
 }
 
 void PanelDisplay::mousePressEvent(QMouseEvent* event){
@@ -186,6 +202,10 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
     }else{
         newY += diffY;
     }
+
+    // Clamp so the widget stays within the panel bounds
+    newX = std::max(0, std::min(newX, width() - m_selectedWidget->width()));
+    newY = std::max(0, std::min(newY, height() - m_selectedWidget->height()));
 
     m_selectedWidget->setGeometry(newX, newY, m_selectedWidget->width(), m_selectedWidget->height());
 

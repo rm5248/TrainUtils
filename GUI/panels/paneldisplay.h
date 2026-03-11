@@ -36,6 +36,7 @@ public Q_SLOTS:
     void drawConnectionPointsChanged(bool connection_points);
     void addBlankTurnout();
     void connectionPointsUpdated();
+    void setPanelSize(QSize size);
 
 private:
     enum class ConnectingState{
@@ -80,6 +81,7 @@ private:
 
     // non-GUI properties
     QString m_name;
+    QSize m_panelSize = QSize(1280, 800);
 };
 
 #endif // PANELDISPLAY_H

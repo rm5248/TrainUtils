@@ -21,6 +21,7 @@
 #include "systemconnection.h"
 
 #include <QInputDialog>
+#include <QScrollArea>
 #include <QHostAddress>
 #include <QSerialPortInfo>
 #include <QErrorMessage>
@@ -467,17 +468,22 @@ void MainWindow::on_action_loconet_manual_Serial_triggered()
 void MainWindow::on_actionNewPanel_triggered()
 {
     ads::CDockWidget* DockWidget = new ads::CDockWidget("Panel");
-    PanelDisplay* panelDisp = new PanelDisplay(this);
-    DockWidget->setWidget(panelDisp);
+    PanelDisplay* panelDisp = new PanelDisplay();
     if(!m_state->m_connections.empty()){
         panelDisp->addTurnout(m_state->m_connections[0]->getDCCTurnout(1));
     }
+
+    QScrollArea* scrollArea = new QScrollArea();
+    scrollArea->setWidget(panelDisp);
+    scrollArea->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+    DockWidget->setWidget(scrollArea);
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
-    newPanelAdded(panelDisp);
+    newPanelAdded(panelDisp, DockWidget);
 }
 
-void MainWindow::newPanelAdded(PanelDisplay* panel){
+void MainWindow::newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget){
     bool firstPanel = m_panels.empty();
 
     LOG4CXX_DEBUG_FMT(logger, "Added new panel");
@@ -499,6 +505,20 @@ void MainWindow::newPanelAdded(PanelDisplay* panel){
         QString oldName = panel->getName();
         QString newName = QInputDialog::getText(this, "New Name", "Input new name of panel", QLineEdit::Normal, panel->getName());
         LOG4CXX_DEBUG_FMT(logger, "Rename panel {} to {}", oldName.toStdString(), newName.toStdString());
+    });
+
+    QAction* resizePanelAction = menu->addAction(tr("Set panel size..."));
+    connect(resizePanelAction, &QAction::triggered, this, [panel, this]() {
+        bool ok1, ok2;
+        int w = QInputDialog::getInt(this, tr("Panel Width"),
+                                     tr("Width (pixels):"), panel->width(),
+                                     100, 10000, 1, &ok1);
+        if (!ok1) return;
+        int h = QInputDialog::getInt(this, tr("Panel Height"),
+                                     tr("Height (pixels):"), panel->height(),
+                                     100, 10000, 1, &ok2);
+        if (!ok2) return;
+        panel->setPanelSize(QSize(w, h));
     });
 
 }

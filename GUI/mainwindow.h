@@ -52,7 +52,7 @@ private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
     void newConnectionMade(std::shared_ptr<SystemConnection> conn);
-    void newPanelAdded(PanelDisplay* panel);
+    void newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget = nullptr);
 
 private:
     Ui::MainWindow *ui;
