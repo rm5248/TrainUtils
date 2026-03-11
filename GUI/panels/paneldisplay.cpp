@@ -53,41 +53,45 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
         painter.drawPath(path);
     }
 
+    // Draw permanent connections (always, not just in connection-point mode)
+    if(!m_connections.isEmpty()){
+        QPen connPen;
+        connPen.setWidth(2);
+        connPen.setBrush(Qt::blue);
+        painter.setPen(connPen);
+        for(const Connection& conn : m_connections){
+            QPoint a = conn.a.turnout->pos() + conn.a.turnout->connectionPoints()[conn.a.index];
+            QPoint b = conn.b.turnout->pos() + conn.b.turnout->connectionPoints()[conn.b.index];
+            painter.drawLine(a, b);
+        }
+    }
+
     if(m_drawConnectionPoints){
-        // Create a list of all of the connection points, and let's go draw them
+        // Rebuild the cached list of all connection points
         m_connectionPoints.clear();
         for(TurnoutDisplay* disp : m_turnouts){
-            for(QPoint& p : disp->connectionPoints()){
-                QPoint newPoint(disp->pos() + p);
-                newPoint.setX(newPoint.x() - 5);
-                newPoint.setY(newPoint.y() - 5);
-                m_connectionPoints.push_back(newPoint);
+            int idx = 0;
+            for(const QPoint& p : disp->connectionPoints()){
+                QPoint center = disp->pos() + p;
+                m_connectionPoints.push_back({disp, idx, center});
+                idx++;
             }
         }
 
-
-        for(QPoint& center : m_connectionPoints){
+        for(const CachedConnectionPoint& cp : m_connectionPoints){
             painter.save();
-            painter.translate(center);
+            QPoint topLeft(cp.center.x() - 5, cp.center.y() - 5);
+            painter.translate(topLeft);
 
             // a connection point is just a white semi-transparent box
             // with a black border
-            QPoint topLeft(0, 0);
-            QPoint topRight(10, 0);
-            QPoint bottomRight(10, 10);
-            QPoint bottomLeft(0, 10);
-            QRect box(topLeft, bottomRight);
+            QRect box(0, 0, 10, 10);
 
-            // draw the semi-transparent part first
             QBrush semiTransparent(QColor(255, 255, 255, 128));
             painter.fillRect(box, semiTransparent);
 
             QPainterPath path;
-            path.moveTo(topLeft);
-            path.lineTo(topRight);
-            path.lineTo(bottomRight);
-            path.lineTo(bottomLeft);
-            path.lineTo(topLeft);
+            path.addRect(box);
 
             QPen pen;
             pen.setWidth(2);
@@ -96,6 +100,18 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
 
             painter.drawPath(path);
             painter.restore();
+        }
+
+        // Draw the in-progress connection line while dragging
+        if(m_connectingState == ConnectingState::Connecting){
+            QPoint startCenter = m_startEndpoint.turnout->pos()
+                                 + m_startEndpoint.turnout->connectionPoints()[m_startEndpoint.index];
+            QPen linePen;
+            linePen.setWidth(2);
+            linePen.setBrush(Qt::darkGray);
+            linePen.setStyle(Qt::DashLine);
+            painter.setPen(linePen);
+            painter.drawLine(startCenter, m_currentMousePos);
         }
     }
 }
@@ -127,12 +143,13 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
     // First let's check to see if we are selecting a connection point
     if(m_drawConnectionPoints && event->button() == Qt::LeftButton){
         QPoint mousePos = event->pos();
-        for(QPoint& point : m_connectionPoints){
-            QPoint distance = point - mousePos;
-            if(distance.manhattanLength() < 5){
-                // We are in a connection point!
+        for(const CachedConnectionPoint& cp : m_connectionPoints){
+            QRect box(cp.center.x() - 5, cp.center.y() - 5, 10, 10);
+            if(box.contains(mousePos)){
                 m_connectingState = ConnectingState::Connecting;
-                m_startConnectingPoint = point;
+                m_startEndpoint = {cp.turnout, cp.index};
+                m_currentMousePos = mousePos;
+                return;
             }
         }
         return;
@@ -158,6 +175,12 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
 }
 
 void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
+    if(m_connectingState == ConnectingState::Connecting){
+        m_currentMousePos = event->pos();
+        update(this->rect());
+        return;
+    }
+
     if(m_selectedWidget == nullptr){
         return;
     }
@@ -178,6 +201,44 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
     }
 
     m_selectedWidget->setGeometry(newX, newY, m_selectedWidget->width(), m_selectedWidget->height());
+    update(this->rect());
+}
+
+void PanelDisplay::mouseReleaseEvent(QMouseEvent* event){
+    if(m_connectingState != ConnectingState::Connecting || event->button() != Qt::LeftButton){
+        return;
+    }
+
+    m_connectingState = ConnectingState::NotConnecting;
+
+    QPoint mousePos = event->pos();
+    for(const CachedConnectionPoint& cp : m_connectionPoints){
+        // Don't connect a point to itself
+        if(cp.turnout == m_startEndpoint.turnout && cp.index == m_startEndpoint.index){
+            continue;
+        }
+        QRect box(cp.center.x() - 5, cp.center.y() - 5, 10, 10);
+        if(box.contains(mousePos)){
+            // Don't add duplicate connections
+            bool exists = false;
+            for(const Connection& conn : m_connections){
+                bool fwd = (conn.a.turnout == m_startEndpoint.turnout && conn.a.index == m_startEndpoint.index
+                            && conn.b.turnout == cp.turnout && conn.b.index == cp.index);
+                bool rev = (conn.a.turnout == cp.turnout && conn.a.index == cp.index
+                            && conn.b.turnout == m_startEndpoint.turnout && conn.b.index == m_startEndpoint.index);
+                if(fwd || rev){
+                    exists = true;
+                    break;
+                }
+            }
+            if(!exists){
+                m_connections.push_back({{m_startEndpoint.turnout, m_startEndpoint.index},
+                                         {cp.turnout, cp.index}});
+            }
+            break;
+        }
+    }
+
     update(this->rect());
 }
 
@@ -221,6 +282,12 @@ void PanelDisplay::connectionPointsUpdated(){
 
 void PanelDisplay::drawConnectionPointsChanged(bool connection_points){
     m_drawConnectionPoints = connection_points;
+    if(!connection_points){
+        m_connectingState = ConnectingState::NotConnecting;
+    }
+    for(TurnoutDisplay* td : m_turnouts){
+        td->configureInteraction(!connection_points);
+    }
     update(this->rect());
 }
 
