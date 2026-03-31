@@ -115,14 +115,14 @@ int lcc_gridconnect_to_canframe(char* ascii, struct lcc_can_frame* frame){
         return LCC_ERROR_INVALID_ARG;
     }
 
-    str_buffer[str_buffer_pos + 1] = 0;
+    str_buffer[str_buffer_pos] = 0;
     str_buffer_pos = 0;
     frame->can_id = strtol(str_buffer, NULL, 16);
 
     // For each two bytes that we get next, set the appropriate data byte in our frame
     x++;
     str_buffer[2] = 0;
-    while(ascii[x] != ';'){
+    while(ascii[x] != ';' && num_bytes < 8){
         str_buffer[0] = ascii[x];
         str_buffer[1] = ascii[x + 1];
         x+=2;
