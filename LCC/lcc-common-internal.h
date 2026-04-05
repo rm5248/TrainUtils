@@ -97,6 +97,7 @@ struct lcc_memory_context{
     lcc_address_space_write write_fn;
     lcc_reboot reboot_fn;
     lcc_factory_reset factory_reset_fn;
+    void* user_data;
 };
 
 struct lcc_remote_memory_context{

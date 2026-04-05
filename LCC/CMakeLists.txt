@@ -53,6 +53,8 @@ set(lcc_sources
     lcc-cdi-control.c
     lcc-train-control.h
     lcc-train-control.c
+    lcc-memory-map.h
+    lcc-memory-map.c
 )
 
 add_library(lcc STATIC

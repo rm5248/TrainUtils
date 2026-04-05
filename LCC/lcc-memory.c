@@ -434,7 +434,7 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
         return 1;
     }
 
-    if(ctx->cdi_data == NULL){
+    if(ctx->cdi_data == NULL && ctx->read_fn == NULL && ctx->write_fn == NULL){
         return 0;
     }
 
