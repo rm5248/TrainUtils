@@ -14,14 +14,21 @@ struct lcc_gridconnect{
 };
 
 struct lcc_gridconnect* lcc_gridconnect_new(){
+#ifdef LIBLCC_ENABLE_STATIC_CONTEXT
+    static struct lcc_gridconnect gc = {0};
+    return &gc;
+#else
     struct lcc_gridconnect* gc = malloc(sizeof(struct lcc_gridconnect));
     memset(gc, 0, sizeof(struct lcc_gridconnect));
 
     return gc;
+#endif
 }
 
 void lcc_gridconnect_free(struct lcc_gridconnect* gc){
+#ifndef LIBLCC_ENABLE_STATIC_CONTEXT
     free(gc);
+#endif
 }
 
 int lcc_gridconnect_incoming_data(struct lcc_gridconnect* context, void* data, uint32_t len){
