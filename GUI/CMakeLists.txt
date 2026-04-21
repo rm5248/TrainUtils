@@ -155,6 +155,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         panels/propertyeditor.h panels/propertyeditor.cpp panels/propertyeditor.ui
         panels/connectable.h panels/connectable.cpp
         panels/tracksegment.h panels/tracksegment.cpp
+        loconet/loconetprogrammer.h loconet/loconetprogrammer.cpp
+        loconet/loconetprogrammingresult.h loconet/loconetprogrammingresult.cpp
+        loconet/loconetprogrammingrequest.h loconet/loconetprogrammingrequest.cpp
+        loconetcvprogrammer.h loconetcvprogrammer.cpp loconetcvprogrammer.ui
     )
 else()
     if(ANDROID)

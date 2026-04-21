@@ -13,6 +13,7 @@
 #include "lcceventtransmit.h"
 #include "lccnetworkview.h"
 #include "loconetswitchcontrol.h"
+#include "loconetcvprogrammer.h"
 #include "throttledisplay.h"
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
@@ -339,6 +340,26 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
         connect(loconetConn.get(), &SystemConnection::systemNameChanged,
             [DockWidget,loconetConn](){
                 QString newName = QString("%1 - Switch Control").arg(loconetConn->name());
+                DockWidget->setWindowTitle(newName);
+        });
+    });
+
+    QAction* actionCvProgrammer = parentMenu->addAction("CV Programmer");
+    connect(actionCvProgrammer, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LoconetConnection> loconetConn = m_state->loconetManager->getConnectionByName(connectionName);
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - CV Programmer").arg(loconetConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - CV Programmer").arg(loconetConn->name());
+        DockWidget->setWindowTitle(newName);
+        LoconetCvProgrammer* cvProgrammer = new LoconetCvProgrammer(this);
+        cvProgrammer->setLoconetConnection(loconetConn);
+        DockWidget->setWidget(cvProgrammer);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(loconetConn.get(), &SystemConnection::systemNameChanged,
+            [DockWidget,loconetConn](){
+                QString newName = QString("%1 - CV Programmer").arg(loconetConn->name());
                 DockWidget->setWindowTitle(newName);
         });
     });

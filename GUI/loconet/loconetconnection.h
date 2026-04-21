@@ -13,6 +13,7 @@
 #include "loconetturnout.h"
 
 class LoconetThrottle;
+class LoconetProgrammer;
 
 class LoconetConnection : public SystemConnection
 {
@@ -38,6 +39,13 @@ public:
      * @return
      */
     std::shared_ptr<LoconetThrottle> newThrottle();
+
+    /**
+     * Create a new programmer attached to this connection.
+     *
+     * @return
+     */
+    std::shared_ptr<LoconetProgrammer> newProgrammer();
 
     std::shared_ptr<Turnout> getDCCTurnout(int switch_num);
 

@@ -294,7 +294,7 @@ int loconet_context_write_message( struct loconet_context* ctx, struct loconet_m
 	//first, let's calculate our checksum
 	uint8_t type = message->opcode & 0xE0;
 	uint8_t checksum = 0xFF;
-    uint8_t out_data[12];
+    uint8_t out_data[16];
 
     if( !ctx->ignoreState ){
         while( ctx->currentState != LN_IDLE ){}
@@ -339,7 +339,19 @@ int loconet_context_write_message( struct loconet_context* ctx, struct loconet_m
             LN_WRITE_BYTE( ctx, message->data[ 1 ] );
             LN_WRITE_BYTE( ctx, checksum );
         }
-	}
+    }else if(type == 0xE0){
+        // Variable byte message opcode
+        int len = loconet_message_length(message);
+        out_data[0] = message->opcode;
+        for(int x = 0; x < len; x++){
+            checksum ^= message->data[x];
+            out_data[x + 1] = message->data[x];
+        }
+        if(ctx->writeInterlock){
+            ctx->writeInterlock(ctx, out_data, len);
+            ctx->currentState = LN_IDLE;
+        }
+    }
 
     if( ctx->timerStart ){
         ctx->currentState = LN_CD_BACKOFF;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "loconetconnection.h"
 #include "loconetthrottle.h"
+#include "loconetprogrammer.h"
 #include "loconetserialconnection.h"
 #include "loconetnetworkconnection.h"
 
@@ -98,6 +99,10 @@ std::shared_ptr<LoconetThrottle> LoconetConnection::newThrottle(){
     m_throttles.push_back(newThrottle);
 
     return newThrottle;
+}
+
+std::shared_ptr<LoconetProgrammer> LoconetConnection::newProgrammer(){
+    return std::make_shared<LoconetProgrammer>(this);
 }
 
 void LoconetConnection::incomingLoconetSwitchChangedCB(struct loconet_turnout_manager* manager, int switch_num, enum loconet_turnout_status state){
