@@ -23,6 +23,7 @@ void LoconetSerialConnection::setSerialPortName(QString port){
 }
 
 void LoconetSerialConnection::writeData(uint8_t* data, int len){
+    LOG4CXX_DEBUG_FMT(logger, "write data len {} to serial port", len);
     if(m_serialPort.isOpen()){
         m_serialPort.write((const char*)data, len);
     }

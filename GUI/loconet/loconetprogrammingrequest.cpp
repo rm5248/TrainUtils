@@ -54,6 +54,9 @@ loconet_message LoconetProgrammingRequest::buildMessage() const {
         break;
     }
 
+    // JMRI sets the lower two reserved bits for some reason?
+    // pcmd |= 0x03;
+
     // CV is 1-based in DCC; protocol uses 0-based 10-bit index
     int cvIndex = m_cv - 1;
     uint8_t cvl = cvIndex & 0x7F;

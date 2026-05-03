@@ -39,7 +39,7 @@ void LoconetProgrammer::sendCurrentRequest() {
     }
 
     m_current = m_queue.dequeue();
-    m_state = State::WaitingForLack;
+    m_state = State::WaitingForSubmitLack;
 
     loconet_message msg = m_current.request.buildMessage();
     LOG4CXX_DEBUG_FMT(logger, "Sending programming request to programmer slot");
@@ -52,9 +52,56 @@ void LoconetProgrammer::completeCurrentRequest(LoconetProgrammingResult::Complet
 }
 
 void LoconetProgrammer::incomingMessage(loconet_message message) {
-    if (m_state == State::WaitingForLack) {
-        // Expecting LACK: opcode=0xB4, lopc=0x7F (= 0xEF & 0x7F)
-        if (message.opcode != LN_OPC_LONG_ACK || message.ack.lopc != 0x7F)
+    bool is_slot_read = message.opcode == LN_OPC_SLOT_READ_DATA && message.slot_data.slot == 0x7C;
+    if (is_slot_read &&
+        (m_state == State::WaitingForCompletion || m_state == State::WaitingForSubmitLack)) {
+        // We don't seem to always go through our state machine properly, but we know that if we
+        // get a slot read for lot 124(programmer slot) and we're not idle, we can terminate the read operation
+
+        // Expecting E7 reply on the programmer slot
+        if (message.opcode != LN_OPC_SLOT_READ_DATA || message.slot_data.slot != 0x7C)
+            return;
+
+        uint8_t pstat = message.data[3];
+        LOG4CXX_DEBUG_FMT(logger, "Programming task completed, PSTAT=0x{:X}", pstat);
+
+        if (pstat & 0x01) {
+            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::NoDecoderDetected);
+        } else if (pstat & 0x02) {
+            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::NoWriteAck);
+        } else if (pstat & 0x04) {
+            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::FailedToDetectReadAck);
+        } else if (pstat & 0x08) {
+            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::UserAborted);
+        } else {
+            // Success — reconstruct full 8-bit data from DATA7 and D7 in CVH
+            uint8_t data = message.data[9];
+            if(message.data[7] & (0x01 << 1)){
+                // MSb of data response is in data[7]
+                data |= 0x80;
+            }
+            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::Success, data);
+        }
+    }
+
+    if (m_state == State::WaitingForSubmitLack) {
+        if (message.opcode != LN_OPC_LONG_ACK || message.ack.lopc != 0x6F)
+            return;
+
+        if(message.ack.ack == 0x7F){
+            LOG4CXX_DEBUG_FMT(logger, "Submit LACK received, waiting for write ACK");
+            m_state = State::WaitingForWriteAck;
+        }
+        return;
+    }
+
+    if (m_state == State::WaitingForWriteAck) {
+        // Expecting LACK: opcode=0xB4, lopc=0x6F.
+        // NOTE: the Loconet Personal Edition spec seems to disagree on the nature of the LOPC mechanism.
+        // In the example it gives, the LOPC should be 0x7F, however the long ACK message is defined to be
+        // the same opcode without the MSb set.  With a message of 0xEF(write slot), this means the Long ACK
+        // opcode should be 0x6F, not 0x7F as is tated in the spec.
+        if (message.opcode != LN_OPC_LONG_ACK || message.ack.lopc != 0x6F)
             return;
 
         switch (message.ack.ack) {
@@ -79,30 +126,5 @@ void LoconetProgrammer::incomingMessage(loconet_message message) {
             break;
         }
         return;
-    }
-
-    if (m_state == State::WaitingForCompletion) {
-        // Expecting E7 reply on the programmer slot
-        if (message.opcode != LN_OPC_SLOT_READ_DATA || message.slot_data.slot != 0x7C)
-            return;
-
-        uint8_t pstat = message.slot_data.stat;
-        LOG4CXX_DEBUG_FMT(logger, "Programming task completed, PSTAT=0x{:X}", pstat);
-
-        if (pstat & 0x01) {
-            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::NoDecoderDetected);
-        } else if (pstat & 0x02) {
-            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::NoWriteAck);
-        } else if (pstat & 0x04) {
-            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::FailedToDetectReadAck);
-        } else if (pstat & 0x08) {
-            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::UserAborted);
-        } else {
-            // Success — reconstruct full 8-bit data from DATA7 and D7 in CVH
-            uint8_t data7 = message.slot_data.sound;
-            uint8_t d7    = (message.slot_data.stat2 >> 1) & 1;
-            uint8_t data  = data7 | static_cast<uint8_t>(d7 << 7);
-            completeCurrentRequest(LoconetProgrammingResult::CompletedReason::Success, data);
-        }
     }
 }

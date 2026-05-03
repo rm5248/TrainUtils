@@ -33,7 +33,15 @@ private:
     void sendCurrentRequest();
     void completeCurrentRequest(LoconetProgrammingResult::CompletedReason reason, uint8_t data = 0);
 
-    enum class State { Idle, WaitingForLack, WaitingForCompletion };
+    enum class State {
+        Idle,
+        // When submitting on the programming track, there are two ACKs that are sent by the command station:
+        // 1. when the data is sent to the command station.  This results in an immediate LACK of 0x7F being sent
+        // 2. Once the data is written out.  This will result in a LACK of 0x01
+        WaitingForSubmitLack,
+        WaitingForWriteAck,
+        WaitingForCompletion
+    };
 
     struct PendingRequest {
         LoconetProgrammingRequest request;

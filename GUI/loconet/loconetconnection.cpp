@@ -9,6 +9,8 @@
 #include <fmt/format.h>
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.loconet.LoconetConnection" );
+static log4cxx::LoggerPtr logger_ln_tx = log4cxx::Logger::getLogger( "loconet.tx" );
+static log4cxx::LoggerPtr logger_ln_rx = log4cxx::Logger::getLogger( "loconet.rx" );
 
 LoconetConnection::LoconetConnection(QObject *parent) : SystemConnection(parent)
 {
@@ -48,6 +50,23 @@ void LoconetConnection::sendNextMessage(){
 
     LOG4CXX_DEBUG_FMT(logger, "Send next loconet message");
     loconet_message msg = m_sendQueue.front();
+
+    // Debug log the message we are sending
+    {
+        std::stringstream debug_msg;
+        debug_msg << "[";
+        int num_bytes = loconet_message_length(&msg);
+        uint8_t* as_u8 = reinterpret_cast<uint8_t*>(&msg);
+        for(int x = 0; x < num_bytes; x++){
+            debug_msg << fmt::format("{:02X}", as_u8[x]);
+            if(x != num_bytes - 1){
+                debug_msg << " ";
+            }
+        }
+        debug_msg << "]";
+        LOG4CXX_DEBUG(logger_ln_tx, debug_msg.str());
+    }
+
     loconet_context_write_message(m_locoContext, &msg);
     m_sendQueue.pop_front();
 }
@@ -70,6 +89,22 @@ void LoconetConnection::incomingLoconet(struct loconet_message *msg){
         LOG4CXX_ERROR_FMT(logger, "bad message from loconet: invalid length {} opcode: 0x{:X}", msgLen,
                           new_message.opcode );
         return;
+    }
+
+    // Debug log the message we are receiving
+    {
+        std::stringstream debug_msg;
+        debug_msg << "[";
+        int num_bytes = loconet_message_length(msg);
+        uint8_t* as_u8 = reinterpret_cast<uint8_t*>(msg);
+        for(int x = 0; x < num_bytes; x++){
+            debug_msg << fmt::format("{:02X}", as_u8[x]);
+            if(x != num_bytes - 1){
+                debug_msg << " ";
+            }
+        }
+        debug_msg << "]";
+        LOG4CXX_DEBUG(logger_ln_rx, debug_msg.str());
     }
 
     Q_EMIT incomingLoconetMessage(new_message);
