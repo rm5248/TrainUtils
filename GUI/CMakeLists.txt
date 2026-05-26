@@ -159,6 +159,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         loconet/loconetprogrammingresult.h loconet/loconetprogrammingresult.cpp
         loconet/loconetprogrammingrequest.h loconet/loconetprogrammingrequest.cpp
         loconetcvprogrammer.h loconetcvprogrammer.cpp loconetcvprogrammer.ui
+        speedo/speedoconnection.h speedo/speedoconnection.cpp
+        speedometerdisplay.h speedometerdisplay.cpp speedometerdisplay.ui
+        speedmatcher.h speedmatcher.cpp speedmatcher.ui
     )
 else()
     if(ANDROID)

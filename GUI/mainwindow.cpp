@@ -20,6 +20,8 @@
 #include "panels/paneldisplay.h"
 #include "panels/paneltoolswidget.h"
 #include "systemconnection.h"
+#include "speedo/speedoconnection.h"
+#include "speedmatcher.h"
 
 #include <QInputDialog>
 #include <QScrollArea>
@@ -386,6 +388,10 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
     });
 }
 
+void MainWindow::addSubmenusSpeedoConnection(QMenu* parentMenu, QString connectionName){
+
+}
+
 void MainWindow::scanForLoconetConnections(){
     // Remove all options in the list and re-populate
     QList<QAction*> toRemove;
@@ -541,6 +547,41 @@ void MainWindow::newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget
         if (!ok2) return;
         panel->setPanelSize(QSize(w, h));
     });
+
+}
+
+
+void MainWindow::on_action_speedo_Manual_Serial_triggered()
+{
+    QList<QSerialPortInfo> allInfos = QSerialPortInfo::availablePorts();
+    QStringList portNames;
+
+    for(QSerialPortInfo inf : allInfos){
+        portNames.push_back( inf.portName() );
+    }
+
+    QString serial = QInputDialog::getItem(this, "Select Serial Port", "Select Speedometer serial port", portNames );
+    if(serial.isNull() || serial.isEmpty()){
+        return;
+    }
+
+    std::shared_ptr<SpeedoConnection> conn = std::shared_ptr<SpeedoConnection>(new SpeedoConnection());
+    if(conn){
+        QMenu* menu = ui->menuSpeedometer->addMenu(conn->name());
+        addSubmenusSpeedoConnection(menu, conn->name());
+        newConnectionMade(conn);
+    }
+}
+
+
+void MainWindow::on_actionSpeed_Matching_triggered()
+{
+    ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                        QString("Speed Matching"));
+    DockWidget->setWindowTitle("Speed Matching");
+    SpeedMatcher* speedMatch = new SpeedMatcher(this);
+    DockWidget->setWidget(speedMatch);
+    m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
 }
 

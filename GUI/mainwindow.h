@@ -48,9 +48,14 @@ private Q_SLOTS:
 
     void on_actionNewPanel_triggered();
 
+    void on_action_speedo_Manual_Serial_triggered();
+
+    void on_actionSpeed_Matching_triggered();
+
 private:
     void addSubmenusLCCConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
+    void addSubmenusSpeedoConnection(QMenu* parentMenu, QString connectionName);
     void newConnectionMade(std::shared_ptr<SystemConnection> conn);
     void newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget = nullptr);
 

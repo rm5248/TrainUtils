@@ -33,6 +33,7 @@
      </property>
     </widget>
     <addaction name="menuConnect_To"/>
+    <addaction name="actionSpeed_Matching"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuLoconet">
@@ -83,11 +84,25 @@
     <addaction name="actionNewPanel"/>
     <addaction name="separator"/>
    </widget>
+   <widget class="QMenu" name="menuSpeedometer">
+    <property name="title">
+     <string>Speedometer</string>
+    </property>
+    <widget class="QMenu" name="menuConnect_To_2">
+     <property name="title">
+      <string>Connect To ...</string>
+     </property>
+     <addaction name="action_speedo_Manual_Serial"/>
+    </widget>
+    <addaction name="menuConnect_To_2"/>
+    <addaction name="separator"/>
+   </widget>
    <addaction name="menuTrainGUI"/>
    <addaction name="menuLoconet"/>
    <addaction name="menuNCE"/>
    <addaction name="menuLCC"/>
    <addaction name="menuPanels"/>
+   <addaction name="menuSpeedometer"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionExit">
@@ -148,6 +163,16 @@
   <action name="actionds">
    <property name="text">
     <string>ds</string>
+   </property>
+  </action>
+  <action name="action_speedo_Manual_Serial">
+   <property name="text">
+    <string>Manual Serial</string>
+   </property>
+  </action>
+  <action name="actionSpeed_Matching">
+   <property name="text">
+    <string>Speed Matching</string>
    </property>
   </action>
  </widget>
