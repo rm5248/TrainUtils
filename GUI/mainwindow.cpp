@@ -576,10 +576,21 @@ void MainWindow::on_action_speedo_Manual_Serial_triggered()
 
 void MainWindow::on_actionSpeed_Matching_triggered()
 {
+    std::shared_ptr<LoconetConnection> loconetConn;
+    std::shared_ptr<SpeedoConnection> speedoConn;
+
+    for(std::shared_ptr<SystemConnection> conn : m_state->m_connections){
+        if(conn->name().startsWith("Loconet")){
+            loconetConn = qSharedPointerObjectCast<LoconetConnection>(conn);
+        }else if(conn->name().startsWith("Speedo")){
+            speedoConn = qSharedPointerObjectCast<SpeedoConnection>(conn);
+        }
+    }
+
     ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
                                                         QString("Speed Matching"));
     DockWidget->setWindowTitle("Speed Matching");
-    SpeedMatcher* speedMatch = new SpeedMatcher(this);
+    SpeedMatcher* speedMatch = new SpeedMatcher(loconetConn, speedoConn, this);
     DockWidget->setWidget(speedMatch);
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
