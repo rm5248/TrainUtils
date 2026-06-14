@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SPEEDOCONNECTION_H
 #define SPEEDOCONNECTION_H
 
@@ -15,6 +16,9 @@ public:
     std::shared_ptr<Turnout> getDCCTurnout(int switch_num) override;
     void load(QSettings& settings) override;
     bool open() override;
+    void setSerialPortName(QString name);
+
+    static QStringList getAvailableConnections();
 
 protected:
     void doSave(QSettings& settings) override;
@@ -28,8 +32,12 @@ Q_SIGNALS:
      */
     void speedUpdated(int speed);
 
-private:
+private Q_SLOTS:
+    void incomingData();
 
+private:
+    QString m_serialPortName;
+    QSerialPort m_port;
 };
 
 #endif // SPEEDOCONNECTION_H

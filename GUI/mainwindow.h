@@ -39,8 +39,10 @@ private Q_SLOTS:
     void loconetServerLeft(QString serviceName);
     void connectToLoconetServer(QAction* requestAction);
     void connectToLoconetSerial(QAction* requestAction);
+    void connectToSpeedo(QAction* requestAction);
 
     void scanForLoconetConnections();
+    void scanForSpeedoConnections();
 
     void on_action_lcc_Manual_Serial_triggered();
 

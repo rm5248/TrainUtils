@@ -88,13 +88,17 @@
     <property name="title">
      <string>Speedometer</string>
     </property>
-    <widget class="QMenu" name="menuConnect_To_2">
+    <widget class="QMenu" name="menu_speedo_connect_to">
      <property name="title">
       <string>Connect To ...</string>
      </property>
      <addaction name="action_speedo_Manual_Serial"/>
+     <addaction name="separator"/>
+     <addaction name="action_speedo_auto_Discovered"/>
+     <addaction name="separator"/>
+     <addaction name="action_speedo_serial_Connections"/>
     </widget>
-    <addaction name="menuConnect_To_2"/>
+    <addaction name="menu_speedo_connect_to"/>
     <addaction name="separator"/>
    </widget>
    <addaction name="menuTrainGUI"/>
@@ -173,6 +177,16 @@
   <action name="actionSpeed_Matching">
    <property name="text">
     <string>Speed Matching</string>
+   </property>
+  </action>
+  <action name="action_speedo_auto_Discovered">
+   <property name="text">
+    <string>Auto Discovered:</string>
+   </property>
+  </action>
+  <action name="action_speedo_serial_Connections">
+   <property name="text">
+    <string>Serial Connections:</string>
    </property>
   </action>
  </widget>

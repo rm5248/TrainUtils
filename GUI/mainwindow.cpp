@@ -49,6 +49,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
             this, &MainWindow::scanForLoconetConnections);
+    connect(ui->menu_speedo_connect_to, &QMenu::aboutToShow,
+            this, &MainWindow::scanForSpeedoConnections);
 }
 
 MainWindow::~MainWindow()
@@ -421,6 +423,35 @@ void MainWindow::scanForLoconetConnections(){
     }
 }
 
+void MainWindow::scanForSpeedoConnections(){
+    // Remove all options in the list and re-populate
+    QList<QAction*> toRemove;
+    bool remove = false;
+    for(QAction* action : ui->menu_speedo_connect_to->actions()){
+        if(action->objectName().compare("action_speedo_serial_connections") == 0){
+            remove = true;
+            continue;
+        }
+
+        if(remove){
+            toRemove.push_back(action);
+        }
+    }
+
+    for(QAction* action : toRemove){
+        ui->menu_speedo_connect_to->removeAction(action);
+        action->deleteLater();
+    }
+
+    for(QString& str : SpeedoConnection::getAvailableConnections()){
+        QAction* newAction = ui->menu_speedo_connect_to->addAction(str);
+        connect(newAction, &QAction::triggered,
+                [newAction,this](){
+            connectToSpeedo(newAction);
+        });
+    }
+}
+
 void MainWindow::connectToLoconetSerial(QAction* requestAction){
     std::shared_ptr<LoconetConnection> conn = m_state->loconetManager->createNewLocalLoconet(QString(), requestAction->text());
     if(conn && conn->isConnected()){
@@ -436,6 +467,17 @@ void MainWindow::connectToLoconetSerial(QAction* requestAction){
                 [msg](int){
                     msg->deleteLater();
         });
+    }
+}
+
+void MainWindow::connectToSpeedo(QAction *requestAction){
+    std::shared_ptr<SpeedoConnection> conn = std::make_shared<SpeedoConnection>();
+
+//    conn->setName(connectionName);
+    conn->setSerialPortName(requestAction->text());
+    conn->open();
+    if(conn && conn->isConnected()){
+        newConnectionMade(conn);
     }
 }
 
@@ -567,6 +609,8 @@ void MainWindow::on_action_speedo_Manual_Serial_triggered()
 
     std::shared_ptr<SpeedoConnection> conn = std::shared_ptr<SpeedoConnection>(new SpeedoConnection());
     if(conn){
+        conn->setSerialPortName(serial);
+        conn->open();
         QMenu* menu = ui->menuSpeedometer->addMenu(conn->name());
         addSubmenusSpeedoConnection(menu, conn->name());
         newConnectionMade(conn);
