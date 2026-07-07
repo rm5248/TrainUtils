@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "lccnetworktablemodel.h"
 #include "lcc.h"
+#include "lcc/lccconnection.h"
+#include "lcc-node-info.h"
+#include "lcc-simple-node-info.h"
 
 LCCNetworkTableModel::LCCNetworkTableModel(QObject *parent)
     : QAbstractTableModel(parent)
@@ -46,10 +49,40 @@ QVariant LCCNetworkTableModel::data(const QModelIndex &index, int role) const
         return QVariant();
     }
 
-    // FIXME: Implement me!
     char node_id_char[20];
-    lcc_node_id_to_dotted_format(m_nodeIds[index.row()], node_id_char, sizeof(node_id_char));
+    uint64_t node_id = m_nodeIds[index.row()];
+    lcc_node_id_to_dotted_format(node_id, node_id_char, sizeof(node_id_char));
+
+    if(m_connection){
+        struct lcc_node_info* node_info = m_connection->lccNodeInfoForID(node_id);
+        if(node_info != nullptr){
+            struct lcc_simple_node_info* simple = lcc_node_info_get_simple(node_info);
+            QString manufacturer = QString(lcc_simple_node_info_manufacturer_name(simple));
+            QString model = QString(lcc_simple_node_info_model_name(simple));
+
+            if(!manufacturer.isEmpty() || !model.isEmpty()){
+                return QVariant(QString("%1 - %2 - %3").arg(manufacturer, model, QString(node_id_char)));
+            }
+        }
+    }
+
     return QVariant(QString(node_id_char));
+}
+
+void LCCNetworkTableModel::setLCCConnection(std::shared_ptr<LCCConnection> lcc){
+    m_connection = lcc;
+
+    connect(m_connection.get(), &LCCConnection::nodeInformationUpdated,
+            this, &LCCNetworkTableModel::nodeInformationUpdated);
+}
+
+void LCCNetworkTableModel::nodeInformationUpdated(uint64_t node_id){
+    int row = m_nodeIds.indexOf(node_id);
+    if(row < 0){
+        return;
+    }
+
+    Q_EMIT dataChanged(index(row, 0), index(row, 0));
 }
 
 void LCCNetworkTableModel::addNodeID(uint64_t id){

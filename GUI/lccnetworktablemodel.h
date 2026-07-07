@@ -3,6 +3,9 @@
 #define LCCNETWORKTABLEMODEL_H
 
 #include <QAbstractTableModel>
+#include <memory>
+
+class LCCConnection;
 
 class LCCNetworkTableModel : public QAbstractTableModel
 {
@@ -20,12 +23,17 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
+    void setLCCConnection(std::shared_ptr<LCCConnection> lcc);
     void addNodeID(uint64_t id);
     void clear();
     uint64_t nodeIdForRow(int row);
 
+private Q_SLOTS:
+    void nodeInformationUpdated(uint64_t node_id);
+
 private:
     QVector<uint64_t> m_nodeIds;
+    std::shared_ptr<LCCConnection> m_connection;
 };
 
 #endif // LCCNETWORKTABLEMODEL_H

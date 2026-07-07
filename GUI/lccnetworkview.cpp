@@ -33,9 +33,13 @@ LCCNetworkView::~LCCNetworkView()
 void LCCNetworkView::setLCCConnection(std::shared_ptr<LCCConnection> lcc){
     m_connection = lcc;
     ui->selectedNode->setLCCConnection(lcc);
+    m_tableModel.setLCCConnection(lcc);
 
     connect(m_connection.get(), &LCCConnection::newNodeDiscovered,
             this, &LCCNetworkView::newNodeFound);
+
+    // Automatically query the network as soon as we're connected
+    m_connection->refreshNetwork();
 }
 
 void LCCNetworkView::newNodeFound(uint64_t node_id){
@@ -44,6 +48,14 @@ void LCCNetworkView::newNodeFound(uint64_t node_id){
     lcc_node_id_to_dotted_format(node_id, node_buffer, sizeof(node_buffer));
     LOG4CXX_DEBUG_FMT(logger, "Found node {}", node_buffer);
     m_tableModel.addNodeID(node_id);
+
+    // Automatically query protocols and simple node information for the
+    // new node so the table can display its manufacturer/model.
+    struct lcc_node_info* node_info = m_connection->lccNodeInfoForID(node_id);
+    if(node_info != nullptr){
+        lcc_node_refresh_protocol_support(node_info);
+        lcc_node_refresh_simple_info(node_info);
+    }
 }
 
 void LCCNetworkView::on_queryNetwork_clicked()
