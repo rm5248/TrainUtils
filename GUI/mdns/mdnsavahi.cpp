@@ -120,7 +120,7 @@ void MDNSAvahi::signalLCCNew(int32_t interface,
     LOG4CXX_DEBUG_FMT( logger, "Service resolver path = {}", serviceResolverPath );
     std::shared_ptr<Avahi::ServiceResolverProxy> newResolver =
             Avahi::ServiceResolverProxy::create( m_connection, "org.freedesktop.Avahi", serviceResolverPath );
-    m_nameToResolver[ QString::fromStdString( name ) ] = newResolver;
+    m_nameToResolver[ QString::fromStdString( name ) + ":" + QString::fromStdString(type) ] = newResolver;
 
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
             ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLCCFound ) );
@@ -188,7 +188,7 @@ void MDNSAvahi::signalLoconetNew(int32_t interface,
     LOG4CXX_DEBUG_FMT( logger, "Service resolver path = {}", serviceResolverPath );
     std::shared_ptr<Avahi::ServiceResolverProxy> newResolver =
             Avahi::ServiceResolverProxy::create( m_connection, "org.freedesktop.Avahi", serviceResolverPath );
-    m_nameToResolver[ QString::fromStdString( name ) ] = newResolver;
+    m_nameToResolver[ QString::fromStdString( name ) + ":" + QString::fromStdString(type) ] = newResolver;
 
     newResolver->getorg_freedesktop_Avahi_ServiceResolverInterface()
             ->signal_Found()->connect( sigc::mem_fun( *this, &MDNSAvahi::resolvedLoconetFound ) );
