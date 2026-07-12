@@ -6,7 +6,7 @@
 #include <QVector>
 #include <QString>
 
-class SystemConnection;
+#include "systemconnection.h"
 
 namespace DBus::Qt{
 class QtDispatcher;
@@ -32,6 +32,17 @@ struct TrainUtilsState{
 namespace TrainUtils{
 
 std::shared_ptr<SystemConnection> connectionByName(TrainUtilsState*, QString name);
+
+template<class T>
+std::shared_ptr<T> connectionByNameAndType(TrainUtilsState* state, QString name){
+    for(std::shared_ptr<SystemConnection> conn : state->m_connections){
+        if(conn->name() == name){
+            return qSharedPointerObjectCast<T>(conn);
+        }
+    }
+
+    return nullptr;
+}
 
 }
 

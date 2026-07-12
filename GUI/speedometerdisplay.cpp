@@ -18,5 +18,5 @@ void SpeedometerDisplay::incomingSpeedMeasurement(double speed){
         speed = speed / 1.609;
     }
 
-    ui->speedLabel->setText(QString("%1").arg(speed));
+    ui->speedLabel->setText(QString("%1").arg(speed, 0, 'f', 1));
 }

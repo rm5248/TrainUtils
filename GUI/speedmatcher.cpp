@@ -8,29 +8,29 @@
 #include "loconet/loconetprogrammingrequest.h"
 #include "loconet/loconetprogrammingresult.h"
 #include "speedo/speedoconnection.h"
+#include "systemconnection.h"
 
 #include <cmath>
 #include <algorithm>
+#include <log4cxx/logger.h>
+
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.SpeedMatcher" );
 
 static constexpr double MPH_TO_KPH = 1.60934;
 
 // CV 67 is the first extended speed table entry (speed step 1).
 static constexpr int CV_SPEED_TABLE_BASE = 67;
 
-SpeedMatcher::SpeedMatcher(std::shared_ptr<LoconetConnection> loconet,
-                           std::shared_ptr<SpeedoConnection>  speedo,
+SpeedMatcher::SpeedMatcher(TrainUtilsState* state,
                            QWidget* parent)
     : QWidget(parent)
     , ui(new Ui::SpeedMatcher)
-    , m_loconet(loconet)
-    , m_speedo(speedo)
+    , m_trainUtilsState(state)
 {
     ui->setupUi(this);
 
     connect(ui->startButton, &QPushButton::clicked,
             this, &SpeedMatcher::onStartClicked);
-    connect(m_speedo.get(), &SpeedoConnection::speedUpdated,
-            this, &SpeedMatcher::onSpeedUpdated);
 
     m_stabilizationTimer.setInterval(TICK_MS);
     m_stabilizationTimer.setSingleShot(false);
@@ -43,6 +43,13 @@ SpeedMatcher::SpeedMatcher(std::shared_ptr<LoconetConnection> loconet,
 
     ui->progressBar->setValue(0);
     ui->progressBar->setMaximum(NUM_STEPS);
+
+    ui->dccSelector->addItem("");
+    ui->speedoSelector->addItem("");
+    for(std::shared_ptr<SystemConnection> conn : state->m_connections){
+        ui->dccSelector->addItem(conn->name());
+        ui->speedoSelector->addItem(conn->name());
+    }
 }
 
 SpeedMatcher::~SpeedMatcher()
@@ -56,6 +63,10 @@ void SpeedMatcher::onStartClicked()
 {
     if (m_state != State::Idle)
         return;
+
+    ui->locoAddressEdit->setEnabled(false);
+    ui->dccSelector->setEnabled(false);
+    ui->speedoSelector->setEnabled(false);
 
     int address = ui->locoAddressEdit->text().toInt();
     if (address <= 0) {
@@ -148,6 +159,10 @@ void SpeedMatcher::recordCurrentStep()
 {
     m_measuredKph[m_currentStep - 1] = m_currentSpeedKph;
     ui->progressBar->setValue(m_currentStep);
+    LOG4CXX_DEBUG_FMT(logger, "Step {}: Speed {}{}",
+            m_currentStep - 1,
+            m_currentSpeedKph,
+            "kph");
 
     if (m_currentStep < NUM_STEPS) {
         startStep(m_currentStep + 1);
@@ -210,7 +225,7 @@ void SpeedMatcher::finishMatching()
     m_programmer.reset();
 
     m_state = State::Idle;
-    ui->startButton->setEnabled(true);
+    checkIfReady();
     ui->progressBar->setValue(NUM_STEPS);
     setStatus("Speed matching complete.");
 }
@@ -244,4 +259,75 @@ int SpeedMatcher::computeCVValue(int step) const
 void SpeedMatcher::setStatus(const QString& msg)
 {
     ui->statusLabel->setText(msg);
+    LOG4CXX_DEBUG(logger, msg.toStdString());
 }
+
+void SpeedMatcher::on_dccSelector_activated(int index)
+{
+    QString currentText = ui->dccSelector->currentText();
+    m_loconet = TrainUtils::connectionByNameAndType<LoconetConnection>(m_trainUtilsState, currentText);
+    LOG4CXX_DEBUG_FMT(logger, "Get loconet connection named {}: {}", currentText.toStdString(), m_loconet ? "OK" : "Not found");
+
+    checkIfReady();
+}
+
+
+void SpeedMatcher::on_speedoSelector_activated(int index)
+{
+    QString currentText = ui->speedoSelector->currentText();
+    m_speedo = TrainUtils::connectionByNameAndType<SpeedoConnection>(m_trainUtilsState, currentText);
+    LOG4CXX_DEBUG_FMT(logger, "Get Speedo connection named {}: {}", currentText.toStdString(), m_speedo ? "OK" : "Not found");
+
+    if(m_speedo){
+        connect(m_speedo.get(), &SpeedoConnection::speedUpdated,
+                this, &SpeedMatcher::onSpeedUpdated);
+    }
+
+    checkIfReady();
+}
+
+void SpeedMatcher::checkIfReady(){
+    bool bothConnections = false;
+    bool parseLocoAddress = false;
+
+    if(m_loconet && m_speedo){
+        bothConnections = true;
+    }
+
+    int locoAddress = ui->locoAddressEdit->text().toInt(&parseLocoAddress);
+    if(ui->locoAddressEdit->text().length() >= 1 &&
+            (locoAddress < 1 || locoAddress > 9999)){
+        LOG4CXX_DEBUG_FMT(logger, "Locomotive address {} invalid", locoAddress);
+        parseLocoAddress = false;
+    }
+
+    if(bothConnections && parseLocoAddress){
+        ui->startButton->setEnabled(true);
+    }else{
+        ui->startButton->setEnabled(false);
+    }
+}
+
+
+void SpeedMatcher::on_locoAddressEdit_textChanged(const QString &arg1)
+{
+    checkIfReady();
+}
+
+
+void SpeedMatcher::on_abortButton_clicked()
+{
+    LOG4CXX_DEBUG_FMT(logger, "User aborted speed matching operation");
+
+    if (m_throttle) {
+        m_throttle->setSpeed(0);
+        m_throttle->releaseLocomotive();
+        m_throttle.reset();
+    }
+    m_programmer.reset();
+
+    m_state = State::Idle;
+    ui->progressBar->setValue(NUM_STEPS);
+    checkIfReady();
+}
+

@@ -7,6 +7,8 @@
 #include <memory>
 #include <array>
 
+#include "trainutils_state.h"
+
 namespace Ui { class SpeedMatcher; }
 
 class LoconetConnection;
@@ -18,8 +20,7 @@ class SpeedMatcher : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SpeedMatcher(std::shared_ptr<LoconetConnection> loconet,
-                          std::shared_ptr<SpeedoConnection>  speedo,
+    explicit SpeedMatcher(TrainUtilsState* state,
                           QWidget* parent = nullptr);
     ~SpeedMatcher();
 
@@ -29,7 +30,16 @@ private Q_SLOTS:
     void onStabilizationTick();
     void onPhaseTimerExpired();
 
+    void on_speedoSelector_activated(int index);
+
+    void on_dccSelector_activated(int index);
+
+    void on_locoAddressEdit_textChanged(const QString &arg1);
+
+    void on_abortButton_clicked();
+
 private:
+    void checkIfReady();
     void beginMeasurement();
     void startStep(int step);   // step 1-based
     void recordCurrentStep();
@@ -75,6 +85,7 @@ private:
     int m_lastCheckedKph{-1};
     int m_stableCount{0};
     int m_waitTicks{0};
+    TrainUtilsState* m_trainUtilsState = nullptr;
 };
 
 #endif // SPEEDMATCHER_H
