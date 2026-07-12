@@ -86,6 +86,8 @@ void SpeedoConnection::incomingData(){
     int thisScale = 87; // HO
     double sampleSpeed = ((counts / 8.) * circ * 3600 / 1.0E6 * thisScale);
     LOG4CXX_DEBUG_FMT(logger, "Speed is: {:.1f} kph percent is {}", sampleSpeed, percent);
+
+    Q_EMIT speedUpdated(sampleSpeed);
 }
 
 QStringList SpeedoConnection::getAvailableConnections(){

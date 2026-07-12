@@ -15,6 +15,9 @@ public:
     explicit SpeedometerDisplay(QWidget *parent = nullptr);
     ~SpeedometerDisplay();
 
+public Q_SLOTS:
+    void incomingSpeedMeasurement(double speed);
+
 private:
     Ui::SpeedometerDisplay *ui;
 };

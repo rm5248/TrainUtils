@@ -30,7 +30,7 @@ Q_SIGNALS:
      *
      * @param speed
      */
-    void speedUpdated(int speed);
+    void speedUpdated(double speed);
 
 private Q_SLOTS:
     void incomingData();

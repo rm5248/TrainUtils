@@ -22,6 +22,7 @@
 #include "systemconnection.h"
 #include "speedo/speedoconnection.h"
 #include "speedmatcher.h"
+#include "speedometerdisplay.h"
 
 #include <QInputDialog>
 #include <QScrollArea>
@@ -391,7 +392,33 @@ void MainWindow::addSubmenusLoconetConnection(QMenu* parentMenu, QString connect
 }
 
 void MainWindow::addSubmenusSpeedoConnection(QMenu* parentMenu, QString connectionName){
+    QAction* actionSpeedDisplay = parentMenu->addAction("Speed Display");
+    connect(actionSpeedDisplay, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<SystemConnection> systemConn = TrainUtils::connectionByName(m_state, connectionName);
+        if(!systemConn){
+            return;
+        }
+        std::shared_ptr<SpeedoConnection> speedoConn = qSharedPointerObjectCast<SpeedoConnection>(systemConn);
+        if(!speedoConn){
+            return;
+        }
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(m_dockManager,
+                                                            QString("%1 - Throttle").arg(speedoConn->uuid().toString(QUuid::WithoutBraces)));
+        QString newName = QString("%1 - Speed Display").arg(speedoConn->name());
+        DockWidget->setWindowTitle(newName);
+        SpeedometerDisplay* speedoDisplay = new SpeedometerDisplay(this);
+        DockWidget->setWidget(speedoDisplay);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
 
+        connect(speedoConn.get(), &SpeedoConnection::speedUpdated,
+                speedoDisplay, &SpeedometerDisplay::incomingSpeedMeasurement);
+        connect(speedoConn.get(), &SystemConnection::systemNameChanged,
+            [DockWidget,speedoConn](){
+                QString newName = QString("%1 - Speed Display").arg(speedoConn->name());
+                DockWidget->setWindowTitle(newName);
+        });
+    });
 }
 
 void MainWindow::scanForLoconetConnections(){

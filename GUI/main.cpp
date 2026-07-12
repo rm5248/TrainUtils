@@ -89,3 +89,13 @@ int main(int argc, char *argv[])
     delete mdnsManager;
     return ret;
 }
+
+std::shared_ptr<SystemConnection> TrainUtils::connectionByName(TrainUtilsState* state, QString name){
+    for(std::shared_ptr<SystemConnection> conn : state->m_connections){
+        if(conn->name() == name){
+            return conn;
+        }
+    }
+
+    return nullptr;
+}

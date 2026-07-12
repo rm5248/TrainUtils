@@ -12,3 +12,11 @@ SpeedometerDisplay::~SpeedometerDisplay()
 {
     delete ui;
 }
+
+void SpeedometerDisplay::incomingSpeedMeasurement(double speed){
+    if(ui->mphRadio->isChecked()){
+        speed = speed / 1.609;
+    }
+
+    ui->speedLabel->setText(QString("%1").arg(speed));
+}

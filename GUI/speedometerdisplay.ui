@@ -39,6 +39,38 @@
     <string>TextLabel</string>
    </property>
   </widget>
+  <widget class="QGroupBox" name="groupBox">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>160</y>
+     <width>133</width>
+     <height>99</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Units</string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QRadioButton" name="kphRadio">
+      <property name="text">
+       <string>KPH</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QRadioButton" name="mphRadio">
+      <property name="text">
+       <string>MPH</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
  </widget>
  <resources/>
  <connections/>

@@ -29,4 +29,10 @@ struct TrainUtilsState{
     QVector<ConnectionInfo> connectionFiles;
 };
 
+namespace TrainUtils{
+
+std::shared_ptr<SystemConnection> connectionByName(TrainUtilsState*, QString name);
+
+}
+
 #endif // TRAINUTILS_STATE_H
