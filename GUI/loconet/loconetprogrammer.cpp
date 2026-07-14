@@ -85,12 +85,33 @@ void LoconetProgrammer::incomingMessage(loconet_message message) {
     }
 
     if (m_state == State::WaitingForSubmitLack) {
-        if (message.opcode != LN_OPC_LONG_ACK || message.ack.lopc != 0x6F)
+        if (message.opcode != LN_OPC_LONG_ACK || message.ack.lopc != 0x6F){
             return;
+        }
 
         if(message.ack.ack == 0x7F){
             LOG4CXX_DEBUG_FMT(logger, "Submit LACK received, waiting for write ACK");
             m_state = State::WaitingForWriteAck;
+        }
+
+        if(message.ack.lopc == 0x6F && !m_current.request.isServiceMode()){
+            // program on main - receive an ACK only
+            switch (message.ack.ack) {
+            case 0x40:
+                // Accepted blind — no E7 reply will follow
+                LOG4CXX_DEBUG_FMT(logger, "Programming task accepted blind (no completion reply)");
+                completeCurrentRequest(LoconetProgrammingResult::CompletedReason::Success);
+                break;
+            case 0x00:
+                LOG4CXX_WARN_FMT(logger, "Programmer busy, request aborted");
+                completeCurrentRequest(LoconetProgrammingResult::CompletedReason::ProgrammerBusy);
+                break;
+            default:
+                // 0x7F = not implemented, or unknown
+                LOG4CXX_WARN_FMT(logger, "Programming not implemented (LACK ack=0x{:X})", message.ack.ack);
+                completeCurrentRequest(LoconetProgrammingResult::CompletedReason::NotImplemented);
+                break;
+            }
         }
         return;
     }

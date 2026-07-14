@@ -61,7 +61,7 @@ private:
     };
 
     static constexpr int NUM_STEPS       = 28;
-    static constexpr int STABLE_REQUIRED = 3;    // consecutive stable ticks
+    static constexpr int STABLE_REQUIRED = 5;    // consecutive stable ticks
     static constexpr int STABLE_TOLERANCE= 2;    // km/h window considered stable
     static constexpr int TICK_MS         = 500;  // stabilization poll interval
     static constexpr int MAX_WAIT_TICKS  = 30;   // 15 s max per step before giving up
