@@ -95,7 +95,7 @@ static int lcc_handle_consumer_query(struct lcc_context* ctx, struct lcc_can_fra
 }
 
 static int lcc_handle_producer_consumer(struct lcc_context* ctx, struct lcc_can_frame* frame){
-    if(!ctx->event_context->incoming_event){
+    if(!ctx->event_context || !ctx->event_context->incoming_event){
         // There's no method to call, let's bail immediately
         return LCC_OK;
     }
