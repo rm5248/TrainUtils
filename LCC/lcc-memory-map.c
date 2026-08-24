@@ -84,7 +84,7 @@ static void memory_map_write(struct lcc_memory_context* ctx, uint16_t alias, uin
     lcc_memory_respond_write_reply_ok(ctx, alias, address_space, starting_address);
 
     if(map->written_cb){
-        map->written_cb(map, address_space);
+        map->written_cb(map, address_space, starting_address, data_len);
     }
 }
 

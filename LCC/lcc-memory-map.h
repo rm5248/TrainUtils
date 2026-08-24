@@ -26,8 +26,12 @@ struct lcc_memory_context;
 
 /**
  * Callback function called when a segment has been written to.
+ *
+ * @param space The space that was written to
+ * @param offset The offset within the space that was written to
+ * @param len How many bytes were written to the space at 'offset'
  */
-typedef void (*lcc_memory_map_written)(struct lcc_memory_map* map, uint8_t space);
+typedef void (*lcc_memory_map_written)(struct lcc_memory_map* map, uint8_t space, uint32_t offset, uint32_t len);
 
 /**
  * Create a new memory map.  Note that this will install callback functions for the memory
