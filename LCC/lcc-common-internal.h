@@ -106,6 +106,7 @@ struct lcc_remote_memory_context{
     lcc_remote_memory_request_fail remote_request_fail;
     lcc_remote_memory_received remote_memory_received;
     lcc_remote_memory_read_rejected read_rejected;
+    lcc_remote_memory_information remote_memory_info;
     int16_t current_requesting_alias;
 };
 

@@ -30,6 +30,8 @@ static void incoming_datagram_cb(struct lcc_datagram_context* ctx, uint16_t sour
 
     LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
 
+    LOG4CXX_DEBUG_FMT(logger, "Incoming datagram of len {}", len);
+
     Q_EMIT conn->incomingDatagram(source_alias, ba);
 }
 
@@ -64,12 +66,33 @@ static void memory_space_write(struct lcc_memory_context* ctx, uint16_t alias, u
     lcc_memory_respond_write_reply_fail(ctx, alias, address_space, starting_address, 0, nullptr);
 }
 
+static void remote_memory_request_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory request OK");
+}
+
+static void remote_memory_request_fail(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory request Fail");
+}
+
+static void remote_memory_received(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory recveived for alias {:X} space {:X} length {}", alias, address_space, len);
+}
+
+static void remote_memory_read_reject(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory read reject");
+}
+
+static void remote_memory_information(struct lcc_remote_memory_context* ctx, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory information for space {} rx", address_space);
+}
+
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(m_lcc);
+    struct lcc_remote_memory_context* remote_ctx = lcc_remote_memory_new(m_lcc);
     lcc_event_new(m_lcc);
 
     lcc_context_set_userdata(m_lcc, this);
@@ -83,6 +106,13 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
                                     memory_space_info_query_cb,
                                     memory_space_read,
                                     memory_space_write);
+
+    lcc_remote_memory_set_functions(remote_ctx,
+                                    remote_memory_request_ok,
+                                    remote_memory_request_fail,
+                                    remote_memory_received,
+                                    remote_memory_read_reject,
+                                    remote_memory_information);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);

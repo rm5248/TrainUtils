@@ -59,6 +59,7 @@ static int test_datagram(){
                                     NULL,
                                     NULL,
                                     write_memory_response_to_buffer,
+                                    NULL,
                                     NULL);
     lcc_remote_memory_read_single_transfer(remote_memory_ctx2,
             lcc_context_alias(both_ctx[0]),

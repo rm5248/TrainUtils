@@ -102,6 +102,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
     int is_failure = 0;
     int data_starting_byte = 6;
     uint16_t current_request_alias = ctx->current_requesting_alias;
+    int is_response = 0;
 
     if(alias != current_request_alias){
         return 0;
@@ -128,6 +129,8 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
     }else if(data[1] == 0x5B){
         is_failure = 1;
         address_space = LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION;
+    }else if(data[1] == 0x86 || data[1] == 0x87){
+        is_response = 1;
     }else{
         // We did not handle this - it could be for something else
         return 0;
@@ -146,12 +149,31 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
         if(ctx->read_rejected){
             ctx->read_rejected(ctx, alias, address_space, starting_address, error_code, message_string);
         }
+        lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0);
+    }else if(is_response){
+        int present = data[1] == 0x87; // 0x87 = present, 0x86 = not present
+        uint8_t address_space = data[2];
+        uint32_t high_address = lcc_uint32_from_data(data + 3);
+        uint32_t low_address = 0;
+        int readonly = 0;
 
-        return 1;
+        if(data[7] & (0x01 << 1) && data_len >= 11){
+            // if bit 1 is set, low address is in next 4 bytes
+            low_address = lcc_uint32_from_data(data + 8);
+        }
+        if(data[7] & 0x01){
+            readonly = 1;
+        }
+
+        if(ctx->remote_memory_info){
+            ctx->remote_memory_info(ctx, present, readonly, address_space, low_address, high_address, NULL);
+        }
+        lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0);
     }else{
         if(ctx->remote_memory_received){
             ctx->remote_memory_received(ctx, alias, address_space, starting_address, data + data_starting_byte, data_len - data_starting_byte);
         }
+        lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0);
     }
 
     return 1;
@@ -161,7 +183,8 @@ int lcc_remote_memory_set_functions(struct lcc_remote_memory_context* ctx,
                                     lcc_remote_memory_request_ok remote_ok,
                                     lcc_remote_memory_request_fail remote_fail,
                                     lcc_remote_memory_received received_memory,
-                                    lcc_remote_memory_read_rejected read_rejected ){
+                                    lcc_remote_memory_read_rejected read_rejected,
+                                    lcc_remote_memory_information remote_info_response){
     if(ctx == NULL){
         return LCC_ERRCODE_INVALID_ARG;
     }
@@ -170,6 +193,7 @@ int lcc_remote_memory_set_functions(struct lcc_remote_memory_context* ctx,
     ctx->remote_request_fail = remote_fail;
     ctx->remote_memory_received = received_memory;
     ctx->read_rejected = read_rejected;
+    ctx->remote_memory_info = remote_info_response;
 
     return LCC_OK;
 }

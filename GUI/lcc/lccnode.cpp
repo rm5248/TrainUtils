@@ -18,7 +18,6 @@ LCCNode::LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObj
     m_hasCDI(false),
     m_cdiSize(-1)
 {
-    lcc_remote_memory_new(lcc);
     m_rawcdi.reserve(1024);
     connect(conn, &LCCConnection::incomingDatagram,
             this, &LCCNode::datagramRx);

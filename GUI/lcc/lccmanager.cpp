@@ -51,6 +51,7 @@ std::shared_ptr<LCCConnection> LCCManager::createNewLocalLCC(QString connectionN
     std::shared_ptr<LCCSerialConnection> newConn = std::make_shared<LCCSerialConnection>();
     newConn->connectToSerialPort(serialPort);
     newConn->setName(connectionName);
+    newConn->open();
     setHardcodedInformation(newConn);
 
     m_lccConnections[connectionName] = newConn;

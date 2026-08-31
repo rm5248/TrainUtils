@@ -471,6 +471,9 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
     }else if(data[1] == 0x00){
         space = data[6];
         data_offset = 7;
+    }else{
+        // We don't recognize this code, so let's not try and do anyting with it
+        return 0;
     }
 
     if(!is_read && space == LCC_MEMORY_SPACE_FIRMWARE && ctx->parent->firmware_upgrade_context ){

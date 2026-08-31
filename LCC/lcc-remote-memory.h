@@ -61,7 +61,8 @@ int lcc_remote_memory_set_functions(struct lcc_remote_memory_context* ctx,
                                     lcc_remote_memory_request_ok remote_ok,
                                     lcc_remote_memory_request_fail remote_fail,
                                     lcc_remote_memory_received received_memory,
-                                    lcc_remote_memory_read_rejected read_rejected );
+                                    lcc_remote_memory_read_rejected read_rejected,
+                                    lcc_remote_memory_information remote_info_response);
 
 /**
  * Get the alias of the node we are currently requesting memory from.  If we are not

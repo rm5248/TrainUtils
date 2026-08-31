@@ -81,7 +81,7 @@ void LCCQIoConnection::gridconnectLCCFrameParsedCB(lcc_gridconnect* context, lcc
 
 void LCCQIoConnection::gridconnectLCCFrameParsed(lcc_can_frame* frame){
     if(logger->isDebugEnabled()){
-        LOG4CXX_DEBUG_FMT(logger, "Parsed frame:");
+        LOG4CXX_DEBUG_FMT(logger, "Parsed incoming frame:");
         lcc_decode_frame(frame, stderr, 0);
         fflush(stderr);
     }
