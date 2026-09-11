@@ -26,6 +26,7 @@ PropertyEditor::PropertyEditor(QWidget *parent, QObject* modifyObj, QMetaPropert
         ui->comboBox->setCurrentIndex(proper_idx);
     }else{
         ui->comboBox->hide();
+        ui->lineEdit->setText(prop_value.toString());
     }
 }
 
@@ -38,5 +39,10 @@ void PropertyEditor::on_comboBox_activated(int index)
 {
     QMetaEnum enumMeta = m_objProperty.enumerator();
     m_objProperty.write(m_objToModify, enumMeta.value(index));
+}
+
+void PropertyEditor::on_lineEdit_editingFinished()
+{
+    m_objProperty.write(m_objToModify, ui->lineEdit->text());
 }
 

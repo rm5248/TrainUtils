@@ -18,6 +18,7 @@ public:
 
 private Q_SLOTS:
     void on_comboBox_activated(int index);
+    void on_lineEdit_editingFinished();
 
 private:
     Ui::PropertyEditor *ui;

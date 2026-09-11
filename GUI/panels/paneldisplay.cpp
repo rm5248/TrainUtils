@@ -1,3 +1,6 @@
+#include <cmath>
+#include <numbers>
+
 #include <QLayout>
 #include <QPainterPath>
 #include <QPainter>
@@ -35,25 +38,59 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
     }
 
     if(m_selectedWidget){
-        // Draw a box around the widget
-        QPoint topLeft = m_selectedWidget->pos();
-        QPoint topRight(topLeft.x() + m_selectedWidget->size().width(), topLeft.y());
-        QPoint bottomRight(topLeft.x() + m_selectedWidget->size().width(), topLeft.y() + m_selectedWidget->size().height());
-        QPoint bottomLeft(topLeft.x(), topLeft.y() + m_selectedWidget->size().height());
-        QPainterPath path;
-        path.moveTo(topLeft);
-        path.lineTo(topRight);
-        path.lineTo(bottomRight);
-        path.lineTo(bottomLeft);
-        path.lineTo(topLeft);
-
         QPen pen;
         pen.setWidth(3);
         pen.setBrush(Qt::green);
         pen.setStyle(Qt::DashDotLine);
         painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
 
-        painter.drawPath(path);
+        TurnoutDisplay* rotatable = dynamic_cast<TurnoutDisplay*>(m_selectedWidget);
+        if(rotatable){
+            // Draw a box around the turnout's actual (rotated) artwork,
+            // not its padded, always-axis-aligned widget bounds.
+            QRect content = rotatable->contentRect();
+
+            painter.save();
+            painter.translate(rotatable->pos());
+            painter.translate(content.center());
+            painter.rotate(rotatable->rotation());
+            painter.translate(-content.center());
+            painter.drawRect(content);
+            painter.restore();
+
+            QPoint center = rotatable->pos() + content.center();
+            QPoint handlePos = rotateHandlePos(rotatable);
+
+            QPen handleLinePen;
+            handleLinePen.setWidth(1);
+            handleLinePen.setBrush(Qt::darkGray);
+            handleLinePen.setStyle(Qt::DashLine);
+            painter.setPen(handleLinePen);
+            painter.drawLine(center, handlePos);
+
+            QPen handlePen;
+            handlePen.setWidth(2);
+            handlePen.setBrush(Qt::darkGreen);
+            painter.setPen(handlePen);
+            painter.setBrush(Qt::white);
+            painter.drawEllipse(handlePos, kRotateHandleRadius, kRotateHandleRadius);
+            painter.setBrush(Qt::NoBrush);
+        }else{
+            // Draw a box around the widget
+            QPoint topLeft = m_selectedWidget->pos();
+            QPoint topRight(topLeft.x() + m_selectedWidget->size().width(), topLeft.y());
+            QPoint bottomRight(topLeft.x() + m_selectedWidget->size().width(), topLeft.y() + m_selectedWidget->size().height());
+            QPoint bottomLeft(topLeft.x(), topLeft.y() + m_selectedWidget->size().height());
+            QPainterPath path;
+            path.moveTo(topLeft);
+            path.lineTo(topRight);
+            path.lineTo(bottomRight);
+            path.lineTo(bottomLeft);
+            path.lineTo(topLeft);
+
+            painter.drawPath(path);
+        }
     }
 
     if(m_drawConnectionPoints){
@@ -118,7 +155,7 @@ void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
     td->setTurnout(turnout);
     td->setGeometry(50, 50, td->width(), td->height());
     td->setVisible(true);
-    td->configureInteraction(m_allowMoving);
+    td->configureInteraction(!m_allowMoving && !m_drawConnectionPoints);
     m_turnouts.push_back(td);
 
     connect(td, &TurnoutDisplay::connectionPointsUpdated,
@@ -158,6 +195,21 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
         return;
     }
 
+    // Check for a hit on the rotate handle of the currently selected turnout
+    if(event->button() == Qt::LeftButton && m_selectedWidget){
+        TurnoutDisplay* rotatable = dynamic_cast<TurnoutDisplay*>(m_selectedWidget);
+        if(rotatable){
+            QPoint handlePos = rotateHandlePos(rotatable);
+            QRect handleRect(handlePos.x() - kRotateHandleRadius, handlePos.y() - kRotateHandleRadius,
+                              kRotateHandleRadius * 2, kRotateHandleRadius * 2);
+            if(handleRect.contains(event->pos())){
+                m_rotatingWidget = rotatable;
+                m_rotationCenter = rotatable->pos() + rotatable->contentRect().center();
+                return;
+            }
+        }
+    }
+
     if(!widgetAtPos){
         m_selectedWidget = nullptr;
         m_tools->setCurrentSelectedWidget(nullptr);
@@ -184,6 +236,18 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
         return;
     }
 
+    if(m_rotatingWidget){
+        QPoint delta = event->pos() - m_rotationCenter;
+        // 0 degrees = straight up, positive = clockwise, matching QPainter::rotate()
+        double angle = std::atan2(delta.x(), -delta.y()) * 180.0 / std::numbers::pi;
+        if(event->modifiers() & Qt::ControlModifier){
+            angle = std::lround(angle / kRotationSnapDegrees) * kRotationSnapDegrees;
+        }
+        m_rotatingWidget->setRotation(angle);
+        update(this->rect());
+        return;
+    }
+
     if(m_selectedWidget == nullptr){
         return;
     }
@@ -201,6 +265,12 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
         newY -= diffY;
     }else{
         newY += diffY;
+    }
+
+    // Snap to an invisible grid while Ctrl is held
+    if(event->modifiers() & Qt::ControlModifier){
+        newX = std::lround(newX / static_cast<double>(kGridSize)) * kGridSize;
+        newY = std::lround(newY / static_cast<double>(kGridSize)) * kGridSize;
     }
 
     // Clamp so the widget stays within the panel bounds
@@ -223,6 +293,12 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
 }
 
 void PanelDisplay::mouseReleaseEvent(QMouseEvent* event){
+    if(m_rotatingWidget && event->button() == Qt::LeftButton){
+        m_rotatingWidget = nullptr;
+        update(this->rect());
+        return;
+    }
+
     if(m_connectingState != ConnectingState::Connecting || event->button() != Qt::LeftButton){
         return;
     }
@@ -263,6 +339,16 @@ TrackSegment* PanelDisplay::createSegment(ConnectionEndpoint a, ConnectionEndpoi
     return seg;
 }
 
+QPoint PanelDisplay::rotateHandlePos(TurnoutDisplay* td) const {
+    QRect content = td->contentRect();
+    QPoint center = td->pos() + content.center();
+    double rad = td->rotation() * std::numbers::pi / 180.0;
+    double dist = content.height() / 2.0 + kRotateHandleDistance;
+    int dx = std::lround(std::sin(rad) * dist);
+    int dy = std::lround(-std::cos(rad) * dist);
+    return center + QPoint(dx, dy);
+}
+
 void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
     m_tools = widget;
 
@@ -292,6 +378,7 @@ void PanelDisplay::addBlankTurnout(){
     TurnoutDisplay* td = new TurnoutDisplay(this);
     td->setGeometry(10, 10, td->width(), td->height());
     td->setVisible(true);
+    td->configureInteraction(!m_allowMoving && !m_drawConnectionPoints);
     m_turnouts.push_back(td);
     update(this->rect());
     td->update();

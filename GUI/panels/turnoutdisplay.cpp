@@ -14,35 +14,46 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.TurnoutD
 TurnoutDisplay::TurnoutDisplay(QWidget *parent, Qt::WindowFlags f)
     : QWidget{parent, f}
 {
+    resize(kBoundingSize, kBoundingSize);
+}
 
+QRect TurnoutDisplay::contentRect() const {
+    return QRect((width() - kContentWidth) / 2, (height() - kContentHeight) / 2,
+                 kContentWidth, kContentHeight);
 }
 
 void TurnoutDisplay::paintEvent(QPaintEvent *event){
-    QPainterPath path;
-    path.moveTo(0, 100);
-    path.lineTo(200, 100);
-
-    path.moveTo(100, 0);
-    path.lineTo(100, 200);
-
     QPainter painter(this);
-    // painter.drawPath(path);
+
+    QRect content = contentRect();
+    int cw = content.width();
+    int ch = content.height();
+
+    // Move into the content's local coordinate space (0,0) .. (cw,ch)
+    painter.translate(content.topLeft());
 
     if(m_turnoutType == TurnoutType::Left){
-        painter.translate(0, this->height());
+        painter.translate(0, ch);
         painter.scale(1, -1);
     }
 
-    QPoint straight_start(0, this->height() / 4);
-    QPoint straight_end(this->width(), this->height() / 4);
+    if(m_rotation != 0.0){
+        QPointF center(cw / 2.0, ch / 2.0);
+        painter.translate(center);
+        painter.rotate(m_rotation);
+        painter.translate(-center);
+    }
+
+    QPoint straight_start(0, ch / 4);
+    QPoint straight_end(cw, ch / 4);
     painter.drawLine(straight_start, straight_end);
     // Go 1/3 of the way and draw our diverging route
-    QPoint start_diverge(this->width() / 3, this->height() / 4);
-    QPoint end_diverge(this->width() / 2 + this->width() / 4, this->height() / 2 + this->height() / 4);
+    QPoint start_diverge(cw / 3, ch / 4);
+    QPoint end_diverge(cw / 2 + cw / 4, ch / 2 + ch / 4);
     painter.drawLine(start_diverge, end_diverge);
     // draw the remainder of the diverging route
     QPoint diverged_start = end_diverge;
-    QPoint diverged_end(this->width(), this->height() / 2 + this->height() / 4);
+    QPoint diverged_end(cw, ch / 2 + ch / 4);
     painter.drawLine(diverged_start, diverged_end);
 
     if(m_updateConnectionPoints){
@@ -80,12 +91,12 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
     }else{
         turnoutInfoString = "N/A";
     }
-    painter.drawText(QPoint(0, this->height() / 4), turnoutInfoString);
+    painter.drawText(QPoint(content.left(), content.top() + ch / 4), turnoutInfoString);
 }
 
 QSize TurnoutDisplay::sizeHint() const
 {
-    return QSize(50, 50);
+    return QSize(kBoundingSize, kBoundingSize);
 }
 
 void TurnoutDisplay::mousePressEvent(QMouseEvent* event){
@@ -157,11 +168,34 @@ TurnoutDisplay::TurnoutType TurnoutDisplay::turnoutType(){
     return m_turnoutType;
 }
 
+QString TurnoutDisplay::name() const{
+    return m_name;
+}
+
+void TurnoutDisplay::setName(QString name){
+    if(name != m_name){
+        m_name = name;
+        Q_EMIT nameChanged();
+    }
+}
+
 void TurnoutDisplay::setTurnoutType(TurnoutType type){
     LOG4CXX_DEBUG(logger, "Turnout type changed");
     m_updateConnectionPoints = true;
     m_turnoutType = type;
     update(this->rect());
+}
+
+double TurnoutDisplay::rotation() const{
+    return m_rotation;
+}
+
+void TurnoutDisplay::setRotation(double degrees){
+    if(degrees != m_rotation){
+        m_rotation = degrees;
+        m_updateConnectionPoints = true;
+        update(this->rect());
+    }
 }
 
 QVector<QPoint> TurnoutDisplay::connectionPoints(){
