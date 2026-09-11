@@ -69,6 +69,7 @@ private:
 
     QPoint endpointPos(const ConnectionEndpoint& ep) const;
     TrackSegment* createSegment(ConnectionEndpoint a, ConnectionEndpoint b);
+    void updateAttachedSegments(Connectable* connectable);
     QPoint rotateHandlePos(TurnoutDisplay* td) const;
 
     QVector<TurnoutDisplay*> m_turnouts;

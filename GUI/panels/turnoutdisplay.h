@@ -56,6 +56,7 @@ protected:
 
 private:
     void stateChanged();
+    void updateConnectionPoints();
 
 private:
     // Size of the actual turnout artwork.
@@ -71,7 +72,6 @@ private:
     QPoint m_mousePressLocation;
     TurnoutType m_turnoutType = TurnoutType::Right;
     QVector<QPoint> m_connectionPoints;
-    bool m_updateConnectionPoints = true;
     QString m_name;
     double m_rotation = 0.0;
 };

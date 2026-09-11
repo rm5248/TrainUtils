@@ -15,6 +15,40 @@ TurnoutDisplay::TurnoutDisplay(QWidget *parent, Qt::WindowFlags f)
     : QWidget{parent, f}
 {
     resize(kBoundingSize, kBoundingSize);
+    updateConnectionPoints();
+}
+
+void TurnoutDisplay::updateConnectionPoints(){
+    QRect content = contentRect();
+    int cw = content.width();
+    int ch = content.height();
+
+    // Mirror the same transform stack applied in paintEvent, so the
+    // connection points always match what's drawn, without needing to
+    // wait for an actual paint to happen.
+    QTransform transform;
+    transform.translate(content.left(), content.top());
+    if(m_turnoutType == TurnoutType::Left){
+        transform.translate(0, ch);
+        transform.scale(1, -1);
+    }
+    if(m_rotation != 0.0){
+        QPointF center(cw / 2.0, ch / 2.0);
+        transform.translate(center.x(), center.y());
+        transform.rotate(m_rotation);
+        transform.translate(-center.x(), -center.y());
+    }
+
+    // Connection points:
+    // 0 = incoming
+    // 1 = normal outgoing
+    // 2 = diverged outgoing
+    m_connectionPoints.clear();
+    m_connectionPoints.push_back(transform.map(QPoint(0, ch / 4)));
+    m_connectionPoints.push_back(transform.map(QPoint(cw, ch / 4)));
+    m_connectionPoints.push_back(transform.map(QPoint(cw, ch / 2 + ch / 4)));
+
+    Q_EMIT connectionPointsUpdated();
 }
 
 QRect TurnoutDisplay::contentRect() const {
@@ -55,21 +89,6 @@ void TurnoutDisplay::paintEvent(QPaintEvent *event){
     QPoint diverged_start = end_diverge;
     QPoint diverged_end(cw, ch / 2 + ch / 4);
     painter.drawLine(diverged_start, diverged_end);
-
-    if(m_updateConnectionPoints){
-        QTransform transform = painter.worldTransform();
-        m_updateConnectionPoints = false;
-        // Connection points:
-        // 0 = incoming
-        // 1 = normal outgoing
-        // 2 = diverged outgoing
-        m_connectionPoints.clear();
-        m_connectionPoints.push_back(transform.map(straight_start));
-        m_connectionPoints.push_back(transform.map(straight_end));
-        m_connectionPoints.push_back(transform.map(diverged_end));
-        Q_EMIT connectionPointsUpdated();
-    }
-
 
     painter.setTransform(QTransform());
     QFont f;
@@ -181,8 +200,8 @@ void TurnoutDisplay::setName(QString name){
 
 void TurnoutDisplay::setTurnoutType(TurnoutType type){
     LOG4CXX_DEBUG(logger, "Turnout type changed");
-    m_updateConnectionPoints = true;
     m_turnoutType = type;
+    updateConnectionPoints();
     update(this->rect());
 }
 
@@ -193,7 +212,7 @@ double TurnoutDisplay::rotation() const{
 void TurnoutDisplay::setRotation(double degrees){
     if(degrees != m_rotation){
         m_rotation = degrees;
-        m_updateConnectionPoints = true;
+        updateConnectionPoints();
         update(this->rect());
     }
 }

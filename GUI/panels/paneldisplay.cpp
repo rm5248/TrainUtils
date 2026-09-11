@@ -244,6 +244,7 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
             angle = std::lround(angle / kRotationSnapDegrees) * kRotationSnapDegrees;
         }
         m_rotatingWidget->setRotation(angle);
+        updateAttachedSegments(m_rotatingWidget);
         update(this->rect());
         return;
     }
@@ -282,11 +283,7 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
     // Update any segments whose endpoints are attached to the moved widget
     Connectable* movedConnectable = dynamic_cast<Connectable*>(m_selectedWidget);
     if(movedConnectable){
-        for(SegmentConnection& sc : m_segments){
-            if(sc.a.connectable == movedConnectable || sc.b.connectable == movedConnectable){
-                sc.segment->setEndpoints(endpointPos(sc.a), endpointPos(sc.b));
-            }
-        }
+        updateAttachedSegments(movedConnectable);
     }
 
     update(this->rect());
@@ -325,6 +322,14 @@ void PanelDisplay::mouseReleaseEvent(QMouseEvent* event){
 QPoint PanelDisplay::endpointPos(const ConnectionEndpoint& ep) const {
     return dynamic_cast<QWidget*>(ep.connectable)->pos()
            + ep.connectable->connectionPoints()[ep.index];
+}
+
+void PanelDisplay::updateAttachedSegments(Connectable* connectable) {
+    for(SegmentConnection& sc : m_segments){
+        if(sc.a.connectable == connectable || sc.b.connectable == connectable){
+            sc.segment->setEndpoints(endpointPos(sc.a), endpointPos(sc.b));
+        }
+    }
 }
 
 TrackSegment* PanelDisplay::createSegment(ConnectionEndpoint a, ConnectionEndpoint b) {
