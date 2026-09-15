@@ -14,6 +14,12 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.TurnoutD
 TurnoutDisplay::TurnoutDisplay(QWidget *parent, Qt::WindowFlags f)
     : QWidget{parent, f}
 {
+    // The widget is padded well beyond the visible turnout artwork (see
+    // contentRect()) so rotation never clips; keep that padding transparent
+    // so it doesn't visually or spatially mask whatever's behind it (e.g. a
+    // nearby track segment's controls).
+    setAttribute(Qt::WA_TranslucentBackground);
+    setAutoFillBackground(false);
     resize(kBoundingSize, kBoundingSize);
     updateConnectionPoints();
 }

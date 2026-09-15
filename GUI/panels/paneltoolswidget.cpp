@@ -2,10 +2,12 @@
 #include <QMetaProperty>
 #include <QMouseEvent>
 #include <QInputDialog>
+#include <QPushButton>
 
 #include "paneltoolswidget.h"
 #include "ui_paneltoolswidget.h"
 #include "turnoutdisplay.h"
+#include "tracksegment.h"
 #include "propertyeditor.h"
 
 #include <log4cxx/logger.h>
@@ -63,6 +65,14 @@ void PanelToolsWidget::setCurrentSelectedWidget(QWidget* widget){
 
         ui->toolboxWidget->layout()->addWidget(propEditor);
         m_currentProps.append(propEditor);
+    }
+
+    if(TrackSegment* segment = dynamic_cast<TrackSegment*>(widget)){
+        QPushButton* straightenButton = new QPushButton("Make Straight", this);
+        connect(straightenButton, &QPushButton::clicked, segment, &TrackSegment::makeStraight);
+
+        ui->toolboxWidget->layout()->addWidget(straightenButton);
+        m_currentProps.append(straightenButton);
     }
 }
 

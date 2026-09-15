@@ -30,6 +30,7 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 public Q_SLOTS:
     void allowMovingChanged(bool allow_moving);
@@ -71,6 +72,11 @@ private:
     TrackSegment* createSegment(ConnectionEndpoint a, ConnectionEndpoint b);
     void updateAttachedSegments(Connectable* connectable);
     QPoint rotateHandlePos(TurnoutDisplay* td) const;
+    // If panelPos hits the rotate handle of the selected turnout, or a
+    // bezier control handle of the selected segment, starts dragging it
+    // (grabbing the mouse so the whole drag routes here regardless of
+    // which child widget is under the cursor) and returns true.
+    bool tryStartHandleDrag(QPoint panelPos);
 
     QVector<TurnoutDisplay*> m_turnouts;
     QVector<SegmentConnection> m_segments;
@@ -79,6 +85,8 @@ private:
     QPoint m_mouseStart;
     TurnoutDisplay* m_rotatingWidget = nullptr;
     QPoint m_rotationCenter;
+    TrackSegment* m_draggingControlSegment = nullptr;
+    bool m_draggingControlIsA = false;
     bool m_editing = false;
     PanelToolsWidget* m_tools = nullptr;
     bool m_allowMoving = false;

@@ -76,6 +76,29 @@ void PanelDisplay::paintEvent(QPaintEvent *event){
             painter.setBrush(Qt::white);
             painter.drawEllipse(handlePos, kRotateHandleRadius, kRotateHandleRadius);
             painter.setBrush(Qt::NoBrush);
+        }else if(TrackSegment* selectedSegment = dynamic_cast<TrackSegment*>(m_selectedWidget)){
+            // Draw the bezier control handles instead of a bounding box
+            QPoint a = selectedSegment->endpointA();
+            QPoint b = selectedSegment->endpointB();
+            QPoint controlA = selectedSegment->controlPointA();
+            QPoint controlB = selectedSegment->controlPointB();
+
+            QPen handleLinePen;
+            handleLinePen.setWidth(1);
+            handleLinePen.setBrush(Qt::darkGray);
+            handleLinePen.setStyle(Qt::DashLine);
+            painter.setPen(handleLinePen);
+            painter.drawLine(a, controlA);
+            painter.drawLine(b, controlB);
+
+            QPen handlePen;
+            handlePen.setWidth(2);
+            handlePen.setBrush(Qt::darkGreen);
+            painter.setPen(handlePen);
+            painter.setBrush(Qt::white);
+            painter.drawEllipse(controlA, kRotateHandleRadius, kRotateHandleRadius);
+            painter.drawEllipse(controlB, kRotateHandleRadius, kRotateHandleRadius);
+            painter.setBrush(Qt::NoBrush);
         }else{
             // Draw a box around the widget
             QPoint topLeft = m_selectedWidget->pos();
@@ -156,6 +179,7 @@ void PanelDisplay::addTurnout(std::shared_ptr<Turnout> turnout){
     td->setGeometry(50, 50, td->width(), td->height());
     td->setVisible(true);
     td->configureInteraction(!m_allowMoving && !m_drawConnectionPoints);
+    td->installEventFilter(this);
     m_turnouts.push_back(td);
 
     connect(td, &TurnoutDisplay::connectionPointsUpdated,
@@ -174,6 +198,19 @@ void PanelDisplay::setPanelSize(QSize size) {
 
 void PanelDisplay::mousePressEvent(QMouseEvent* event){
     QWidget* widgetAtPos = childAt(event->pos());
+
+    // A track segment's actual clickable curve can be much thinner than its
+    // padded bounding box, which can also be covered by an overlapping
+    // sibling (e.g. a turnout's bounding box). Prefer an actual curve hit
+    // over whatever childAt() finds geometrically, so clicking a segment
+    // near a turnout still selects the segment.
+    for(const SegmentConnection& sc : m_segments){
+        if(sc.segment->hitTest(event->pos())){
+            widgetAtPos = sc.segment;
+            break;
+        }
+    }
+
     LOG4CXX_DEBUG_FMT(logger, "press button: {} pos: {},{} widget: {}",
                       (int)event->button(),
                       event->pos().x(),
@@ -195,19 +232,10 @@ void PanelDisplay::mousePressEvent(QMouseEvent* event){
         return;
     }
 
-    // Check for a hit on the rotate handle of the currently selected turnout
-    if(event->button() == Qt::LeftButton && m_selectedWidget){
-        TurnoutDisplay* rotatable = dynamic_cast<TurnoutDisplay*>(m_selectedWidget);
-        if(rotatable){
-            QPoint handlePos = rotateHandlePos(rotatable);
-            QRect handleRect(handlePos.x() - kRotateHandleRadius, handlePos.y() - kRotateHandleRadius,
-                              kRotateHandleRadius * 2, kRotateHandleRadius * 2);
-            if(handleRect.contains(event->pos())){
-                m_rotatingWidget = rotatable;
-                m_rotationCenter = rotatable->pos() + rotatable->contentRect().center();
-                return;
-            }
-        }
+    // Check for a hit on the rotate handle of the currently selected turnout,
+    // or a bezier control handle of the currently selected segment.
+    if(event->button() == Qt::LeftButton && tryStartHandleDrag(event->pos())){
+        return;
     }
 
     if(!widgetAtPos){
@@ -249,7 +277,23 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
         return;
     }
 
+    if(m_draggingControlSegment){
+        if(m_draggingControlIsA){
+            m_draggingControlSegment->setControlPointA(event->pos());
+        }else{
+            m_draggingControlSegment->setControlPointB(event->pos());
+        }
+        update(this->rect());
+        return;
+    }
+
     if(m_selectedWidget == nullptr){
+        return;
+    }
+
+    // Track segments aren't independently movable -- they only follow
+    // their connected endpoints (see updateAttachedSegments).
+    if(dynamic_cast<TrackSegment*>(m_selectedWidget)){
         return;
     }
 
@@ -292,6 +336,14 @@ void PanelDisplay::mouseMoveEvent(QMouseEvent *event){
 void PanelDisplay::mouseReleaseEvent(QMouseEvent* event){
     if(m_rotatingWidget && event->button() == Qt::LeftButton){
         m_rotatingWidget = nullptr;
+        releaseMouse();
+        update(this->rect());
+        return;
+    }
+
+    if(m_draggingControlSegment && event->button() == Qt::LeftButton){
+        m_draggingControlSegment = nullptr;
+        releaseMouse();
         update(this->rect());
         return;
     }
@@ -338,6 +390,7 @@ TrackSegment* PanelDisplay::createSegment(ConnectionEndpoint a, ConnectionEndpoi
     seg->configureInteraction(!m_drawConnectionPoints);
     seg->setVisible(true);
     seg->lower();
+    seg->installEventFilter(this);
     m_segments.push_back({seg, a, b});
     connect(seg, &TrackSegment::connectionPointsUpdated,
             this, &PanelDisplay::connectionPointsUpdated);
@@ -352,6 +405,69 @@ QPoint PanelDisplay::rotateHandlePos(TurnoutDisplay* td) const {
     int dx = std::lround(std::sin(rad) * dist);
     int dy = std::lround(-std::cos(rad) * dist);
     return center + QPoint(dx, dy);
+}
+
+bool PanelDisplay::tryStartHandleDrag(QPoint panelPos) {
+    if(!m_selectedWidget){
+        return false;
+    }
+
+    TurnoutDisplay* rotatable = dynamic_cast<TurnoutDisplay*>(m_selectedWidget);
+    if(rotatable){
+        QPoint handlePos = rotateHandlePos(rotatable);
+        QRect handleRect(handlePos.x() - kRotateHandleRadius, handlePos.y() - kRotateHandleRadius,
+                          kRotateHandleRadius * 2, kRotateHandleRadius * 2);
+        if(handleRect.contains(panelPos)){
+            m_rotatingWidget = rotatable;
+            m_rotationCenter = rotatable->pos() + rotatable->contentRect().center();
+            grabMouse();
+            return true;
+        }
+        return false;
+    }
+
+    TrackSegment* selectedSegment = dynamic_cast<TrackSegment*>(m_selectedWidget);
+    if(selectedSegment){
+        QPoint controlA = selectedSegment->controlPointA();
+        QPoint controlB = selectedSegment->controlPointB();
+        QRect controlARect(controlA.x() - kRotateHandleRadius, controlA.y() - kRotateHandleRadius,
+                            kRotateHandleRadius * 2, kRotateHandleRadius * 2);
+        QRect controlBRect(controlB.x() - kRotateHandleRadius, controlB.y() - kRotateHandleRadius,
+                            kRotateHandleRadius * 2, kRotateHandleRadius * 2);
+        if(controlARect.contains(panelPos)){
+            m_draggingControlSegment = selectedSegment;
+            m_draggingControlIsA = true;
+            grabMouse();
+            return true;
+        }
+        if(controlBRect.contains(panelPos)){
+            m_draggingControlSegment = selectedSegment;
+            m_draggingControlIsA = false;
+            grabMouse();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PanelDisplay::eventFilter(QObject* watched, QEvent* event) {
+    // Handles (the turnout rotate handle, bezier control handles) are drawn
+    // by PanelDisplay itself, on top of everything, but a click there can
+    // still land on a normal, interactive child widget underneath (e.g. a
+    // turnout) which would otherwise consume it for its own click handling
+    // before PanelDisplay::mousePressEvent ever sees it. Intercept clicks on
+    // an active handle here, before the child gets a chance to.
+    if(event->type() == QEvent::MouseButtonPress){
+        QWidget* childWidget = qobject_cast<QWidget*>(watched);
+        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        if(childWidget && mouseEvent->button() == Qt::LeftButton){
+            QPoint panelPos = childWidget->pos() + mouseEvent->pos();
+            if(tryStartHandleDrag(panelPos)){
+                return true;
+            }
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void PanelDisplay::setPanelToolsWidget(PanelToolsWidget* widget){
@@ -384,6 +500,7 @@ void PanelDisplay::addBlankTurnout(){
     td->setGeometry(10, 10, td->width(), td->height());
     td->setVisible(true);
     td->configureInteraction(!m_allowMoving && !m_drawConnectionPoints);
+    td->installEventFilter(this);
     m_turnouts.push_back(td);
     update(this->rect());
     td->update();
