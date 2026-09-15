@@ -19,6 +19,7 @@
 #include "lccmemorydisplay.h"
 #include "panels/paneldisplay.h"
 #include "panels/paneltoolswidget.h"
+#include "panels/imguipanelwidget.h"
 #include "systemconnection.h"
 #include "speedo/speedoconnection.h"
 #include "speedmatcher.h"
@@ -47,6 +48,15 @@ MainWindow::MainWindow(QWidget *parent)
     m_panelTools = new PanelToolsWidget(this);
     m_panelToolboxWidget = new ads::CDockWidget("Panel Toolbox");
     m_panelToolboxWidget->setWidget(m_panelTools);
+
+    // Temporary entry point for the ImGui panel while it is being brought up
+    // alongside the existing QWidget panel.
+    QAction* newImguiPanel = ui->menuPanels->addAction(tr("New Panel (ImGui)"));
+    connect(newImguiPanel, &QAction::triggered, this, [this](){
+        ads::CDockWidget* dockWidget = new ads::CDockWidget("Panel (ImGui)");
+        dockWidget->setWidget(new ImguiPanelWidget());
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
+    });
 
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
             this, &MainWindow::scanForLoconetConnections);
