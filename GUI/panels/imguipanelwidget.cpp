@@ -1,3 +1,8 @@
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <numbers>
+
 #include <QGuiApplication>
 #include <QHideEvent>
 #include <QShowEvent>
@@ -9,10 +14,61 @@
 #include <fmt/format.h>
 
 #include "imguipanelwidget.h"
+#include "../common/turnout.h"
 
 namespace ed = ax::NodeEditor;
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("traingui.ImguiPanelWidget");
+
+namespace {
+
+// imgui-node-editor requires non-zero, globally-unique node/pin ids. Each
+// panel item gets a block of ids: one for its node, one per pin.
+constexpr uint64_t kNodeEditorIdStride = 8;
+
+uint64_t nodeEditorNodeIdValue(PanelItemId id){
+    return static_cast<uint64_t>(id) * kNodeEditorIdStride;
+}
+
+uint64_t nodeEditorPinIdValue(PanelItemId id, int pinIndex){
+    return static_cast<uint64_t>(id) * kNodeEditorIdStride + 1 + static_cast<uint64_t>(pinIndex);
+}
+
+// Inverse of nodeEditorPinIdValue(): recovers which node/pin a hovered/hit
+// ed::PinId refers to. Valid because 1+pinIndex (1..3) is always < the stride.
+PanelItemId nodeIdFromPinIdValue(uint64_t pinIdValue){
+    return static_cast<PanelItemId>(pinIdValue / kNodeEditorIdStride);
+}
+
+int pinIndexFromPinIdValue(uint64_t pinIdValue){
+    return static_cast<int>(pinIdValue % kNodeEditorIdStride) - 1;
+}
+
+// Point on a cubic bezier at parameter t, matching TrackSegment::bezierPoint().
+ImVec2 cubicBezierPoint(ImVec2 a, ImVec2 ca, ImVec2 cb, ImVec2 b, float t){
+    const float u = 1.0f - t;
+    const float uu = u * u;
+    const float tt = t * t;
+    return ImVec2(
+        uu * u * a.x + 3.0f * uu * t * ca.x + 3.0f * u * tt * cb.x + tt * t * b.x,
+        uu * u * a.y + 3.0f * uu * t * ca.y + 3.0f * u * tt * cb.y + tt * t * b.y);
+}
+
+// Shortest distance from p to the line segment a-b, matching TrackSegment::distanceToSegment().
+float distanceToLineSegment(ImVec2 p, ImVec2 a, ImVec2 b){
+    const ImVec2 pa(p.x - a.x, p.y - a.y);
+    const ImVec2 ba(b.x - a.x, b.y - a.y);
+    const float denom = ba.x * ba.x + ba.y * ba.y;
+    if(denom == 0.0f){
+        return std::sqrt(pa.x * pa.x + pa.y * pa.y);
+    }
+    const float t = std::clamp((pa.x * ba.x + pa.y * ba.y) / denom, 0.0f, 1.0f);
+    const float dx = p.x - (a.x + t * ba.x);
+    const float dy = p.y - (a.y + t * ba.y);
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+} // namespace
 
 // Redraw interval.  Immediate mode plus the node editor's own animations
 // (selection, navigation easing) make update-on-input unreliable, so just run a
@@ -216,11 +272,23 @@ void ImguiPanelWidget::drawFrame()
     m_frame++;
 
     ed::End();
+
+    // Needs the editor current (GetNodePosition/SetNodePosition), but must run
+    // after ed::End() -- not before -- so it sees where the user actually
+    // dropped a node this frame, not last frame's position.
+    syncTurnoutTransforms();
+    handleOperateModeClicks();
+    if(m_mode == PanelMode::Edit){
+        handleSegmentSelection();
+        handleSegmentDrawingClicks();
+    }
+
     ed::SetCurrentEditor(nullptr);
 
     ImGui::End();
     ImGui::PopStyleVar();
 
+    drawToolbox(viewport);
     drawDebugWindow(viewport);
 }
 
@@ -266,58 +334,583 @@ void ImguiPanelWidget::drawGrid()
 
 void ImguiPanelWidget::drawCanvas()
 {
-    // Placeholder content until the panel model lands: two nodes joined by a
-    // hand-drawn bezier, which is the shape the real turnouts and track
-    // segments will take.
-    //
-    // Two things here are load-bearing and easy to get wrong:
-    //  * ed::GetNodeBackgroundDrawList() must be called AFTER ed::EndNode().
-    //    Calling it between BeginNode/EndNode trips an assertion inside
-    //    ImDrawListSplitter::SetCurrentChannel.
-    //  * Drawing on ImGui::GetWindowDrawList() between ed::Begin/ed::End puts
-    //    the geometry in canvas space, so it pans and zooms with the nodes.
-    //    (ed::Suspend() + GetForegroundDrawList() would be screen space, and
-    //    would need ed::CanvasToScreen() on every point.)
-    ImVec2 pinPos[2];
+    // ed::GetNodeBackgroundDrawList() must be called AFTER ed::EndNode() --
+    // calling it between BeginNode/EndNode trips an assertion inside
+    // ImDrawListSplitter::SetCurrentChannel (see drawTurnoutNode()).
+    for(TurnoutNode& node : m_model.turnouts()){
+        drawTurnoutNode(node);
+    }
 
-    for(int i = 0; i < 2; i++){
-        const ed::NodeId nodeId(i + 1);
+    drawSegments();
+    drawSegmentPreview();
 
-        if(m_frame == 0){
-            ed::SetNodePosition(nodeId, ImVec2(i * 200.0f, 0.0f));
-        }
+    // ed::BeginDelete()/EndDelete() and the right-click "insert node" popup
+    // (ed::ShowBackgroundContextMenu()) must run before ed::End(), per the
+    // node-editor's own examples -- unlike GetHoveredNode()/GetHoveredPin(),
+    // which tolerate either side of End() (handleOperateModeClicks() and
+    // handleSegmentDrawingClicks() call them after; see the note there for
+    // why "after" is in fact required for anything driven by
+    // ed::IsBackgroundClicked()/ed::GetBackgroundClickButtonIndex()).
+    if(m_mode == PanelMode::Edit){
+        handleSegmentInsertMenu();
+        handleDelete();
+    }
+}
 
-        ed::BeginNode(nodeId);
-        ImGui::Dummy(ImVec2(kNodeSize, kNodeSize));
-        const ImVec2 origin = ImGui::GetItemRectMin();
+void ImguiPanelWidget::drawTurnoutNode(TurnoutNode& node)
+{
+    const ed::NodeId nodeId(nodeEditorNodeIdValue(node.id));
 
-        ImGui::SetCursorScreenPos(ImVec2(origin.x + (i == 0 ? kNodeSize - 8.0f : 0.0f),
-                                         origin.y + kNodeSize / 2.0f - 4.0f));
-        ed::BeginPin(ed::PinId((i + 1) * 8 + 1),
-                     i == 0 ? ed::PinKind::Output : ed::PinKind::Input);
+    // Only seed the node editor's own position the first time it sees this
+    // node; afterward, position is owned by the user dragging it (read back
+    // in syncTurnoutTransforms()), not re-pushed from the model every frame.
+    if(m_seededNodes.insert(node.id).second){
+        ed::SetNodePosition(nodeId, node.position);
+    }
+
+    ed::BeginNode(nodeId);
+    ImGui::Dummy(ImVec2(kNodeSize, kNodeSize));
+    // GetItemRectMin()/Max() return canvas-space coordinates while inside
+    // ed::Begin/End (confirmed in Phase 1), not screen coordinates.
+    const ImVec2 origin = ImGui::GetItemRectMin();
+
+    const TurnoutGeometry geo = turnoutGeometry(node.hand, node.rotationDegrees);
+
+    for(int i = 0; i < 3; i++){
+        const ImVec2 pinCenter(origin.x + geo.pins[i].x, origin.y + geo.pins[i].y);
+        ImGui::SetCursorScreenPos(ImVec2(pinCenter.x - 4.0f, pinCenter.y - 4.0f));
+        ed::BeginPin(ed::PinId(nodeEditorPinIdValue(node.id, i)),
+                     i == 0 ? ed::PinKind::Input : ed::PinKind::Output);
         ed::PinPivotAlignment(ImVec2(0.5f, 0.5f));
         ImGui::Dummy(ImVec2(8.0f, 8.0f));
-        const ImVec2 pinMin = ImGui::GetItemRectMin();
-        pinPos[i] = ImVec2(pinMin.x + 4.0f, pinMin.y + 4.0f);
         ed::EndPin();
+    }
 
-        ed::EndNode();
+    ed::EndNode();
 
-        if(ImGui::IsItemVisible()){
-            ed::GetNodeBackgroundDrawList(nodeId)
-                ->AddLine(ImVec2(origin.x, origin.y + kNodeSize / 2.0f),
-                          ImVec2(origin.x + kNodeSize, origin.y + kNodeSize / 2.0f),
-                          IM_COL32(230, 230, 230, 255), 3.0f);
+    if(ImGui::IsItemVisible()){
+        ImDrawList* bg = ed::GetNodeBackgroundDrawList(nodeId);
+        for(const auto& leg : geo.legs){
+            bg->AddLine(ImVec2(origin.x + leg[0].x, origin.y + leg[0].y),
+                        ImVec2(origin.x + leg[1].x, origin.y + leg[1].y),
+                        IM_COL32(230, 230, 230, 255), 3.0f);
+        }
+
+        const char* stateText = "N/A";
+        if(node.turnout){
+            switch(node.turnout->getState()){
+            case Turnout::TurnoutState::Unknown: stateText = "unknown"; break;
+            case Turnout::TurnoutState::Closed:  stateText = "closed";  break;
+            case Turnout::TurnoutState::Thrown:  stateText = "thrown";  break;
+            }
+        }
+        bg->AddText(ImVec2(origin.x, origin.y + kTurnoutContentSize / 4.0f),
+                    IM_COL32(230, 230, 230, 255), stateText);
+    }
+
+    // Rotation is an editing action -- keep it unavailable in Operate mode,
+    // matching the QWidget implementation (there, nothing could ever become
+    // m_selectedWidget, and so the rotate handle could never appear, unless
+    // m_allowMoving was on).
+    if(m_mode == PanelMode::Edit && ed::IsNodeSelected(nodeId)){
+        drawRotateHandle(node, origin);
+    }
+}
+
+void ImguiPanelWidget::drawRotateHandle(TurnoutNode& node, ImVec2 nodeTopLeft)
+{
+    const ImVec2 centerCanvas(nodeTopLeft.x + kNodeSize / 2.0f, nodeTopLeft.y + kNodeSize / 2.0f);
+    const double rad = node.rotationDegrees * std::numbers::pi / 180.0;
+    const float handleDistance = kTurnoutContentSize / 2.0f + kRotateHandleDistance;
+    const ImVec2 handleCanvas(centerCanvas.x + std::sin(rad) * handleDistance,
+                              centerCanvas.y - std::cos(rad) * handleDistance);
+
+    // Draw and hit-test the handle in screen space so its size stays constant
+    // regardless of zoom, and so a click on it is claimed here rather than
+    // being interpreted as a click on the node/canvas underneath -- the same
+    // reason PanelDisplay::eventFilter existed in the QWidget implementation.
+    ed::Suspend();
+
+    const ImVec2 centerScreen = ed::CanvasToScreen(centerCanvas);
+    const ImVec2 handleScreen = ed::CanvasToScreen(handleCanvas);
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddLine(centerScreen, handleScreen, IM_COL32(90, 90, 90, 200));
+
+    ImGui::SetCursorScreenPos(ImVec2(handleScreen.x - kRotateHandleRadius,
+                                     handleScreen.y - kRotateHandleRadius));
+    ImGui::PushID(static_cast<int>(node.id));
+    ImGui::InvisibleButton("##rotate_handle", ImVec2(kRotateHandleRadius * 2.0f, kRotateHandleRadius * 2.0f));
+    const bool dragging = ImGui::IsItemActive();
+    ImGui::PopID();
+
+    drawList->AddCircleFilled(handleScreen, kRotateHandleRadius, IM_COL32(255, 255, 255, 255));
+    drawList->AddCircle(handleScreen, kRotateHandleRadius, IM_COL32(30, 140, 30, 255), 0, 2.0f);
+
+    if(dragging){
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        const ImVec2 delta(mouse.x - centerScreen.x, mouse.y - centerScreen.y);
+        // 0 degrees = straight up, positive = clockwise, matching QPainter::rotate()
+        // (see turnoutGeometry()) and the QWidget implementation this replaces.
+        double angle = std::atan2(delta.x, -delta.y) * 180.0 / std::numbers::pi;
+        if(ImGui::GetIO().KeyCtrl){
+            angle = std::lround(angle / kRotationSnapDegrees) * kRotationSnapDegrees;
+        }
+        node.rotationDegrees = angle;
+    }
+
+    ed::Resume();
+}
+
+void ImguiPanelWidget::syncTurnoutTransforms()
+{
+    if(m_mode == PanelMode::Operate){
+        // Nothing moves while operating: force every node back to its last
+        // known-good position every frame, so a click that the node editor
+        // interpreted as the start of a drag never actually goes anywhere
+        // (matches the QWidget implementation, where dragging only ever
+        // engaged via a right-click that Operate mode never generated).
+        for(TurnoutNode& node : m_model.turnouts()){
+            ed::SetNodePosition(ed::NodeId(nodeEditorNodeIdValue(node.id)), node.position);
+        }
+        return;
+    }
+
+    const bool snapToGrid = ImGui::GetIO().KeyCtrl;
+
+    for(TurnoutNode& node : m_model.turnouts()){
+        const ed::NodeId nodeId(nodeEditorNodeIdValue(node.id));
+        ImVec2 pos = ed::GetNodePosition(nodeId);
+
+        const bool moved = (pos.x != node.position.x) || (pos.y != node.position.y);
+        if(snapToGrid && moved){
+            pos.x = std::lround(pos.x / kGridSize) * kGridSize;
+            pos.y = std::lround(pos.y / kGridSize) * kGridSize;
+            ed::SetNodePosition(nodeId, pos);
+        }
+
+        node.position = pos;
+    }
+}
+
+void ImguiPanelWidget::handleOperateModeClicks()
+{
+    if(m_mode != PanelMode::Operate){
+        m_clickCandidateId = 0;
+        return;
+    }
+
+    const ImGuiIO& io = ImGui::GetIO();
+
+    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
+        const ed::NodeId hovered = ed::GetHoveredNode();
+        m_clickCandidateId = hovered.Get()
+            ? static_cast<PanelItemId>(hovered.Get() / kNodeEditorIdStride)
+            : 0;
+        m_clickStartMouse = io.MousePos;
+        m_clickStartTime = ImGui::GetTime();
+    }
+
+    if(ImGui::IsMouseReleased(ImGuiMouseButton_Left) && m_clickCandidateId != 0){
+        const ed::NodeId hoveredNow = ed::GetHoveredNode();
+        const PanelItemId releasedOverId = hoveredNow.Get()
+            ? static_cast<PanelItemId>(hoveredNow.Get() / kNodeEditorIdStride)
+            : 0;
+
+        const float dx = std::abs(io.MousePos.x - m_clickStartMouse.x);
+        const float dy = std::abs(io.MousePos.y - m_clickStartMouse.y);
+        const double elapsed = ImGui::GetTime() - m_clickStartTime;
+
+        if(releasedOverId == m_clickCandidateId
+           && dx < kClickMaxMovePixels && dy < kClickMaxMovePixels
+           && elapsed > 0.0 && elapsed < kClickMaxSeconds){
+            if(TurnoutNode* node = m_model.findTurnout(m_clickCandidateId)){
+                LOG4CXX_DEBUG_FMT(logger, "Toggle turnout T{}", node->id);
+                if(node->turnout){
+                    node->turnout->toggleTurnout();
+                }
+            }
+        }
+
+        m_clickCandidateId = 0;
+    }
+}
+
+ImguiPanelWidget::ResolvedSegment ImguiPanelWidget::resolveSegment(TrackSegmentEdge& seg) const
+{
+    ResolvedSegment r;
+    r.a = resolveSegmentEnd(m_model, seg.a);
+    r.b = resolveSegmentEnd(m_model, seg.b);
+
+    if(seg.straight){
+        // Recompute as the endpoints move/rotate, matching
+        // TrackSegment::straightenControlOffsets() -- keeps a straight
+        // segment tracking a moving/rotating turnout as a straight line
+        // until the user actually drags a control handle.
+        const ImVec2 diff(r.b.x - r.a.x, r.b.y - r.a.y);
+        seg.controlOffsetA = ImVec2(diff.x / 3.0f, diff.y / 3.0f);
+        seg.controlOffsetB = ImVec2(-diff.x / 3.0f, -diff.y / 3.0f);
+    }
+
+    r.ca = ImVec2(r.a.x + seg.controlOffsetA.x, r.a.y + seg.controlOffsetA.y);
+    r.cb = ImVec2(r.b.x + seg.controlOffsetB.x, r.b.y + seg.controlOffsetB.y);
+    return r;
+}
+
+void ImguiPanelWidget::drawSegments()
+{
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    for(TrackSegmentEdge& seg : m_model.segments()){
+        const ResolvedSegment r = resolveSegment(seg);
+        drawList->AddBezierCubic(r.a, r.ca, r.cb, r.b, IM_COL32(230, 230, 230, 255), 3.0f);
+
+        if(m_mode == PanelMode::Edit && m_tool == Tool::Select && seg.id == m_selectedSegmentId){
+            drawSegmentHandles(seg, r);
+        }
+    }
+}
+
+void ImguiPanelWidget::drawSegmentHandles(TrackSegmentEdge& seg, const ResolvedSegment& r)
+{
+    // Dashed tethers from each endpoint to its control point, matching
+    // PanelDisplay::paintEvent()'s presentation for a selected segment. Drawn
+    // in canvas space -- same reasoning as the bezier curve itself -- so no
+    // Suspend() is needed just for these lines.
+    auto addDashedLine = [](ImDrawList* dl, ImVec2 from, ImVec2 to, ImU32 color){
+        constexpr float kDashLength = 6.0f;
+        const float dx = to.x - from.x;
+        const float dy = to.y - from.y;
+        const float length = std::sqrt(dx * dx + dy * dy);
+        if(length < 1.0f){
+            return;
+        }
+        const int steps = std::max(1, static_cast<int>(length / kDashLength));
+        for(int i = 0; i < steps; i += 2){
+            const int endStep = std::min(i + 1, steps);
+            dl->AddLine(ImVec2(from.x + dx * (float(i) / steps), from.y + dy * (float(i) / steps)),
+                        ImVec2(from.x + dx * (float(endStep) / steps), from.y + dy * (float(endStep) / steps)),
+                        color, 1.0f);
+        }
+    };
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    addDashedLine(drawList, r.a, r.ca, IM_COL32(150, 150, 150, 220));
+    addDashedLine(drawList, r.b, r.cb, IM_COL32(150, 150, 150, 220));
+
+    // The handles themselves are drawn/hit-tested in screen space, same
+    // reasoning as drawRotateHandle(): fixed size regardless of zoom, and
+    // claimed here before the node editor's own background click handling
+    // sees them.
+    ed::Suspend();
+
+    ImDrawList* fg = ImGui::GetWindowDrawList();
+    ImGui::PushID(static_cast<int>(seg.id));
+
+    const ImVec2 canvasHandles[2] = { r.ca, r.cb };
+    ImVec2* offsets[2] = { &seg.controlOffsetA, &seg.controlOffsetB };
+    const ImVec2 endpoints[2] = { r.a, r.b };
+    const char* ids[2] = { "##ctrlA", "##ctrlB" };
+
+    for(int i = 0; i < 2; i++){
+        const ImVec2 handleScreen = ed::CanvasToScreen(canvasHandles[i]);
+        ImGui::SetCursorScreenPos(ImVec2(handleScreen.x - kRotateHandleRadius,
+                                         handleScreen.y - kRotateHandleRadius));
+        ImGui::InvisibleButton(ids[i], ImVec2(kRotateHandleRadius * 2.0f, kRotateHandleRadius * 2.0f));
+        if(ImGui::IsItemActive()){
+            const ImVec2 mouseCanvas = ed::ScreenToCanvas(ImGui::GetIO().MousePos);
+            *offsets[i] = ImVec2(mouseCanvas.x - endpoints[i].x, mouseCanvas.y - endpoints[i].y);
+            seg.straight = false;
+        }
+        fg->AddCircleFilled(handleScreen, kRotateHandleRadius, IM_COL32(255, 255, 255, 255));
+        fg->AddCircle(handleScreen, kRotateHandleRadius, IM_COL32(30, 140, 30, 255), 0, 2.0f);
+    }
+
+    ImGui::PopID();
+    ed::Resume();
+}
+
+void ImguiPanelWidget::drawSegmentPreview()
+{
+    if(!m_drawingSegment){
+        return;
+    }
+
+    const ImVec2 start = resolveSegmentEnd(m_model, m_drawStart);
+    // io.MousePos is already canvas space here: drawCanvas() (which calls
+    // this) runs inside ed::Begin/End, not suspended, and imgui-node-editor
+    // rewrites io.MousePos into canvas coordinates for that whole span
+    // (ImGuiEx::Canvas::EnterLocalSpace()) -- restoring it to real screen
+    // coordinates only inside a Suspend()/Resume() block or after ed::End().
+    // (drawRotateHandle()/drawSegmentHandles() convert explicitly because
+    // they run *inside* such a Suspend block; handleOperateModeClicks() needs
+    // no conversion either, because it runs *after* ed::End().)
+    const ImVec2 endCanvas = ImGui::GetIO().MousePos;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImVec2 prev = start;
+    for(const ImVec2& control : m_drawControls){
+        drawList->AddLine(prev, control, IM_COL32(90, 200, 255, 200), 2.0f);
+        drawList->AddCircleFilled(control, 4.0f, IM_COL32(90, 200, 255, 255));
+        prev = control;
+    }
+    drawList->AddLine(prev, endCanvas, IM_COL32(90, 200, 255, 200), 2.0f);
+}
+
+void ImguiPanelWidget::handleSegmentSelection()
+{
+    if(m_tool != Tool::Select){
+        return;
+    }
+
+    if(ed::GetHoveredNode().Get() != 0 || ed::GetHoveredPin().Get() != 0){
+        if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
+            // Let the node editor's own node/pin selection win.
+            m_selectedSegmentId = 0;
+        }
+        return;
+    }
+
+    // 0 = left (matches Config::SelectButtonIndex's default); -1 = no
+    // background click completed this frame. This is deliberately not
+    // ImGui::IsMouseClicked(): that fires on the press frame, while
+    // GetBackgroundClickButtonIndex() is only populated by ed::End()'s own
+    // per-frame action processing (confirmed by reading
+    // SelectAction::Accept() in imgui_node_editor.cpp) -- the two essentially
+    // never coincide, which is exactly why this function must be called
+    // after ed::End() (see the header) rather than from inside drawCanvas().
+    // It also naturally excludes clicks on the toolbox/debug windows: ed::
+    // only ever reports a background click for its own canvas.
+    if(ed::GetBackgroundClickButtonIndex() != 0){
+        return;
+    }
+
+    // io.MousePos is real screen space here (this runs after ed::End()).
+    const ImVec2 mouseCanvas = ed::ScreenToCanvas(ImGui::GetIO().MousePos);
+    // A constant screen-pixel hit tolerance, expressed in canvas units at the
+    // current zoom (GetCurrentZoom() is the inverse scale, so multiplying
+    // converts "screen pixels" to "canvas units" -- confirmed in Phase 1).
+    const float toleranceCanvas = kSegmentHitTolerance * ed::GetCurrentZoom();
+
+    PanelItemId hitId = 0;
+    float bestDist = toleranceCanvas;
+    for(TrackSegmentEdge& seg : m_model.segments()){
+        const ResolvedSegment r = resolveSegment(seg);
+        constexpr int kSamples = 24;
+        ImVec2 prev = r.a;
+        for(int i = 1; i <= kSamples; i++){
+            const ImVec2 next = cubicBezierPoint(r.a, r.ca, r.cb, r.b, float(i) / kSamples);
+            const float dist = distanceToLineSegment(mouseCanvas, prev, next);
+            if(dist <= bestDist){
+                bestDist = dist;
+                hitId = seg.id;
+            }
+            prev = next;
         }
     }
 
-    const float dx = (pinPos[1].x - pinPos[0].x) / 3.0f;
-    ImGui::GetWindowDrawList()->AddBezierCubic(
-        pinPos[0],
-        ImVec2(pinPos[0].x + dx, pinPos[0].y),
-        ImVec2(pinPos[1].x - dx, pinPos[1].y),
-        pinPos[1],
-        IM_COL32(230, 230, 230, 255), 3.0f);
+    m_selectedSegmentId = hitId;
+    if(hitId != 0){
+        ed::ClearSelection();
+    }
+}
+
+void ImguiPanelWidget::handleSegmentDrawingClicks()
+{
+    if(m_tool != Tool::DrawSegment){
+        m_drawingSegment = false;
+        m_drawControls.clear();
+        return;
+    }
+
+    if(m_drawingSegment && ImGui::IsKeyPressed(ImGuiKey_Escape)){
+        m_drawingSegment = false;
+        m_drawControls.clear();
+        return;
+    }
+
+    const ed::PinId hoveredPin = ed::GetHoveredPin();
+    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredPin.Get() != 0){
+        SegmentEnd end;
+        end.nodeId = nodeIdFromPinIdValue(hoveredPin.Get());
+        end.pinIndex = pinIndexFromPinIdValue(hoveredPin.Get());
+
+        if(!m_drawingSegment){
+            m_drawingSegment = true;
+            m_drawStart = end;
+            m_drawControls.clear();
+        }else{
+            finishSegmentDraw(end);
+        }
+        return;
+    }
+
+    // See the note on handleSegmentSelection() for why
+    // GetBackgroundClickButtonIndex() rather than IsMouseClicked() here.
+    if(m_drawingSegment && m_drawControls.size() < 2
+       && ed::GetBackgroundClickButtonIndex() == 0){
+        // io.MousePos is real screen space here (this runs after ed::End()).
+        m_drawControls.push_back(ed::ScreenToCanvas(ImGui::GetIO().MousePos));
+    }
+}
+
+void ImguiPanelWidget::handleSegmentInsertMenu()
+{
+    if(m_tool != Tool::DrawSegment || !m_drawingSegment){
+        return;
+    }
+
+    // Right-click on empty canvas: offer to insert a node partway through.
+    // openPopupPos is captured here, still unsuspended (this runs inside
+    // ed::Begin/End, from drawCanvas()), so it's already in canvas space --
+    // exactly what insertTurnoutIntoDraw() needs, with no further conversion,
+    // even though the click that ultimately consumes it (the "Turnout" menu
+    // item) may land on a later, suspended frame.
+    const ImVec2 openPopupPos = ImGui::GetIO().MousePos;
+
+    ed::Suspend();
+    if(ed::ShowBackgroundContextMenu()){
+        ImGui::OpenPopup("Insert Node");
+    }
+    if(ImGui::BeginPopup("Insert Node")){
+        if(ImGui::MenuItem("Turnout")){
+            insertTurnoutIntoDraw(openPopupPos);
+        }
+        ImGui::Separator();
+        if(ImGui::MenuItem("Cancel")){
+            m_drawingSegment = false;
+            m_drawControls.clear();
+        }
+        ImGui::EndPopup();
+    }
+    ed::Resume();
+}
+
+void ImguiPanelWidget::finishSegmentDraw(SegmentEnd end)
+{
+    TrackSegmentEdge& seg = m_model.addSegment(m_drawStart, end);
+
+    if(!m_drawControls.empty()){
+        const ImVec2 a = resolveSegmentEnd(m_model, seg.a);
+        const ImVec2 b = resolveSegmentEnd(m_model, seg.b);
+        seg.controlOffsetA = ImVec2(m_drawControls[0].x - a.x, m_drawControls[0].y - a.y);
+        if(m_drawControls.size() >= 2){
+            seg.controlOffsetB = ImVec2(m_drawControls[1].x - b.x, m_drawControls[1].y - b.y);
+        }else{
+            // Only one control point was placed: mirror it across the
+            // segment so the curve bends smoothly at both ends rather than
+            // snapping straight at the end the user didn't touch.
+            seg.controlOffsetB = ImVec2(-seg.controlOffsetA.x, -seg.controlOffsetA.y);
+        }
+        seg.straight = false;
+    }
+    // else: leave seg.straight = true; resolveSegment() keeps it tracking as
+    // a straight line between its (possibly moving) endpoints.
+
+    m_drawingSegment = false;
+    m_drawControls.clear();
+}
+
+void ImguiPanelWidget::insertTurnoutIntoDraw(ImVec2 canvasPos)
+{
+    // Centre the new node on the click.
+    TurnoutNode& node = m_model.addTurnout(
+        ImVec2(canvasPos.x - kNodeSize / 2.0f, canvasPos.y - kNodeSize / 2.0f));
+
+    // Connect the in-progress segment to whichever of the new node's three
+    // pins is nearest the click.
+    const TurnoutGeometry geo = turnoutGeometry(node.hand, node.rotationDegrees);
+    int nearest = 0;
+    float bestDistSq = std::numeric_limits<float>::max();
+    for(int i = 0; i < 3; i++){
+        const ImVec2 pinPos(node.position.x + geo.pins[i].x, node.position.y + geo.pins[i].y);
+        const float dx = pinPos.x - canvasPos.x;
+        const float dy = pinPos.y - canvasPos.y;
+        const float distSq = dx * dx + dy * dy;
+        if(distSq < bestDistSq){
+            bestDistSq = distSq;
+            nearest = i;
+        }
+    }
+
+    finishSegmentDraw(SegmentEnd{node.id, nearest, ImVec2()});
+
+    // Keep going: start a new segment from a different pin on the same node.
+    // There's no real notion of "the next free pin" without a richer
+    // connectivity model, so this just keeps the flow going rather than
+    // silently stopping partway through what the user was drawing.
+    m_drawingSegment = true;
+    m_drawStart = SegmentEnd{node.id, (nearest + 1) % 3, ImVec2()};
+    m_drawControls.clear();
+}
+
+void ImguiPanelWidget::handleDelete()
+{
+    // Segments aren't node-editor items, so their deletion is ours to handle.
+    if(m_selectedSegmentId != 0 && ImGui::IsKeyPressed(ImGuiKey_Delete)){
+        m_model.removeSegment(m_selectedSegmentId);
+        m_selectedSegmentId = 0;
+    }
+
+    // Node deletion goes through ed::'s own delete flow (Del key while a node
+    // is selected). PanelModel::removeTurnout() cascades to drop any segment
+    // that was attached to the deleted node.
+    if(ed::BeginDelete()){
+        ed::NodeId nodeId;
+        while(ed::QueryDeletedNode(&nodeId)){
+            if(ed::AcceptDeletedItem()){
+                const PanelItemId id = static_cast<PanelItemId>(nodeId.Get() / kNodeEditorIdStride);
+                m_model.removeTurnout(id);
+                m_seededNodes.erase(id);
+            }
+        }
+    }
+    ed::EndDelete();
+}
+
+void ImguiPanelWidget::drawToolbox(const ImGuiViewport* viewport)
+{
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 12.0f, viewport->Pos.y + 12.0f),
+                            ImGuiCond_FirstUseEver);
+    if(ImGui::Begin("Panel toolbox", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        bool operate = (m_mode == PanelMode::Operate);
+        if(ImGui::RadioButton("Operate", operate)){
+            m_mode = PanelMode::Operate;
+        }
+        ImGui::SameLine();
+        if(ImGui::RadioButton("Edit", !operate)){
+            m_mode = PanelMode::Edit;
+        }
+
+        // Everything below is an editing action -- matches the "Tool (Edit
+        // only)" split in the design.
+        ImGui::BeginDisabled(m_mode != PanelMode::Edit);
+
+        if(ImGui::Button("Add Turnout")){
+            // Stagger repeated adds so they don't land exactly on top of one
+            // another; the user can drag it wherever it belongs.
+            const float offset = 24.0f * static_cast<float>(m_model.turnouts().size() % 8);
+            m_model.addTurnout(ImVec2(offset, offset));
+            m_tool = Tool::Select;
+        }
+
+        bool selectTool = (m_tool == Tool::Select);
+        if(ImGui::RadioButton("Select", selectTool)){
+            m_tool = Tool::Select;
+        }
+        ImGui::SameLine();
+        if(ImGui::RadioButton("Draw Segment", !selectTool)){
+            m_tool = Tool::DrawSegment;
+        }
+
+        if(m_selectedSegmentId != 0 && ImGui::Button("Make Straight")){
+            if(TrackSegmentEdge* seg = m_model.findSegment(m_selectedSegmentId)){
+                seg->straight = true;
+            }
+        }
+
+        ImGui::EndDisabled();
+    }
+    ImGui::End();
 }
 
 void ImguiPanelWidget::drawDebugWindow(const ImGuiViewport* viewport)
@@ -325,7 +918,7 @@ void ImguiPanelWidget::drawDebugWindow(const ImGuiViewport* viewport)
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + viewport->Size.x - 260.0f,
                                    viewport->Pos.y + 12.0f),
                             ImGuiCond_FirstUseEver);
-    if(ImGui::Begin("Panel debug")){
+    if(ImGui::Begin("Panel debug", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         const ImGuiIO& io = ImGui::GetIO();
         ImGui::Text("%s", m_name.toStdString().c_str());
         ImGui::Text("%.1f FPS  dpr %.2f", io.Framerate, io.DisplayFramebufferScale.x);
@@ -340,6 +933,15 @@ void ImguiPanelWidget::drawDebugWindow(const ImGuiViewport* viewport)
             ImGui::Text("origin: %.1f,%.1f", origin.x, origin.y);
         }
         ImGui::Text("mouse: %.1f,%.1f", io.MousePos.x, io.MousePos.y);
+        ImGui::Text("hover node %llu pin %llu", (unsigned long long)ed::GetHoveredNode().Get(),
+                    (unsigned long long)ed::GetHoveredPin().Get());
+        ImGui::Text("draw %d ctl %zu segs %zu sel %u",
+                    m_drawingSegment, m_drawControls.size(), m_model.segments().size(),
+                    m_selectedSegmentId);
+        for(const TurnoutNode& node : m_model.turnouts()){
+            ImGui::Text("T%u pos %.1f,%.1f rot %.2f", node.id,
+                       node.position.x, node.position.y, node.rotationDegrees);
+        }
         ed::SetCurrentEditor(nullptr);
     }
     ImGui::End();

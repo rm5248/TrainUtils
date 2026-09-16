@@ -125,6 +125,7 @@ set(PROJECT_SOURCES
         qtimgui/src/ImGuiRenderer.h qtimgui/src/ImGuiRenderer.cpp
         qtimgui/src/QtImGui.h qtimgui/src/QtImGui.cpp
         panels/imguipanelwidget.h panels/imguipanelwidget.cpp
+        panels/panelmodel.h panels/panelmodel.cpp
 )
 
 if(UNIX)
