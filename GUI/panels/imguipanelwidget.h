@@ -19,6 +19,8 @@ struct EditorContext;
 }
 }
 
+struct TrainUtilsState;
+
 /**
  * Operate: clicking a turnout throws it; nothing on the panel can be moved or
  * rotated (any drag is undone every frame -- see syncTurnoutTransforms()).
@@ -56,7 +58,7 @@ class ImguiPanelWidget : public QOpenGLWidget
     Q_OBJECT
 
 public:
-    explicit ImguiPanelWidget(QWidget* parent = nullptr);
+    explicit ImguiPanelWidget(TrainUtilsState* state, QWidget* parent = nullptr);
     ~ImguiPanelWidget() override;
 
     QString getName() const;
@@ -91,6 +93,12 @@ private:
     void drawCanvas();
     void drawGrid();
     void drawToolbox(const struct ImGuiViewport* viewport);
+    /** The selected turnout's editable fields (panelfields.h), shown in the
+     *  toolbox in Edit mode. Needs the editor current (to ask ed:: which node
+     *  is selected), so it brackets its own SetCurrentEditor() call rather
+     *  than relying on drawFrame()'s -- drawToolbox() runs after that's
+     *  already been cleared for the frame. */
+    void drawProperties();
     void drawDebugWindow(const struct ImGuiViewport* viewport);
 
     void drawTurnoutNode(TurnoutNode& node);
@@ -167,6 +175,9 @@ private:
     /** Matches TrackSegment::PADDING, the curve click/select tolerance. */
     static constexpr float kSegmentHitTolerance = 8.0f;
 
+    /** Owned by MainWindow; lifetime covers this widget's -- may be null in
+     *  tests, in which case connection binding fields are simply omitted. */
+    TrainUtilsState* m_state = nullptr;
     QtImGui::RenderRef m_imgui = nullptr;
     ax::NodeEditor::EditorContext* m_editor = nullptr;
     QTimer m_repaintTimer;

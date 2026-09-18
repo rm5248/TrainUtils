@@ -14,6 +14,7 @@
 #include <fmt/format.h>
 
 #include "imguipanelwidget.h"
+#include "panelfields.h"
 #include "../common/turnout.h"
 
 namespace ed = ax::NodeEditor;
@@ -42,6 +43,11 @@ PanelItemId nodeIdFromPinIdValue(uint64_t pinIdValue){
 
 int pinIndexFromPinIdValue(uint64_t pinIdValue){
     return static_cast<int>(pinIdValue % kNodeEditorIdStride) - 1;
+}
+
+// Inverse of nodeEditorNodeIdValue().
+PanelItemId panelItemIdFromNodeIdValue(uint64_t nodeIdValue){
+    return static_cast<PanelItemId>(nodeIdValue / kNodeEditorIdStride);
 }
 
 // Point on a cubic bezier at parameter t, matching TrackSegment::bezierPoint().
@@ -80,8 +86,9 @@ static constexpr int kRepaintIntervalMs = 16;
 // Re-fit once the content has settled.
 static constexpr int kSettleFrames = 3;
 
-ImguiPanelWidget::ImguiPanelWidget(QWidget* parent)
+ImguiPanelWidget::ImguiPanelWidget(TrainUtilsState* state, QWidget* parent)
     : QOpenGLWidget{parent}
+    , m_state(state)
 {
     m_name = "Panel";
 
@@ -909,8 +916,33 @@ void ImguiPanelWidget::drawToolbox(const ImGuiViewport* viewport)
         }
 
         ImGui::EndDisabled();
+
+        if(m_mode == PanelMode::Edit){
+            drawProperties();
+        }
     }
     ImGui::End();
+}
+
+void ImguiPanelWidget::drawProperties()
+{
+    ed::SetCurrentEditor(m_editor);
+    ed::NodeId selectedNodeId;
+    const int selectedCount = ed::GetSelectedNodes(&selectedNodeId, 1);
+    ed::SetCurrentEditor(nullptr);
+
+    if(selectedCount != 1){
+        return;
+    }
+    TurnoutNode* node = m_model.findTurnout(panelItemIdFromNodeIdValue(selectedNodeId.Get()));
+    if(!node){
+        return;
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Turnout properties");
+    std::vector<PanelField> fields = fieldsFor(*node, m_state);
+    renderPanelFields(fields);
 }
 
 void ImguiPanelWidget::drawDebugWindow(const ImGuiViewport* viewport)

@@ -17,8 +17,6 @@
 #include "throttledisplay.h"
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
-#include "panels/paneldisplay.h"
-#include "panels/paneltoolswidget.h"
 #include "panels/imguipanelwidget.h"
 #include "systemconnection.h"
 #include "speedo/speedoconnection.h"
@@ -26,7 +24,6 @@
 #include "speedometerdisplay.h"
 
 #include <QInputDialog>
-#include <QScrollArea>
 #include <QHostAddress>
 #include <QSerialPortInfo>
 #include <QErrorMessage>
@@ -44,19 +41,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     ads::CDockManager::setAutoHideConfigFlags(ads::CDockManager::DefaultAutoHideConfig);
     m_dockManager = new ads::CDockManager(this);
-
-    m_panelTools = new PanelToolsWidget(this);
-    m_panelToolboxWidget = new ads::CDockWidget("Panel Toolbox");
-    m_panelToolboxWidget->setWidget(m_panelTools);
-
-    // Temporary entry point for the ImGui panel while it is being brought up
-    // alongside the existing QWidget panel.
-    QAction* newImguiPanel = ui->menuPanels->addAction(tr("New Panel (ImGui)"));
-    connect(newImguiPanel, &QAction::triggered, this, [this](){
-        ads::CDockWidget* dockWidget = new ads::CDockWidget("Panel (ImGui)");
-        dockWidget->setWidget(new ImguiPanelWidget());
-        m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
-    });
 
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
             this, &MainWindow::scanForLoconetConnections);
@@ -573,60 +557,30 @@ void MainWindow::on_action_loconet_manual_Serial_triggered()
 
 void MainWindow::on_actionNewPanel_triggered()
 {
-    ads::CDockWidget* DockWidget = new ads::CDockWidget("Panel");
-    PanelDisplay* panelDisp = new PanelDisplay();
-    if(!m_state->m_connections.empty()){
-        panelDisp->addTurnout(m_state->m_connections[0]->getDCCTurnout(1));
-    }
+    ads::CDockWidget* dockWidget = new ads::CDockWidget("Panel");
+    ImguiPanelWidget* panel = new ImguiPanelWidget(m_state);
+    dockWidget->setWidget(panel);
+    m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
 
-    QScrollArea* scrollArea = new QScrollArea();
-    scrollArea->setWidget(panelDisp);
-    scrollArea->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-
-    DockWidget->setWidget(scrollArea);
-    m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
-
-    newPanelAdded(panelDisp, DockWidget);
+    newPanelAdded(panel, dockWidget);
 }
 
-void MainWindow::newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget){
-    bool firstPanel = m_panels.empty();
-
+void MainWindow::newPanelAdded(ImguiPanelWidget* panel, ads::CDockWidget* dockWidget){
     LOG4CXX_DEBUG_FMT(logger, "Added new panel");
     m_panels.push_back(panel);
-
-    connect(m_panelTools, &PanelToolsWidget::allowMovingChanged,
-            panel, &PanelDisplay::allowMovingChanged);
-
-    panel->setPanelToolsWidget(m_panelTools);
-
-    if(firstPanel){
-        m_dockManager->addAutoHideDockWidget(ads::SideBarLeft, m_panelToolboxWidget);
-    }
 
     QMenu* menu = ui->menuPanels->addMenu(panel->getName());
     QAction* actionRename = menu->addAction("Rename panel");
     connect(actionRename, &QAction::triggered,
-        [panel,this](){
-        QString oldName = panel->getName();
+        [panel, menu, dockWidget, this](){
         QString newName = QInputDialog::getText(this, "New Name", "Input new name of panel", QLineEdit::Normal, panel->getName());
-        LOG4CXX_DEBUG_FMT(logger, "Rename panel {} to {}", oldName.toStdString(), newName.toStdString());
+        if(newName.isEmpty()){
+            return;
+        }
+        panel->setName(newName);
+        menu->setTitle(newName);
+        dockWidget->setWindowTitle(newName);
     });
-
-    QAction* resizePanelAction = menu->addAction(tr("Set panel size..."));
-    connect(resizePanelAction, &QAction::triggered, this, [panel, this]() {
-        bool ok1, ok2;
-        int w = QInputDialog::getInt(this, tr("Panel Width"),
-                                     tr("Width (pixels):"), panel->width(),
-                                     100, 10000, 1, &ok1);
-        if (!ok1) return;
-        int h = QInputDialog::getInt(this, tr("Panel Height"),
-                                     tr("Height (pixels):"), panel->height(),
-                                     100, 10000, 1, &ok2);
-        if (!ok2) return;
-        panel->setPanelSize(QSize(w, h));
-    });
-
 }
 
 

@@ -115,17 +115,13 @@ set(PROJECT_SOURCES
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
         trainutils.qrc
-        panels/paneldisplay.h panels/paneldisplay.cpp
-        panels/turnoutdisplay.h panels/turnoutdisplay.cpp
-        panels/panellayout.h panels/panellayout.cpp
-
-        panels/paneltoolswidget.h panels/paneltoolswidget.cpp panels/paneltoolswidget.ui
         common/turnout.h common/turnout.cpp
 
         qtimgui/src/ImGuiRenderer.h qtimgui/src/ImGuiRenderer.cpp
         qtimgui/src/QtImGui.h qtimgui/src/QtImGui.cpp
         panels/imguipanelwidget.h panels/imguipanelwidget.cpp
         panels/panelmodel.h panels/panelmodel.cpp
+        panels/panelfields.h panels/panelfields.cpp
 )
 
 if(UNIX)
@@ -161,9 +157,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui
         ${PROJECT_SOURCES}
         loconet/loconetturnout.h loconet/loconetturnout.cpp
-        panels/propertyeditor.h panels/propertyeditor.cpp panels/propertyeditor.ui
-        panels/connectable.h panels/connectable.cpp
-        panels/tracksegment.h panels/tracksegment.cpp
         loconet/loconetprogrammer.h loconet/loconetprogrammer.cpp
         loconet/loconetprogrammingresult.h loconet/loconetprogrammingresult.cpp
         loconet/loconetprogrammingrequest.h loconet/loconetprogrammingrequest.cpp

@@ -13,8 +13,7 @@ namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
 struct TrainUtilsState;
-class PanelDisplay;
-class PanelToolsWidget;
+class ImguiPanelWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -59,16 +58,12 @@ private:
     void addSubmenusLoconetConnection(QMenu* parentMenu, QString connectionName);
     void addSubmenusSpeedoConnection(QMenu* parentMenu, QString connectionName);
     void newConnectionMade(std::shared_ptr<SystemConnection> conn);
-    void newPanelAdded(PanelDisplay* panel, ads::CDockWidget* dockWidget = nullptr);
+    void newPanelAdded(ImguiPanelWidget* panel, ads::CDockWidget* dockWidget);
 
 private:
     Ui::MainWindow *ui;
     ads::CDockManager* m_dockManager;
     TrainUtilsState* m_state;
-    QVector<PanelDisplay*> m_panels;
-
-    // panel tools
-    ads::CDockWidget* m_panelToolboxWidget;
-    PanelToolsWidget* m_panelTools;
+    QVector<ImguiPanelWidget*> m_panels;
 };
 #endif // MAINWINDOW_H
