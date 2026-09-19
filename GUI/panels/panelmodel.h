@@ -146,6 +146,19 @@ public:
     const std::vector<TrackSegmentEdge>& segments() const { return m_segments; }
     std::vector<TrackSegmentEdge>& segments() { return m_segments; }
 
+    /**
+     * PanelStorage::load()'s entry points: insert an item with its
+     * previously-saved id (preserving segment-to-node references) instead of
+     * allocating a fresh one, bumping the id allocator past it so later
+     * addTurnout()/addSegment() calls (e.g. the "Add Turnout" button) never
+     * collide with anything just loaded.
+     */
+    TurnoutNode& addTurnoutWithId(PanelItemId id, ImVec2 position);
+    TrackSegmentEdge& addSegmentWithId(PanelItemId id, SegmentEnd a, SegmentEnd b);
+
+    /** Empties the model (PanelStorage::load() calls this before repopulating). */
+    void clear();
+
 private:
     PanelItemId m_nextId = 1;
     std::vector<TurnoutNode> m_turnouts;

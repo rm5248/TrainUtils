@@ -18,6 +18,7 @@
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
 #include "panels/imguipanelwidget.h"
+#include "panels/panelstorage.h"
 #include "systemconnection.h"
 #include "speedo/speedoconnection.h"
 #include "speedmatcher.h"
@@ -41,6 +42,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     ads::CDockManager::setAutoHideConfigFlags(ads::CDockManager::DefaultAutoHideConfig);
     m_dockManager = new ads::CDockManager(this);
+
+    // Not in mainwindow.ui (no actionOpenPanel there to auto-connect to) --
+    // added the same way the per-panel/per-connection submenus below are,
+    // programmatically, since it only needs to exist once at the top level.
+    QAction* openPanelAction = ui->menuPanels->addAction(tr("Open panel..."));
+    connect(openPanelAction, &QAction::triggered, this, &MainWindow::onOpenPanelTriggered);
 
     connect(ui->menu_loconet_connect_to, &QMenu::aboutToShow,
             this, &MainWindow::scanForLoconetConnections);
@@ -565,6 +572,26 @@ void MainWindow::on_actionNewPanel_triggered()
     newPanelAdded(panel, dockWidget);
 }
 
+void MainWindow::onOpenPanelTriggered()
+{
+    const QStringList names = PanelStorage::savedPanelNames();
+    const QString name = QInputDialog::getItem(this, "Open Panel", "Select a panel to open", names, 0, false);
+    if(name.isEmpty()){
+        return;
+    }
+
+    ads::CDockWidget* dockWidget = new ads::CDockWidget("Panel");
+    ImguiPanelWidget* panel = new ImguiPanelWidget(m_state);
+    if(!panel->load(name)){
+        LOG4CXX_ERROR_FMT(logger, "Could not load panel '{}'", name.toStdString());
+    }
+    dockWidget->setWindowTitle(panel->getName());
+    dockWidget->setWidget(panel);
+    m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
+
+    newPanelAdded(panel, dockWidget);
+}
+
 void MainWindow::newPanelAdded(ImguiPanelWidget* panel, ads::CDockWidget* dockWidget){
     LOG4CXX_DEBUG_FMT(logger, "Added new panel");
     m_panels.push_back(panel);
@@ -580,6 +607,29 @@ void MainWindow::newPanelAdded(ImguiPanelWidget* panel, ads::CDockWidget* dockWi
         panel->setName(newName);
         menu->setTitle(newName);
         dockWidget->setWindowTitle(newName);
+    });
+
+    QAction* actionSave = menu->addAction("Save panel");
+    connect(actionSave, &QAction::triggered,
+        [panel, this](){
+        if(!panel->save()){
+            LOG4CXX_ERROR_FMT(logger, "Could not save panel '{}'", panel->getName().toStdString());
+        }
+    });
+
+    QAction* actionSaveAs = menu->addAction("Save panel as...");
+    connect(actionSaveAs, &QAction::triggered,
+        [panel, menu, dockWidget, this](){
+        QString newName = QInputDialog::getText(this, "Save As", "Input name to save panel as", QLineEdit::Normal, panel->getName());
+        if(newName.isEmpty()){
+            return;
+        }
+        if(panel->saveAs(newName)){
+            menu->setTitle(newName);
+            dockWidget->setWindowTitle(newName);
+        }else{
+            LOG4CXX_ERROR_FMT(logger, "Could not save panel as '{}'", newName.toStdString());
+        }
     });
 }
 

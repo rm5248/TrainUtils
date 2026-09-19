@@ -64,6 +64,16 @@ public:
     QString getName() const;
     void setName(QString name);
 
+    /** Saves under the current name (see setName()/getName()). */
+    bool save() const;
+    /** Renames (as setName() does) and saves under the new name. */
+    bool saveAs(QString name);
+    /** Replaces this panel's whole model with panelName's saved contents and
+     *  renames to match; false (model left untouched) if nothing could be
+     *  loaded. Rebinding a loaded turnout's Turnout needs the TrainUtilsState
+     *  passed to the constructor -- see PanelStorage::load(). */
+    bool load(QString panelName);
+
 protected:
     void initializeGL() override;
     void paintGL() override;

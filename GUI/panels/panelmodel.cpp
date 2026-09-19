@@ -86,6 +86,18 @@ TurnoutNode& PanelModel::addTurnout(ImVec2 position){
     return m_turnouts.back();
 }
 
+TurnoutNode& PanelModel::addTurnoutWithId(PanelItemId id, ImVec2 position){
+    TurnoutNode node;
+    node.id = id;
+    node.name = QString("Turnout %1").arg(id);
+    node.position = position;
+    m_turnouts.push_back(node);
+    if(id >= m_nextId){
+        m_nextId = id + 1;
+    }
+    return m_turnouts.back();
+}
+
 TurnoutNode* PanelModel::findTurnout(PanelItemId id){
     for(TurnoutNode& node : m_turnouts){
         if(node.id == id){
@@ -123,6 +135,18 @@ TrackSegmentEdge& PanelModel::addSegment(SegmentEnd a, SegmentEnd b){
     return m_segments.back();
 }
 
+TrackSegmentEdge& PanelModel::addSegmentWithId(PanelItemId id, SegmentEnd a, SegmentEnd b){
+    TrackSegmentEdge seg;
+    seg.id = id;
+    seg.a = a;
+    seg.b = b;
+    m_segments.push_back(seg);
+    if(id >= m_nextId){
+        m_nextId = id + 1;
+    }
+    return m_segments.back();
+}
+
 TrackSegmentEdge* PanelModel::findSegment(PanelItemId id){
     for(TrackSegmentEdge& seg : m_segments){
         if(seg.id == id){
@@ -156,4 +180,10 @@ ImVec2 resolveSegmentEnd(const PanelModel& model, const SegmentEnd& end){
     // Referenced node is gone (shouldn't normally happen -- removeTurnout()
     // cascades -- but fall back to something rather than an uninitialized point).
     return end.freePos;
+}
+
+void PanelModel::clear(){
+    m_turnouts.clear();
+    m_segments.clear();
+    m_nextId = 1;
 }

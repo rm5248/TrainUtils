@@ -122,6 +122,7 @@ set(PROJECT_SOURCES
         panels/imguipanelwidget.h panels/imguipanelwidget.cpp
         panels/panelmodel.h panels/panelmodel.cpp
         panels/panelfields.h panels/panelfields.cpp
+        panels/panelstorage.h panels/panelstorage.cpp
 )
 
 if(UNIX)

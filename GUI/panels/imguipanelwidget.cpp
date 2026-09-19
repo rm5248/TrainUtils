@@ -15,6 +15,7 @@
 
 #include "imguipanelwidget.h"
 #include "panelfields.h"
+#include "panelstorage.h"
 #include "../common/turnout.h"
 
 namespace ed = ax::NodeEditor;
@@ -987,4 +988,40 @@ QString ImguiPanelWidget::getName() const
 void ImguiPanelWidget::setName(QString name)
 {
     m_name = name;
+}
+
+bool ImguiPanelWidget::save() const
+{
+    return PanelStorage::save(m_model, m_name);
+}
+
+bool ImguiPanelWidget::saveAs(QString name)
+{
+    m_name = name;
+    return save();
+}
+
+bool ImguiPanelWidget::load(QString panelName)
+{
+    if(!PanelStorage::load(m_model, panelName, m_state)){
+        return false;
+    }
+    m_name = panelName;
+
+    // The model was just fully replaced -- nothing in it has been seeded into
+    // the node editor yet, and any prior selection refers to ids that may no
+    // longer exist (or now mean something else, if the loaded file reuses
+    // them). drawTurnoutNode() re-seeds every node's position from the model
+    // the first time it sees each id, same as on a brand new panel.
+    m_seededNodes.clear();
+    m_selectedSegmentId = 0;
+    m_drawingSegment = false;
+    m_drawControls.clear();
+    m_tool = Tool::Select;
+    if(m_editor){
+        ed::SetCurrentEditor(m_editor);
+        ed::ClearSelection();
+        ed::SetCurrentEditor(nullptr);
+    }
+    return true;
 }
