@@ -12,9 +12,13 @@ include( FindPkgConfig )
 
 add_compile_definitions(QT_NO_KEYWORDS)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets SerialPort Network REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets SerialPort Network REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets SerialPort Network OpenGLWidgets REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets SerialPort Network OpenGLWidgets REQUIRED)
 find_package(fmt)
+# Dear ImGui + the node editor used by the track panels.  qtimgui (vendored under
+# qtimgui/) provides the Qt/OpenGL backend and is compiled straight into train-gui.
+find_package(imgui CONFIG REQUIRED)
+find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
 if(UNIX)
     find_package(Threads)
     find_package(dbus-cxx COMPONENTS qt)
@@ -111,12 +115,14 @@ set(PROJECT_SOURCES
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
         trainutils.qrc
-        panels/paneldisplay.h panels/paneldisplay.cpp
-        panels/turnoutdisplay.h panels/turnoutdisplay.cpp
-        panels/panellayout.h panels/panellayout.cpp
-
-        panels/paneltoolswidget.h panels/paneltoolswidget.cpp panels/paneltoolswidget.ui
         common/turnout.h common/turnout.cpp
+
+        qtimgui/src/ImGuiRenderer.h qtimgui/src/ImGuiRenderer.cpp
+        qtimgui/src/QtImGui.h qtimgui/src/QtImGui.cpp
+        panels/imguipanelwidget.h panels/imguipanelwidget.cpp
+        panels/panelmodel.h panels/panelmodel.cpp
+        panels/panelfields.h panels/panelfields.cpp
+        panels/panelstorage.h panels/panelstorage.cpp
 )
 
 if(UNIX)
@@ -152,9 +158,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(train-gui
         ${PROJECT_SOURCES}
         loconet/loconetturnout.h loconet/loconetturnout.cpp
-        panels/propertyeditor.h panels/propertyeditor.cpp panels/propertyeditor.ui
-        panels/connectable.h panels/connectable.cpp
-        panels/tracksegment.h panels/tracksegment.cpp
         loconet/loconetprogrammer.h loconet/loconetprogrammer.cpp
         loconet/loconetprogrammingresult.h loconet/loconetprogrammingresult.cpp
         loconet/loconetprogrammingrequest.h loconet/loconetprogrammingrequest.cpp
@@ -196,12 +199,16 @@ target_link_libraries(train-gui PRIVATE
     fmt::fmt
     log4cxx
     log4cxx-qt
+    Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+    imgui::imgui
+    unofficial::imgui-node-editor::imgui-node-editor
 )
 target_include_directories(train-gui PRIVATE
     ${train-required_INCLUDE_DIRS}
     ../LCC
     ../LocoNetCommunications
     ../LoconetTCPUtil
+    qtimgui/src
 )
 target_compile_options(train-gui PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>: /Zc:preprocessor /Zc:__cplusplus>
