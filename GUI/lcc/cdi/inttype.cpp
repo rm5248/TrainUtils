@@ -8,6 +8,38 @@ IntType::IntType()
 
 }
 
+QString IntType::name() const{
+    return m_name;
+}
+
+QString IntType::description() const{
+    return m_description;
+}
+
+std::optional<int> IntType::min() const{
+    return m_min;
+}
+
+std::optional<int> IntType::max() const{
+    return m_max;
+}
+
+std::optional<int> IntType::defaultValue() const{
+    return m_default;
+}
+
+std::optional<MapType> IntType::map() const{
+    return m_map;
+}
+
+int IntType::size() const{
+    return m_storageSize;
+}
+
+int IntType::offset() const{
+    return m_offset;
+}
+
 IntType IntType::createFromXML(QXmlStreamReader* xml){
     IntType i;
 
@@ -18,28 +50,39 @@ IntType IntType::createFromXML(QXmlStreamReader* xml){
         return i;
     }
 
-    QStack<QStringView> tagStack;
-    type = xml->readNext();
+    QXmlStreamAttributes attrs = xml->attributes();
+    if(attrs.hasAttribute("size")){
+        i.m_storageSize = attrs.value("size").toInt();
+    }
+    if(attrs.hasAttribute("offset")){
+        i.m_offset = attrs.value("offset").toInt();
+    }
+
+    QStack<QString> tagStack;
 
     while(!xml->atEnd()){
-        QXmlStreamReader::TokenType type = xml->readNext();
-        switch(type){
-        case QXmlStreamReader::NoToken:
-        case QXmlStreamReader::Invalid:
-        case QXmlStreamReader::EndDocument:
-        case QXmlStreamReader::StartDocument:
+        type = xml->readNext();
+
+        if(type == QXmlStreamReader::EndElement &&
+                xml->name() == "int" && tagStack.isEmpty()){
             break;
+        }
+
+        switch(type){
         case QXmlStreamReader::StartElement:
-            tagStack.push(xml->name());
-            if(tagStack.top() == "map"){
+            if(xml->name() == "map"){
                 i.m_map = MapType::createFromXML(xml);
+            }else{
+                tagStack.push(xml->name().toString());
             }
             break;
         case QXmlStreamReader::EndElement:
-            tagStack.pop();
+            if(!tagStack.isEmpty()){
+                tagStack.pop();
+            }
             break;
         case QXmlStreamReader::Characters:
-            if(tagStack.size() > 0){
+            if(!tagStack.isEmpty()){
                 if(tagStack.top() == "name"){
                     i.m_name = xml->text().toString();
                 }else if(tagStack.top() == "description"){
@@ -60,19 +103,16 @@ IntType IntType::createFromXML(QXmlStreamReader* xml){
                     bool ok;
                     int val = xml->text().toString().toInt(&ok);
                     if(ok){
-                        i.m_max = val;
+                        i.m_default = val;
                     }
                 }
             }
-        }
-
-        if(xml->hasError()){
+            break;
+        default:
             break;
         }
 
-        type = xml->readNext();
-        if(type == QXmlStreamReader::EndElement &&
-                xml->name() == "int"){
+        if(xml->hasError()){
             break;
         }
     }

@@ -16,7 +16,7 @@ public:
 
     Identification identification();
     ACDI acdi();
-    QVector<Segment> segments();
+    const QVector<Segment>& segments() const;
 
     static CDI createFromXML(QXmlStreamReader* xml);
 

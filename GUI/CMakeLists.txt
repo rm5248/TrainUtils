@@ -114,6 +114,9 @@ set(PROJECT_SOURCES
         lcc/cdi/eventidtype.h
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
+        lcc/cdi/cdieditorwidget.cpp
+        lcc/cdi/cdieditorwidget.h
+        lcc/cdi/cdieditorwidget.ui
         trainutils.qrc
         common/turnout.h common/turnout.cpp
 

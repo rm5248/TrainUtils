@@ -2,38 +2,12 @@
 #ifndef CDIVARIANT_H
 #define CDIVARIANT_H
 
-#include <variant>
-#include <memory>
+#include <QString>
 
-#include "inttype.h"
-#include "stringtype.h"
-#include "eventidtype.h"
 #include "grouptype.h"
 
-//class CDIVariant
-//{
-//public:
-//    enum class VariableType{
-//        Invalid,
-//        Integer,
-//        String,
-//        EventID,
-//        Group,
-//    };
-
-//    CDIVariant();
-//    CDIVariant(GroupType type);
-
-//    VariableType type();
-
-//    IntType to_int();
-//    StringType to_string();
-//    EventIDType to_eventID();
-//    GroupType to_group();
-
-//private:
-//    VariableType m_type;
-////    std::variant<
-//};
+QString cdiVariantName(const CDIVariant& v);
+QString cdiVariantDescription(const CDIVariant& v);
+bool cdiVariantIsGroup(const CDIVariant& v);
 
 #endif // CDIVARIANT_H

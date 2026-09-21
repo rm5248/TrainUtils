@@ -4,18 +4,23 @@
 
 #include <QString>
 
-#include "maptype.h"
+class QXmlStreamReader;
 
 class EventIDType
 {
 public:
     EventIDType();
 
+    static EventIDType createFromXML(QXmlStreamReader* xml);
+
+    QString name() const;
+    QString description() const;
+    int offset() const;
+
 private:
     QString m_name;
     QString m_description;
-    MapType m_map;
-    int m_offset;
+    int m_offset = 0;
 };
 
 #endif // EVENTIDTYPE_H

@@ -34,24 +34,27 @@ Identification Identification::createFromXML(QXmlStreamReader* xml){
         return i;
     }
 
-    QStack<QStringView> tagStack;
-    type = xml->readNext();
+    QStack<QString> tagStack;
 
     while(!xml->atEnd()){
+        type = xml->readNext();
+
+        if(type == QXmlStreamReader::EndElement &&
+                xml->name() == "identification" && tagStack.isEmpty()){
+            break;
+        }
 
         switch(type){
-        case QXmlStreamReader::NoToken:
-        case QXmlStreamReader::Invalid:
-        case QXmlStreamReader::EndDocument:
-            break;
         case QXmlStreamReader::StartElement:
-            tagStack.push(xml->name());
+            tagStack.push(xml->name().toString());
             break;
         case QXmlStreamReader::EndElement:
-            tagStack.pop();
+            if(!tagStack.isEmpty()){
+                tagStack.pop();
+            }
             break;
         case QXmlStreamReader::Characters:
-            if(tagStack.size() > 0){
+            if(!tagStack.isEmpty()){
                 if(tagStack.top() == "manufacturer"){
                     i.m_manufacturer = xml->text().toString();
                 }else if(tagStack.top() == "model"){
@@ -62,15 +65,12 @@ Identification Identification::createFromXML(QXmlStreamReader* xml){
                     i.m_softwareVersion = xml->text().toString();
                 }
             }
-        }
-
-        if(xml->hasError()){
+            break;
+        default:
             break;
         }
 
-        type = xml->readNext();
-        if(type == QXmlStreamReader::EndElement &&
-                xml->name() == "identification"){
+        if(xml->hasError()){
             break;
         }
     }

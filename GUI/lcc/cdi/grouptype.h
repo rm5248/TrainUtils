@@ -3,11 +3,9 @@
 #define GROUPTYPE_H
 
 #include <QString>
-#include <QVariant>
+#include <QVector>
 #include <memory>
 #include <variant>
-
-//#include "cdivariant.h"
 
 class QXmlStreamReader;
 
@@ -30,12 +28,19 @@ public:
 
     static GroupType createFromXML(QXmlStreamReader* xml);
 
+    QString name() const;
+    QString description() const;
+    QString repname() const;
+    int replication() const;
+    int offset() const;
+    const QVector<CDIVariant>& elements() const;
+
 private:
     QString m_name;
     QString m_description;
     QString m_repname;
     QVector<CDIVariant> m_elements;
-    int m_offset;
+    int m_offset = 0;
     int m_replication = 0;
 };
 

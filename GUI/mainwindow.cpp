@@ -17,6 +17,7 @@
 #include "throttledisplay.h"
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
+#include "lcc/cdi/cdieditorwidget.h"
 #include "panels/imguipanelwidget.h"
 #include "panels/panelstorage.h"
 #include "systemconnection.h"
@@ -570,6 +571,14 @@ void MainWindow::on_actionNewPanel_triggered()
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
 
     newPanelAdded(panel, dockWidget);
+}
+
+void MainWindow::on_actionCdiEditor_triggered()
+{
+    ads::CDockWidget* dockWidget = new ads::CDockWidget("CDI Editor");
+    CdiEditorWidget* editor = new CdiEditorWidget(this);
+    dockWidget->setWidget(editor);
+    m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
 }
 
 void MainWindow::onOpenPanelTriggered()

@@ -76,6 +76,7 @@
     </widget>
     <addaction name="menu_lcc_Connect_To"/>
     <addaction name="separator"/>
+    <addaction name="actionCdiEditor"/>
    </widget>
    <widget class="QMenu" name="menuPanels">
     <property name="title">
@@ -157,6 +158,11 @@
   <action name="actionNewPanel">
    <property name="text">
     <string>New Panel</string>
+   </property>
+  </action>
+  <action name="actionCdiEditor">
+   <property name="text">
+    <string>CDI Editor...</string>
    </property>
   </action>
   <action name="actionConnections">

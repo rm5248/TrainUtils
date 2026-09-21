@@ -50,6 +50,8 @@ private Q_SLOTS:
     void on_actionNewPanel_triggered();
     void onOpenPanelTriggered();
 
+    void on_actionCdiEditor_triggered();
+
     void on_action_speedo_Manual_Serial_triggered();
 
     void on_actionSpeed_Matching_triggered();

@@ -16,6 +16,15 @@ public:
 
     static IntType createFromXML(QXmlStreamReader* xml);
 
+    QString name() const;
+    QString description() const;
+    std::optional<int> min() const;
+    std::optional<int> max() const;
+    std::optional<int> defaultValue() const;
+    std::optional<MapType> map() const;
+    int size() const;
+    int offset() const;
+
 private:
     QString m_name;
     QString m_description;

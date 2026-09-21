@@ -10,6 +10,14 @@ Identification CDI::identification(){
     return m_ident;
 }
 
+ACDI CDI::acdi(){
+    return m_acdi;
+}
+
+const QVector<Segment>& CDI::segments() const{
+    return m_segments;
+}
+
 CDI CDI::createFromXML(QXmlStreamReader* xml){
     CDI c;
 
@@ -26,7 +34,13 @@ CDI CDI::createFromXML(QXmlStreamReader* xml){
         case QXmlStreamReader::StartElement:
             if(xml->name() == "identification"){
                 c.m_ident = Identification::createFromXML(xml);
+            }else if(xml->name() == "acdi"){
+                c.m_acdi = ACDI::createFromXML(xml);
+            }else if(xml->name() == "segment"){
+                c.m_segments.push_back(Segment::createFromXML(xml));
             }
+            break;
+        default:
             break;
         }
 
