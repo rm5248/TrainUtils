@@ -2,6 +2,8 @@
 #ifndef ACDI_H
 #define ACDI_H
 
+class QXmlStreamReader;
+
 /**
  * Abbreviated Common Description Interface
  */
@@ -9,6 +11,8 @@ class ACDI
 {
 public:
     ACDI();
+
+    static ACDI createFromXML(QXmlStreamReader* xml);
 
 private:
     int m_fixedFormat;

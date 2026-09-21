@@ -4,19 +4,25 @@
 
 #include <QString>
 
-#include "maptype.h"
+class QXmlStreamReader;
 
 class StringType
 {
 public:
     StringType();
 
+    static StringType createFromXML(QXmlStreamReader* xml);
+
+    QString name() const;
+    QString description() const;
+    int size() const;
+    int offset() const;
+
 private:
     QString m_name;
     QString m_description;
-    MapType m_map;
-    int m_maxLen;
-    int m_offset;
+    int m_maxLen = 0;
+    int m_offset = 0;
 };
 
 #endif // STRINGTYPE_H
