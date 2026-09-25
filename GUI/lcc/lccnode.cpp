@@ -11,21 +11,18 @@
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.LCCNode" );
 
-LCCNode::LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObject *parent) :
+LCCNode::LCCNode(lcc_node_info* inf, LCCConnection* conn, QObject *parent) :
     QObject(parent),
-    m_lcc(lcc),
     m_nodeInfo(inf),
     m_conn(conn),
     m_hasCDI(false),
     m_cdiSize(-1)
 {
     m_rawcdi.reserve(1024);
-    // connect(conn, &LCCConnection::incomingDatagram,
-    //         this, &LCCNode::datagramRx);
 }
 
 bool LCCNode::valid() const{
-    return m_lcc != nullptr && m_nodeInfo != nullptr;
+    return m_nodeInfo != nullptr;
 }
 
 bool LCCNode::hasCDI() const{
@@ -36,7 +33,7 @@ void LCCNode::readCDI(){
     if(m_nodeInfo == nullptr){
         return;
     }
-    if(m_reply){
+    if(m_cdiReadState != CDIReadState::Not_Read_Yet){
         LOG4CXX_ERROR(logger, "Can't read CDI: request already in process");
         return;
     }
@@ -51,129 +48,7 @@ void LCCNode::readCDI(){
     connect(m_reply, &AddressSpaceReply::finished,
         this, &LCCNode::addressSpaceFinished);
 
-    // lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
-
-    // lcc_remote_memory_get_address_space_information(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
-}
-
-void LCCNode::datagramRx(uint16_t source_alias, QByteArray ba){
-    uint8_t read_reply_b0 = ba[0];
-    uint8_t status_byte = ba[1];
-    uint32_t starting_address = (ba[2] << 24) |
-                                (ba[3] << 16) |
-                                (ba[4] << 8) |
-                                (ba[5] << 0);
-
-    if(read_reply_b0 != 0x20){
-        // This is not a read reply for a datagram, it is something else.
-        assert(false);
-        return;
-    }
-
-    lcc_datagram_respond_rxok(lcc_context_get_datagram_context(m_lcc), source_alias, LCC_DATAGRAM_REPLY_PENDING);
-
-    if(status_byte == 0x86 ||
-            status_byte == 0x87){
-        handleGetAddressSpaceInformationReply(ba);
-    }else if(status_byte >= 0x50 &&
-             status_byte <= 0x5B){
-        handleDatagramRead(ba);
-    }
-}
-
-void LCCNode::handleDatagramRead(QByteArray ba){
-    uint8_t read_reply_status = ba[1];
-    int space = 0;
-    int starting_byte = 6;
-    bool is_error = read_reply_status >= 0x58;
-
-    if(read_reply_status == 0x50 ||
-            read_reply_status == 0x58){
-        // space in byte 6
-        space = ba[6];
-        starting_byte = 7;
-    }else if(read_reply_status == 0x51 ||
-             read_reply_status == 0x59){
-        space = LCC_MEMORY_SPACE_CONFIGURATION_SPACE;
-    }else if(read_reply_status == 0x52 ||
-             read_reply_status == 0x5A){
-        space = LCC_MEMORY_SPACE_ALL_MEMORY;
-    }else if(read_reply_status == 0x53 ||
-             read_reply_status == 0x5B){
-        space = LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION;
-    }
-
-    if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION && !is_error){
-        int totalNumBytes = ba.size() - starting_byte;
-        for(int x = 0; x < totalNumBytes; x++){
-            char c = ba[starting_byte + x];
-            if(c == 0){
-                continue;
-            }
-            m_rawcdi.append(c);
-        }
-
-        LOG4CXX_TRACE_FMT(logger, "total num bytes: {} size: {} starting byte: {}", totalNumBytes, ba.size(), starting_byte);
-        if(totalNumBytes <= 64 && (m_cdiCurrentOffset < m_cdiSize)){
-            m_cdiCurrentOffset += totalNumBytes;
-            uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-            int bytesRemaining = m_cdiSize - m_cdiCurrentOffset;
-            int bytesToTx = 64;
-            if(bytesRemaining < 64){
-                bytesToTx = bytesRemaining;
-            }
-            lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
-            lcc_remote_memory_read_single_transfer(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, m_cdiCurrentOffset, bytesToTx);
-        }else{
-            m_hasCDI = true;
-            QXmlStreamReader reader;
-            reader.addData(m_rawcdi);
-            m_cdi = CDI::createFromXML(&reader);
-            Q_EMIT cdiRead();
-        }
-    }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION && is_error){
-        LOG4CXX_ERROR_FMT(logger, "Unable to read data correctly");
-    }
-}
-
-void LCCNode::handleGetAddressSpaceInformationReply(QByteArray ba){
-    int stat = ba[1];
-    uint8_t addressSpace = ba[2];
-    uint32_t highestAddress =
-            (ba[3] << 24) |
-            (ba[4] << 16) |
-            (ba[5] << 8) |
-            (ba[6] << 0);
-    int flags = ba[7];
-    uint32_t lowestAddress = 0;
-
-    if(stat == 0x86){
-        LOG4CXX_DEBUG_FMT(logger, "Space 0x{:X} not available", addressSpace);
-        return;
-    }
-
-    if(flags & (0x01 << 1)){
-        lowestAddress =
-                (ba[8] << 24) |
-                (ba[9] << 16) |
-                (ba[10] << 8) |
-                (ba[11] << 0);
-    }
-
-    LOG4CXX_TRACE_FMT(logger, "Space: 0x{:X} highest: 0x{:X} lowest: 0x{:X} flags: 0x{:X}",
-                      addressSpace,
-                      highestAddress,
-                      lowestAddress,
-                      flags);
-
-    if(addressSpace == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
-        uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-        m_cdiSize = highestAddress;
-
-        m_cdiCurrentOffset = 0;
-        lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
-        lcc_remote_memory_read_single_transfer(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, 0, 64);
-    }
+    m_cdiReadState = CDIReadState::Read_Space_Info;
 }
 
 QString LCCNode::rawCDI() const{
@@ -185,6 +60,8 @@ CDI LCCNode::cdi() const{
 }
 
 void LCCNode::addressSpaceFinished(){
+    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+
     m_reply->deleteLater();
 
     LOG4CXX_DEBUG_FMT(logger, "Address space information: Space {:X} exists? {} low address {} high address {}",
@@ -198,5 +75,51 @@ void LCCNode::addressSpaceFinished(){
         LOG4CXX_WARN(logger, "Memory segment does not exist but high address is set: assuming it actually does exist");
     }
 
+
+    if(m_cdiReadState == CDIReadState::Read_Space_Info && m_reply->space() == 255){
+        m_cdiSize = m_reply->highAddress();
+        m_cdiCurrentOffset = 0;
+        m_cdiReadState = CDIReadState::Reading_CDI;
+
+        // Now let's trigger a read of the entire CDI
+        m_readReply = m_conn->readSingleMemoryBlock(alias, 255, m_cdiCurrentOffset, 64);
+        if(m_readReply){
+            connect(m_readReply, &AddressSpaceReadReply::finished,
+                    this, &LCCNode::addressSpaceRead);
+        }
+    }
+
     m_reply = nullptr;
+}
+
+void LCCNode::addressSpaceRead(){
+    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+
+    LOG4CXX_DEBUG_FMT(logger, "Got address space read");
+
+    m_readReply->deleteLater();
+
+    if(m_cdiReadState == CDIReadState::Reading_CDI && m_readReply->space() == 255){
+        m_cdiCurrentOffset += m_readReply->data().length();
+        m_rawcdi.append(m_readReply->data());
+
+        uint32_t lenToRead = m_cdiSize - m_cdiCurrentOffset;
+        if(lenToRead > 64){
+            lenToRead = 64;
+        }
+
+        if(lenToRead > 0){
+            // Read the next block of the CDI
+            m_readReply = m_conn->readSingleMemoryBlock(alias, 255, m_cdiCurrentOffset, lenToRead);
+            if(m_readReply){
+                connect(m_readReply, &AddressSpaceReadReply::finished,
+                        this, &LCCNode::addressSpaceRead);
+            }
+        }else{
+            m_cdiReadState = CDIReadState::CDI_Complete;
+            m_hasCDI = true;
+            LOG4CXX_DEBUG_FMT(logger, "Read entire CDI!");
+            Q_EMIT cdiRead();
+        }
+    }
 }

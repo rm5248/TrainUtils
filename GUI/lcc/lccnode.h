@@ -12,6 +12,7 @@ struct lcc_context;
 
 class LCCConnection;
 class AddressSpaceReply;
+class AddressSpaceReadReply;
 
 /**
  * Represents a single LCC node.
@@ -21,7 +22,7 @@ class LCCNode : public QObject
     Q_OBJECT
     Q_PROPERTY(bool hasCDI READ hasCDI NOTIFY cdiRead)
 public:
-    explicit LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObject *parent = nullptr);
+    explicit LCCNode(lcc_node_info* inf, LCCConnection* conn, QObject *parent = nullptr);
 
     bool valid() const;
 
@@ -54,15 +55,17 @@ Q_SIGNALS:
     void cdiReadFailure(uint16_t error_code, QString error_string);
 
 private Q_SLOTS:
-    void datagramRx(uint16_t source_alias, QByteArray data);
     void addressSpaceFinished();
+    void addressSpaceRead();
 
 private:
-    void handleDatagramRead(QByteArray ba);
-    void handleGetAddressSpaceInformationReply(QByteArray ba);
+    enum class CDIReadState{
+        Not_Read_Yet,
+        Read_Space_Info,
+        Reading_CDI,
+        CDI_Complete,
+    };
 
-private:
-    lcc_context* m_lcc;
     LCCConnection* m_conn;
     lcc_node_info* m_nodeInfo;
     bool m_hasCDI;
@@ -70,7 +73,9 @@ private:
     int m_cdiCurrentOffset;
     int m_cdiSize;
     CDI m_cdi;
+    CDIReadState m_cdiReadState = CDIReadState::Not_Read_Yet;
     AddressSpaceReply* m_reply = nullptr;
+    AddressSpaceReadReply* m_readReply = nullptr;
 };
 
 #endif // LCCNODE_H

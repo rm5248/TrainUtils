@@ -27,8 +27,6 @@ private:
     void setInvalidResponse(uint32_t starting_address, uint16_t error_code, const char* message);
     void setValidResponse(bool exists, bool readonly, uint32_t lowest_address, uint32_t highest_address, const char* message);
 
-    //(struct lcc_remote_memory_context* ctx, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message)
-
 private:
     uint16_t m_alias;
     uint16_t m_space;

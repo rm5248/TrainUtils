@@ -74,8 +74,13 @@ static void remote_memory_request_fail(struct lcc_remote_memory_context* ctx, ui
     LOG4CXX_DEBUG_FMT(logger, "Remote memory request Fail");
 }
 
-static void remote_memory_received(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
+void LCCConnection::remote_memory_receivedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
     LOG4CXX_DEBUG_FMT(logger, "Remote memory recveived for alias {:X} space {:X} length {}", alias, address_space, len);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryReceived(alias, address_space, starting_address, memory_data, len);
 }
 
 static void remote_memory_read_reject(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
@@ -115,7 +120,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
     lcc_remote_memory_set_functions(remote_ctx,
                                     remote_memory_request_ok,
                                     remote_memory_request_fail,
-                                    remote_memory_received,
+                                    remote_memory_receivedCB,
                                     remote_memory_read_reject,
                                     remote_memory_informationCB);
 
@@ -186,10 +191,21 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
     return nullptr;
 }
 
-void LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
+AddressSpaceReadReply* LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
+    if(alias < 0 || space < 0 || space > 255 || len > 64){
+        LOG4CXX_ERROR_FMT(logger, "Alias or space invalid.  alias: {} space: {}", alias, space);
+        return nullptr;
+    }
+
+    AddressSpaceReadReply* rep = new AddressSpaceReadReply(alias, space, starting_address, this);
+
+    m_inflight_read_replies.push_back(rep);
+
     lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
 
     lcc_remote_memory_read_single_transfer(ctx, alias, space, starting_address, len);
+
+    return rep;
 }
 
 std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){
@@ -197,7 +213,7 @@ std::shared_ptr<LCCNode> LCCConnection::lccNodeForID(uint64_t node_id){
         return m_nodes[node_id];
     }
 
-    std::shared_ptr<LCCNode> lccNode = std::make_shared<LCCNode>(m_lcc, lccNodeInfoForID(node_id), this);
+    std::shared_ptr<LCCNode> lccNode = std::make_shared<LCCNode>(lccNodeInfoForID(node_id), this);
     if(lccNode->valid()){
         // If the node is valid(e.g. it exists in the C world), then we store the pointer.
         // Otherwise we don't, as we assume that this is an invalid node
@@ -257,5 +273,26 @@ void LCCConnection::remoteMemoryInformation(uint16_t alias, int exists, int read
     if(finished){
         Q_EMIT addressSpaceRequestFinished(finished);
         m_inflight_replies.removeOne(finished);
+    }
+}
+
+void LCCConnection::remoteMemoryReceived(uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
+    AddressSpaceReadReply* finished = nullptr;
+
+    for(AddressSpaceReadReply* rep : m_inflight_read_replies){
+        if(rep->isFinished()){
+            continue;
+        }
+
+        if(rep->alias() == alias && rep->space() == address_space){
+            rep->setValidResponse(starting_address, memory_data, len);
+            finished = rep;
+            break;
+        }
+    }
+
+    if(finished){
+        Q_EMIT addressSpaceReadRequestFinished(finished);
+        m_inflight_read_replies.removeOne(finished);
     }
 }

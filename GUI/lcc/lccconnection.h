@@ -10,6 +10,7 @@
 #include "lcc-network-info.h"
 #include "../systemconnection.h"
 #include "addressspacereply.h"
+#include "addressspacereadreply.h"
 
 class LCCNode;
 
@@ -52,7 +53,7 @@ public:
      * @param starting_address
      * @param len
      */
-    void readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len);
+    AddressSpaceReadReply* readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len);
 
     /**
      * Query a node for information about the address space.
@@ -75,6 +76,7 @@ Q_SIGNALS:
     void datagramReceivedOK(uint16_t source_alias, uint8_t flags);
     void datagramRejected(uint16_t source_alias, uint16_t error_code, QByteArray optional_data);
     void addressSpaceRequestFinished(AddressSpaceReply* rep);
+    void addressSpaceReadRequestFinished(AddressSpaceReadReply* rep);
 
 protected:
     QString connectionType();
@@ -82,6 +84,8 @@ protected:
 private:
     static void remote_memory_informationCB(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
     void remoteMemoryInformation(uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
+    static void remote_memory_receivedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len);
+    void remoteMemoryReceived(uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len);
 
 protected:
     struct lcc_context* m_lcc;
@@ -89,6 +93,7 @@ protected:
     QMap<uint64_t,std::shared_ptr<LCCNode>> m_nodes;
     QByteArray m_cdi;
     QVector<AddressSpaceReply*> m_inflight_replies;
+    QVector<AddressSpaceReadReply*> m_inflight_read_replies;
 };
 
 #endif // LCCCONNECTION_H

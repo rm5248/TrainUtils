@@ -169,6 +169,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         speedometerdisplay.h speedometerdisplay.cpp speedometerdisplay.ui
         speedmatcher.h speedmatcher.cpp speedmatcher.ui
         lcc/addressspacereply.h lcc/addressspacereply.cpp
+        lcc/addressspacereadreply.h lcc/addressspacereadreply.cpp
     )
 else()
     if(ANDROID)
