@@ -85,6 +85,7 @@ int lcc_remote_memory_get_address_space_information(struct lcc_remote_memory_con
     tx_data[0] = 0x20;
     tx_data[1] = 0x84;
     tx_data[2] = space;
+    ctx->current_requesting_alias = alias;
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
@@ -166,7 +167,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
         }
 
         if(ctx->remote_memory_info){
-            ctx->remote_memory_info(ctx, present, readonly, address_space, low_address, high_address, NULL);
+            ctx->remote_memory_info(ctx, alias, present, readonly, address_space, low_address, high_address, NULL);
         }
         lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0);
     }else{

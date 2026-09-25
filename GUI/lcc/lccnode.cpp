@@ -15,12 +15,13 @@ LCCNode::LCCNode(lcc_context* lcc, lcc_node_info* inf, LCCConnection* conn, QObj
     QObject(parent),
     m_lcc(lcc),
     m_nodeInfo(inf),
+    m_conn(conn),
     m_hasCDI(false),
     m_cdiSize(-1)
 {
     m_rawcdi.reserve(1024);
-    connect(conn, &LCCConnection::incomingDatagram,
-            this, &LCCNode::datagramRx);
+    // connect(conn, &LCCConnection::incomingDatagram,
+    //         this, &LCCNode::datagramRx);
 }
 
 bool LCCNode::valid() const{
@@ -35,10 +36,24 @@ void LCCNode::readCDI(){
     if(m_nodeInfo == nullptr){
         return;
     }
-    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+    if(m_reply){
+        LOG4CXX_ERROR(logger, "Can't read CDI: request already in process");
+        return;
+    }
 
-    lcc_remote_memory_get_address_space_information(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+
+    m_reply = m_conn->queryAddressSpaceInformation(alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    if(!m_reply){
+        return;
+    }
+
+    connect(m_reply, &AddressSpaceReply::finished,
+        this, &LCCNode::addressSpaceFinished);
+
+    // lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+
+    // lcc_remote_memory_get_address_space_information(ctx, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
 }
 
 void LCCNode::datagramRx(uint16_t source_alias, QByteArray ba){
@@ -167,4 +182,21 @@ QString LCCNode::rawCDI() const{
 
 CDI LCCNode::cdi() const{
     return m_cdi;
+}
+
+void LCCNode::addressSpaceFinished(){
+    m_reply->deleteLater();
+
+    LOG4CXX_DEBUG_FMT(logger, "Address space information: Space {:X} exists? {} low address {} high address {}",
+        m_reply->space(),
+        m_reply->exists(),
+        m_reply->lowAddress(),
+                      m_reply->highAddress());
+
+
+    if(!m_reply->exists() && m_reply->highAddress() != 0){
+        LOG4CXX_WARN(logger, "Memory segment does not exist but high address is set: assuming it actually does exist");
+    }
+
+    m_reply = nullptr;
 }

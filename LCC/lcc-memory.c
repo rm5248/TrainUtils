@@ -119,9 +119,9 @@ int lcc_memory_respond_information_query(struct lcc_memory_context* ctx,
     uint8_t response[12];
     response[0] = 0x20;
     if(address_space_present){
-        response[1] = 0x86;
-    }else{
         response[1] = 0x87;
+    }else{
+        response[1] = 0x86;
     }
     response[2] = address_space;
     lcc_uint32_to_data(response + 3, highest_address);

@@ -169,7 +169,7 @@ typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context
 /**
  * A function that will be called when information about a memory space on a remote node is queried.
  */
-typedef void (*lcc_remote_memory_information)(struct lcc_remote_memory_context* ctx, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
+typedef void (*lcc_remote_memory_information)(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
 
 typedef void (*lcc_firmware_upgrade_start)(struct lcc_firmware_upgrade_context* ctx);
 

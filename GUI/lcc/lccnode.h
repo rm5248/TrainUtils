@@ -11,6 +11,7 @@ struct lcc_node_info;
 struct lcc_context;
 
 class LCCConnection;
+class AddressSpaceReply;
 
 /**
  * Represents a single LCC node.
@@ -54,6 +55,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void datagramRx(uint16_t source_alias, QByteArray data);
+    void addressSpaceFinished();
 
 private:
     void handleDatagramRead(QByteArray ba);
@@ -61,12 +63,14 @@ private:
 
 private:
     lcc_context* m_lcc;
+    LCCConnection* m_conn;
     lcc_node_info* m_nodeInfo;
     bool m_hasCDI;
     QString m_rawcdi;
     int m_cdiCurrentOffset;
     int m_cdiSize;
     CDI m_cdi;
+    AddressSpaceReply* m_reply = nullptr;
 };
 
 #endif // LCCNODE_H

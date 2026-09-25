@@ -82,8 +82,13 @@ static void remote_memory_read_reject(struct lcc_remote_memory_context* ctx, uin
     LOG4CXX_DEBUG_FMT(logger, "Remote memory read reject");
 }
 
-static void remote_memory_information(struct lcc_remote_memory_context* ctx, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
+void LCCConnection::remote_memory_informationCB(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
     LOG4CXX_DEBUG_FMT(logger, "Remote memory information for space {} rx", address_space);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryInformation(alias, exists, readonly, address_space, lowest_address, highest_address, message);
 }
 
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
@@ -112,7 +117,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
                                     remote_memory_request_fail,
                                     remote_memory_received,
                                     remote_memory_read_reject,
-                                    remote_memory_information);
+                                    remote_memory_informationCB);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);
@@ -214,4 +219,43 @@ QString LCCConnection::connectionType(){
 
 std::shared_ptr<Turnout> LCCConnection::getDCCTurnout(int switch_num){
     return nullptr;
+}
+
+AddressSpaceReply* LCCConnection::queryAddressSpaceInformation(int alias, int space){
+    if(alias < 0 || space < 0 || space > 255){
+        LOG4CXX_ERROR_FMT(logger, "Alias or space invalid.  alias: {} space: {}", alias, space);
+        return nullptr;
+    }
+
+    AddressSpaceReply* rep = new AddressSpaceReply(alias, space, this);
+
+    m_inflight_replies.push_back(rep);
+
+    // TODO properly queue up the requests so we only have one at a time
+    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+
+    lcc_remote_memory_get_address_space_information(ctx, alias, space);
+
+    return rep;
+}
+
+void LCCConnection::remoteMemoryInformation(uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
+    AddressSpaceReply* finished = nullptr;
+
+    for(AddressSpaceReply* rep : m_inflight_replies){
+        if(rep->isFinished()){
+            continue;
+        }
+
+        if(rep->alias() == alias && rep->space() == address_space){
+            rep->setValidResponse(!!exists, !!readonly, lowest_address, highest_address, message);
+            finished = rep;
+            break;
+        }
+    }
+
+    if(finished){
+        Q_EMIT addressSpaceRequestFinished(finished);
+        m_inflight_replies.removeOne(finished);
+    }
 }
