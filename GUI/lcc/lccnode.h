@@ -13,6 +13,7 @@ struct lcc_context;
 class LCCConnection;
 class AddressSpaceReply;
 class AddressSpaceReadReply;
+class SegmentMemory;
 
 /**
  * Represents a single LCC node.
@@ -20,13 +21,10 @@ class AddressSpaceReadReply;
 class LCCNode : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool hasCDI READ hasCDI NOTIFY cdiRead)
 public:
     explicit LCCNode(lcc_node_info* inf, LCCConnection* conn, QObject *parent = nullptr);
 
     bool valid() const;
-
-    bool hasCDI() const;
 
     /**
      * Read the entire CDI for this node.
@@ -35,17 +33,32 @@ public:
     void readCDI();
 
     /**
-     * The raw CDI XML data of the node.
-     * @return
-     */
-    QString rawCDI() const;
-
-    /**
      * The parsed CDI data.
      *
      * @return
      */
     CDI cdi() const;
+
+    /**
+     * Read all of the memory for the device.  If the CDI has not been retreived yet,
+     * it will retrieve the CDI first before reading memory.
+     */
+    void readAllMemory();
+
+    /**
+     * Check to see if we have all memory read from this node.
+     *
+     * @return
+     */
+    bool hasAllMemory();
+
+    /**
+     * Get the raw memory for the specified segment.
+     *
+     * @param segment
+     * @return
+     */
+    SegmentMemory* segmentMemory(uint8_t segment);
 
 Q_SIGNALS:
     /**
@@ -55,27 +68,15 @@ Q_SIGNALS:
     void cdiReadFailure(uint16_t error_code, QString error_string);
 
 private Q_SLOTS:
-    void addressSpaceFinished();
-    void addressSpaceRead();
+    void cdiReady();
 
 private:
-    enum class CDIReadState{
-        Not_Read_Yet,
-        Read_Space_Info,
-        Reading_CDI,
-        CDI_Complete,
-    };
-
     LCCConnection* m_conn;
     lcc_node_info* m_nodeInfo;
-    bool m_hasCDI;
-    QString m_rawcdi;
-    int m_cdiCurrentOffset;
-    int m_cdiSize;
     CDI m_cdi;
-    CDIReadState m_cdiReadState = CDIReadState::Not_Read_Yet;
-    AddressSpaceReply* m_reply = nullptr;
-    AddressSpaceReadReply* m_readReply = nullptr;
+
+    // Memory information
+    QVector<SegmentMemory*> m_memories;
 };
 
 #endif // LCCNODE_H

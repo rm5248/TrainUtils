@@ -232,8 +232,7 @@ void LCCNodeInformation::on_readCDI_clicked()
     lccNode->readCDI();
     connect(lccNode.get(), &LCCNode::cdiRead,
             [lccNode](){
-        LOG4CXX_DEBUG_FMT(logger, "Raw CDI for node: {}", lccNode->rawCDI().toStdString());
-        LOG4CXX_DEBUG_FMT(logger, "manufactuter: {} model: {} hardwareversion: {} SW version: {}",
+        LOG4CXX_DEBUG_FMT(logger, "manufactuter: {} model: {} hardware version: {} SW version: {}",
                           lccNode->cdi().identification().manufacturer().toStdString(),
                           lccNode->cdi().identification().model().toStdString(),
                           lccNode->cdi().identification().hardwareVersion().toStdString(),

@@ -5,6 +5,7 @@
 #include "lcc-datagram.h"
 #include "lcc-remote-memory.h"
 #include "lccconnection.h"
+#include "segmentmemory.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -14,112 +15,64 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.LCC
 LCCNode::LCCNode(lcc_node_info* inf, LCCConnection* conn, QObject *parent) :
     QObject(parent),
     m_nodeInfo(inf),
-    m_conn(conn),
-    m_hasCDI(false),
-    m_cdiSize(-1)
+    m_conn(conn)
 {
-    m_rawcdi.reserve(1024);
 }
 
 bool LCCNode::valid() const{
     return m_nodeInfo != nullptr;
 }
 
-bool LCCNode::hasCDI() const{
-    return m_hasCDI;
-}
-
 void LCCNode::readCDI(){
     if(m_nodeInfo == nullptr){
         return;
     }
-    if(m_cdiReadState != CDIReadState::Not_Read_Yet){
-        LOG4CXX_ERROR(logger, "Can't read CDI: request already in process");
-        return;
+
+    SegmentMemory* cdi_mem = segmentMemory(LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    if(cdi_mem == nullptr){
+        uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+        cdi_mem = new SegmentMemory(m_conn, alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, this);
+        m_memories.push_back(cdi_mem);
+
+        connect(cdi_mem, &SegmentMemory::memoryReady,
+                this, &LCCNode::cdiReady);
     }
-
-    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-
-    m_reply = m_conn->queryAddressSpaceInformation(alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
-    if(!m_reply){
-        return;
-    }
-
-    connect(m_reply, &AddressSpaceReply::finished,
-        this, &LCCNode::addressSpaceFinished);
-
-    m_cdiReadState = CDIReadState::Read_Space_Info;
-}
-
-QString LCCNode::rawCDI() const{
-    return m_rawcdi;
+    cdi_mem->readAllMemory();
 }
 
 CDI LCCNode::cdi() const{
     return m_cdi;
 }
 
-void LCCNode::addressSpaceFinished(){
-    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
-
-    m_reply->deleteLater();
-
-    LOG4CXX_DEBUG_FMT(logger, "Address space information: Space {:X} exists? {} low address {} high address {}",
-        m_reply->space(),
-        m_reply->exists(),
-        m_reply->lowAddress(),
-                      m_reply->highAddress());
-
-
-    if(!m_reply->exists() && m_reply->highAddress() != 0){
-        LOG4CXX_WARN(logger, "Memory segment does not exist but high address is set: assuming it actually does exist");
-    }
-
-
-    if(m_cdiReadState == CDIReadState::Read_Space_Info && m_reply->space() == 255){
-        m_cdiSize = m_reply->highAddress();
-        m_cdiCurrentOffset = 0;
-        m_cdiReadState = CDIReadState::Reading_CDI;
-
-        // Now let's trigger a read of the entire CDI
-        m_readReply = m_conn->readSingleMemoryBlock(alias, 255, m_cdiCurrentOffset, 64);
-        if(m_readReply){
-            connect(m_readReply, &AddressSpaceReadReply::finished,
-                    this, &LCCNode::addressSpaceRead);
+SegmentMemory* LCCNode::segmentMemory(uint8_t segment){
+    for(SegmentMemory* mem : m_memories){
+        if(mem->segmentId() == segment){
+            return mem;
         }
     }
 
-    m_reply = nullptr;
+    return nullptr;
 }
 
-void LCCNode::addressSpaceRead(){
-    uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+void LCCNode::cdiReady(){
+    SegmentMemory* cdi_segment = segmentMemory(255);
+    const QVector<uint8_t> data = cdi_segment->data();
+    QXmlStreamReader rdr(QByteArray::fromRawData((const char*)data.data(), data.length()));
+    m_cdi = CDI::createFromXML(&rdr);
+    LOG4CXX_DEBUG_FMT(logger, "Read entire CDI!");
 
-    LOG4CXX_DEBUG_FMT(logger, "Got address space read");
-
-    m_readReply->deleteLater();
-
-    if(m_cdiReadState == CDIReadState::Reading_CDI && m_readReply->space() == 255){
-        m_cdiCurrentOffset += m_readReply->data().length();
-        m_rawcdi.append(m_readReply->data());
-
-        uint32_t lenToRead = m_cdiSize - m_cdiCurrentOffset;
-        if(lenToRead > 64){
-            lenToRead = 64;
+    // Create segments for each segment found in the CDI, if it does not already exist
+    for(const Segment& seg : m_cdi.segments()){
+        SegmentMemory* current = segmentMemory(seg.space());
+        if(current){
+            continue;
         }
 
-        if(lenToRead > 0){
-            // Read the next block of the CDI
-            m_readReply = m_conn->readSingleMemoryBlock(alias, 255, m_cdiCurrentOffset, lenToRead);
-            if(m_readReply){
-                connect(m_readReply, &AddressSpaceReadReply::finished,
-                        this, &LCCNode::addressSpaceRead);
-            }
-        }else{
-            m_cdiReadState = CDIReadState::CDI_Complete;
-            m_hasCDI = true;
-            LOG4CXX_DEBUG_FMT(logger, "Read entire CDI!");
-            Q_EMIT cdiRead();
-        }
+        LOG4CXX_DEBUG_FMT(logger, "Creating segment {}", seg.space());
+        uint16_t alias = lcc_node_info_get_alias(m_nodeInfo);
+        current = new SegmentMemory(m_conn, alias, seg.space(), this);
+        m_memories.push_back(current);
     }
+
+    Q_EMIT cdiRead();
 }
