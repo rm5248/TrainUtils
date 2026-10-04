@@ -6,7 +6,7 @@
 #include "lccnodeinformation.h"
 
 #include <log4cxx/logger.h>
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.LCCNetworkView" );
 
