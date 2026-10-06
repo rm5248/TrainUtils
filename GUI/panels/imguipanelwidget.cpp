@@ -80,7 +80,7 @@ float distanceToLineSegment(ImVec2 p, ImVec2 a, ImVec2 b){
 // Redraw interval.  Immediate mode plus the node editor's own animations
 // (selection, navigation easing) make update-on-input unreliable, so just run a
 // steady frame loop while the panel is actually visible.
-static constexpr int kRepaintIntervalMs = 16;
+static constexpr int kRepaintIntervalMs = 32;
 
 // The node editor fits the view to its content on the first frame, before node
 // sizes have been measured, which leaves a brand new panel at a nonsense zoom.
