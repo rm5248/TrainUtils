@@ -17,8 +17,29 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets SerialPort Network OpenGLW
 find_package(fmt)
 # Dear ImGui + the node editor used by the track panels.  qtimgui (vendored under
 # qtimgui/) provides the Qt/OpenGL backend and is compiled straight into train-gui.
-find_package(imgui CONFIG REQUIRED)
-find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
+#
+# Each can independently be built from a local source checkout instead of the vcpkg
+# package -- useful for testing against an unreleased version of either. Either way
+# the resulting targets are named imgui::imgui and
+# unofficial::imgui-node-editor::imgui-node-editor.
+set(TRAINUTILS_LOCAL_IMGUI_DIR "" CACHE PATH
+    "Path to a local checkout of https://github.com/ocornut/imgui to build imgui \
+from source, instead of using the vcpkg package. Leave empty to use vcpkg.")
+set(TRAINUTILS_LOCAL_IMGUI_NODE_EDITOR_DIR "" CACHE PATH
+    "Path to a local checkout of https://github.com/thedmd/imgui-node-editor to build \
+imgui-node-editor from source, instead of using the vcpkg package. Leave empty to use vcpkg.")
+
+if(TRAINUTILS_LOCAL_IMGUI_DIR)
+    include(cmake/LocalImgui.cmake)
+else()
+    find_package(imgui CONFIG REQUIRED)
+endif()
+
+if(TRAINUTILS_LOCAL_IMGUI_NODE_EDITOR_DIR)
+    include(cmake/LocalImguiNodeEditor.cmake)
+else()
+    find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
+endif()
 if(UNIX)
     find_package(Threads)
     find_package(dbus-cxx COMPONENTS qt)
