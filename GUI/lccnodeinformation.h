@@ -34,6 +34,8 @@ private Q_SLOTS:
 
     void on_readCDI_clicked();
 
+    void cdiDownloadProgress(uint64_t bytes_rx, uint64_t bytes_total);
+
 private:
     void clearAllData();
     void updateAllValuesForNode();

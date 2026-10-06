@@ -25,6 +25,7 @@ public:
 
 Q_SIGNALS:
     void memoryReady();
+    void downloadProgress(uint64_t bytes_received, uint64_t bytes_total);
 
 private Q_SLOTS:
     void addressSpaceFinished();

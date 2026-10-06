@@ -29,8 +29,10 @@ public:
     /**
      * Read the entire CDI for this node.
      * Listen for the cdiRead signal to know when the CDI is available.
+     *
+     * @return The SegmentMemory that represents the CDI for this node.  This is used to get a download percentage
      */
-    void readCDI();
+    SegmentMemory* readCDI();
 
     /**
      * The parsed CDI data.
@@ -38,12 +40,6 @@ public:
      * @return
      */
     CDI cdi() const;
-
-    /**
-     * Read all of the memory for the device.  If the CDI has not been retreived yet,
-     * it will retrieve the CDI first before reading memory.
-     */
-    void readAllMemory();
 
     /**
      * Check to see if we have all memory read from this node.

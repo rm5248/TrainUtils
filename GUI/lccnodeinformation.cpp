@@ -7,6 +7,7 @@
 #include "lcc-node-info.h"
 #include "lcc/lccnode.h"
 #include "lcc-simple-node-info.h"
+#include "lcc/segmentmemory.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -229,7 +230,7 @@ void LCCNodeInformation::on_readCDI_clicked()
 {
     std::shared_ptr<LCCNode> lccNode = m_connection->lccNodeForID(m_nodeId);
 
-    lccNode->readCDI();
+    SegmentMemory* mem = lccNode->readCDI();
     connect(lccNode.get(), &LCCNode::cdiRead,
             [lccNode](){
         LOG4CXX_DEBUG_FMT(logger, "manufactuter: {} model: {} hardware version: {} SW version: {}",
@@ -238,4 +239,14 @@ void LCCNodeInformation::on_readCDI_clicked()
                           lccNode->cdi().identification().hardwareVersion().toStdString(),
                           lccNode->cdi().identification().softwareVersion().toStdString());
     });
+
+    if(mem){
+        connect(mem, &SegmentMemory::downloadProgress,
+                this, &LCCNodeInformation::cdiDownloadProgress);
+    }
+}
+
+void LCCNodeInformation::cdiDownloadProgress(uint64_t bytes_rx, uint64_t bytes_total){
+    double percent = (double)bytes_rx / (double)bytes_total;
+    ui->cdiProgress->setValue(percent * 100.0);
 }

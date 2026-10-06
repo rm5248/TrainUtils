@@ -23,9 +23,9 @@ bool LCCNode::valid() const{
     return m_nodeInfo != nullptr;
 }
 
-void LCCNode::readCDI(){
+SegmentMemory* LCCNode::readCDI(){
     if(m_nodeInfo == nullptr){
-        return;
+        return nullptr;
     }
 
     SegmentMemory* cdi_mem = segmentMemory(LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
@@ -38,6 +38,8 @@ void LCCNode::readCDI(){
                 this, &LCCNode::cdiReady);
     }
     cdi_mem->readAllMemory();
+
+    return cdi_mem;
 }
 
 CDI LCCNode::cdi() const{

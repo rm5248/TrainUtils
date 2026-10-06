@@ -115,6 +115,8 @@ void SegmentMemory::addressSpaceRead(){
         m_currentOffset += m_readReply->data().length();
         m_data.append(m_readReply->data());
 
+        Q_EMIT downloadProgress(m_data.size(), m_ending_address - m_starting_address);
+
         uint32_t lenToRead = (m_ending_address - m_starting_address) - m_currentOffset;
         if(lenToRead > 64){
             lenToRead = 64;
@@ -130,6 +132,7 @@ void SegmentMemory::addressSpaceRead(){
         }else{
             m_currentReadState = MemoryReadState::Memory_Complete;
             m_hasData = true;
+            Q_EMIT downloadProgress(m_data.size(), m_data.size());
             Q_EMIT memoryReady();
         }
     }
