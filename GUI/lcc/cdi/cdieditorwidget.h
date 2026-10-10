@@ -2,6 +2,8 @@
 #ifndef CDIEDITORWIDGET_H
 #define CDIEDITORWIDGET_H
 
+#include <QMap>
+#include <QPair>
 #include <QStringList>
 #include <QWidget>
 #include <memory>
@@ -21,8 +23,8 @@ class CdiEditorWidget;
 /**
  * Generates a GUI to edit the values described by a CDI.  The CDI either
  * comes from an XML file that the user picks, or from an LCC node (see
- * setLCCNode).  Reading/writing the actual node configuration memory is
- * not implemented yet - this only builds the GUI from the XML.
+ * setLCCNode).  When tied to a node, the values are read from the node's
+ * memory, and changed values can be written back to the node.
  */
 class CdiEditorWidget : public QWidget
 {
@@ -50,13 +52,57 @@ private Q_SLOTS:
     void cdiDownloadProgress(uint64_t bytes_rx, uint64_t bytes_total);
     void segmentMemoryReady();
     void segmentMemoryReadFailed(uint16_t error_code, QString message);
+    void on_readAllButton_clicked();
+    void on_writeButton_clicked();
+    void rangeRead(uint32_t address, int length);
+    void rangeReadFailed(uint32_t address, int length, uint16_t error_code, QString message);
+    void rangeWritten(uint32_t address, int length);
+    void rangeWriteFailed(uint32_t address, int length, uint16_t error_code, QString message);
 
 private:
+    // A field is identified by its space and address
+    typedef QPair<int, uint32_t> FieldKey;
+
+    /**
+     * A field that is currently being displayed
+     */
+    struct FieldBinding {
+        CDIVariant variant;
+        int space;
+        uint32_t address;
+        QWidget* widget;
+        // The value from the node, as the widget would encode it.  Empty if unknown.
+        QVector<uint8_t> original;
+    };
+
+    /**
+     * A value that the user has changed, that has not been written to the node yet
+     */
+    struct PendingChange {
+        QVector<uint8_t> data;
+        QString name;
+    };
+
     void rebuildTree();
     void buildGroupChildren(QTreeWidgetItem* parentItem, const QVector<CDIVariant>& elements, int space, uint32_t address);
     void clearFields();
     void addFieldForVariant(const CDIVariant& variant, int space, uint32_t address);
-    void readConfigurationMemory();
+    QWidget* createFieldWidget(const CDIVariant& variant);
+    void loadFieldValue(FieldBinding& binding);
+    void refreshFieldValues();
+    void setFieldValue(const FieldBinding& binding, const QVector<uint8_t>& bytes);
+    bool encodeField(const FieldBinding& binding, QVector<uint8_t>* out);
+    void fieldEdited(QWidget* widget);
+    void updateHighlight(const FieldBinding& binding);
+    void showFieldContextMenu(QWidget* widget, const QPoint& pos);
+    FieldBinding* bindingForWidget(QWidget* widget);
+    void readField(const FieldBinding& binding);
+    void writeChange(const FieldKey& key);
+    void removeWrittenChanges();
+    void updateButtons();
+    bool isBusy();
+    SegmentMemory* segmentForSpace(int space);
+    void readConfigurationMemory(bool force = false);
     void readNextSegment();
     void showError(const QString& error);
 
@@ -78,6 +124,11 @@ private:
     SegmentMemory* m_currentSegmentRead = nullptr;
     QStringList m_errors;
     bool m_splitterSized = false;
+    bool m_forceRead = false;
+    QVector<FieldBinding> m_fields;
+    QMap<FieldKey, PendingChange> m_pending;
+    // Number of writes to the node that have not finished
+    int m_writesOutstanding = 0;
 };
 
 #endif // CDIEDITORWIDGET_H

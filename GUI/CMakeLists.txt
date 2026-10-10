@@ -191,6 +191,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         speedmatcher.h speedmatcher.cpp speedmatcher.ui
         lcc/addressspacereply.h lcc/addressspacereply.cpp
         lcc/addressspacereadreply.h lcc/addressspacereadreply.cpp
+        lcc/addressspacewritereply.h lcc/addressspacewritereply.cpp
         lcc/segmentmemory.h lcc/segmentmemory.cpp
     )
 else()

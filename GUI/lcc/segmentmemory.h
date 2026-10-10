@@ -23,6 +23,22 @@ public:
     bool hasMemory();
     void readAllMemory();
 
+    /**
+     * Read part of the memory from the node, updating our copy of it.
+     * Emits rangeRead or rangeReadFailed when done.
+     *
+     * @return false if the read could not be started
+     */
+    bool readRange(uint32_t address, int length);
+
+    /**
+     * Write data to the node.  Our copy of the memory is updated as the node
+     * accepts the data.  Emits rangeWritten or rangeWriteFailed when done.
+     *
+     * @return false if the write could not be started
+     */
+    bool writeRange(uint32_t address, const QVector<uint8_t>& data);
+
 Q_SIGNALS:
     void memoryReady();
     /**
@@ -34,12 +50,18 @@ Q_SIGNALS:
     void memoryReadFailed(uint16_t error_code, QString message);
     void downloadProgress(uint64_t bytes_received, uint64_t bytes_total);
 
+    void rangeRead(uint32_t address, int length);
+    void rangeReadFailed(uint32_t address, int length, uint16_t error_code, QString message);
+    void rangeWritten(uint32_t address, int length);
+    void rangeWriteFailed(uint32_t address, int length, uint16_t error_code, QString message);
+
 private Q_SLOTS:
     void addressSpaceFinished();
     void addressSpaceRead();
 
 private:
     void readNextBlock();
+    void updateData(uint32_t address, const QVector<uint8_t>& data);
 
     enum class MemoryReadState{
         Not_Read_Yet,

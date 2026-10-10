@@ -2,6 +2,7 @@
 #include "segmentmemory.h"
 #include "addressspacereadreply.h"
 #include "addressspacereply.h"
+#include "addressspacewritereply.h"
 #include "lccconnection.h"
 #include "lcc-memory.h"
 
@@ -178,4 +179,116 @@ void SegmentMemory::readNextBlock(){
         m_currentReadState = MemoryReadState::Not_Read_Yet;
         Q_EMIT memoryReadFailed(0, "Unable to send memory read request");
     }
+}
+
+namespace {
+/**
+ * Tracks a multi-block read or write
+ */
+struct RangeOperation {
+    int outstanding = 0;
+    bool failed = false;
+};
+}
+
+void SegmentMemory::updateData(uint32_t address, const QVector<uint8_t>& data){
+    if(address < m_starting_address){
+        return;
+    }
+
+    qsizetype index = address - m_starting_address;
+    for(qsizetype x = 0; x < data.size() && index + x < m_data.size(); x++){
+        m_data[index + x] = data[x];
+    }
+}
+
+bool SegmentMemory::readRange(uint32_t address, int length){
+    if(length <= 0){
+        return false;
+    }
+
+    auto op = std::make_shared<RangeOperation>();
+    for(int offset = 0; offset < length; offset += 64){
+        int blockLen = std::min(64, length - offset);
+        uint32_t blockAddress = address + offset;
+        AddressSpaceReadReply* rep = m_conn->readSingleMemoryBlock(m_alias, m_segment_id, blockAddress, blockLen);
+        if(!rep){
+            // Blocks that were already queued will still report back
+            if(op->outstanding == 0){
+                return false;
+            }
+            op->failed = true;
+            Q_EMIT rangeReadFailed(address, length, 0, "Unable to send memory read request");
+            break;
+        }
+
+        op->outstanding++;
+        connect(rep, &AddressSpaceReadReply::finished,
+                this, [this, rep, op, address, length, blockAddress](){
+            rep->deleteLater();
+            op->outstanding--;
+
+            if(rep->isError()){
+                if(!op->failed){
+                    op->failed = true;
+                    Q_EMIT rangeReadFailed(address, length, rep->errorCode(), rep->errorMessage());
+                }
+                return;
+            }
+
+            updateData(blockAddress, rep->data());
+            if(op->outstanding == 0 && !op->failed){
+                Q_EMIT rangeRead(address, length);
+            }
+        });
+    }
+
+    return true;
+}
+
+bool SegmentMemory::writeRange(uint32_t address, const QVector<uint8_t>& data){
+    if(data.isEmpty()){
+        return false;
+    }
+
+    auto op = std::make_shared<RangeOperation>();
+    int length = data.size();
+    for(int offset = 0; offset < length; offset += 64){
+        QVector<uint8_t> block = data.mid(offset, 64);
+        uint32_t blockAddress = address + offset;
+        AddressSpaceWriteReply* rep = m_conn->writeSingleMemoryBlock(m_alias, m_segment_id, blockAddress, block);
+        if(!rep){
+            if(op->outstanding == 0){
+                return false;
+            }
+            op->failed = true;
+            Q_EMIT rangeWriteFailed(address, length, 0, "Unable to send memory write request");
+            break;
+        }
+
+        op->outstanding++;
+        connect(rep, &AddressSpaceWriteReply::finished,
+                this, [this, rep, op, address, length, blockAddress, block](){
+            rep->deleteLater();
+            op->outstanding--;
+
+            if(rep->isError()){
+                LOG4CXX_ERROR_FMT(logger, "Unable to write memory space {:X} address {}: {}",
+                                  m_segment_id, blockAddress, rep->errorMessage().toStdString());
+                if(!op->failed){
+                    op->failed = true;
+                    Q_EMIT rangeWriteFailed(address, length, rep->errorCode(), rep->errorMessage());
+                }
+                return;
+            }
+
+            // The node now has this data
+            updateData(blockAddress, block);
+            if(op->outstanding == 0 && !op->failed){
+                Q_EMIT rangeWritten(address, length);
+            }
+        });
+    }
+
+    return true;
 }

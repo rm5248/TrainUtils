@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include <QMap>
+#include <QPointer>
 #include <memory>
 
 #include "lcc.h"
@@ -11,6 +12,7 @@
 #include "../systemconnection.h"
 #include "addressspacereply.h"
 #include "addressspacereadreply.h"
+#include "addressspacewritereply.h"
 
 class LCCNode;
 
@@ -64,6 +66,18 @@ public:
      */
     AddressSpaceReply* queryAddressSpaceInformation(int alias, int space);
 
+    /**
+     * Write a single memory block(up to 64 bytes in length).  Like reads, this adds
+     * the request to the internal queue.  Requests are sent in the order that they are made.
+     *
+     * @param alias
+     * @param space
+     * @param starting_address
+     * @param data
+     * @return
+     */
+    AddressSpaceWriteReply* writeSingleMemoryBlock(int alias, int space, uint32_t starting_address, const QVector<uint8_t>& data);
+
     std::shared_ptr<LCCNode> lccNodeForID(uint64_t node_id);
 
     /**
@@ -96,6 +110,10 @@ private:
     void remoteMemoryRequestFailed(uint16_t alias, uint16_t error_code);
     static void remote_memory_read_rejectCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
     void remoteMemoryReadRejected(uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+    static void remote_memory_write_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address);
+    static void remote_memory_write_rejectedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+    void remoteMemoryWriteFinished(uint16_t alias, uint8_t address_space, bool ok, uint16_t error_code, const QString& message);
+    void memoryRequestDone();
 
 private Q_SLOTS:
     void requestNextMemoryBlock();
@@ -107,6 +125,9 @@ protected:
     QByteArray m_cdi;
     QVector<AddressSpaceReply*> m_inflight_replies;
     QVector<AddressSpaceReadReply*> m_inflight_read_replies;
+    QVector<AddressSpaceWriteReply*> m_inflight_write_replies;
+    // All of the requests, in the order that they were made
+    QVector<QPointer<QObject>> m_request_order;
     bool m_requesting_memory = false;
 };
 

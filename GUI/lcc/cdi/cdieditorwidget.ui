@@ -66,6 +66,26 @@
         </property>
        </spacer>
       </item>
+      <item>
+       <widget class="QPushButton" name="readAllButton">
+        <property name="text">
+         <string>Re-read all</string>
+        </property>
+        <property name="toolTip">
+         <string>Read all values from the node again</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="writeButton">
+        <property name="text">
+         <string>Write changes</string>
+        </property>
+        <property name="toolTip">
+         <string>Write all changed values to the node</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
