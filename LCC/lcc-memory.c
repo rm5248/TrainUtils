@@ -126,11 +126,18 @@ int lcc_memory_respond_information_query(struct lcc_memory_context* ctx,
     response[2] = address_space;
     lcc_uint32_to_data(response + 3, highest_address);
     response[7] = flags & 0x01;
-    lcc_uint32_to_data(response + 9, lowest_address);
+    int len = 8;
+    if(lowest_address != 0){
+        // The low address is optional(it is assumed to be 0 if not present).
+        // Bit 1 of the flags indicates that it is present in bytes 8-11
+        response[7] |= (0x01 << 1);
+        lcc_uint32_to_data(response + 8, lowest_address);
+        len = 12;
+    }
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
-                               response, 12);
+                               response, len);
 }
 
 int lcc_memory_respond_write_reply_ok(struct lcc_memory_context* ctx,

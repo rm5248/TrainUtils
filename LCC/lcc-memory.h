@@ -49,8 +49,9 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx);
  *
  * @param ctx
  * @param cdi_data the raw CDI data
- * @param cdi_len The length of the CDI data, when the data is a string.  Ignored if the
- * CDI data is of type struct lcc_cdi_control
+ * @param cdi_len The length of the CDI data, when the data is a string, NOT including the
+ * terminating NULL(e.g. the value from strlen()).  The CDI is sent with its terminating NULL,
+ * so the data must be NULL terminated.  Ignored if the CDI data is of type struct lcc_cdi_control
  * @param flags Flags for the data.
  * @return
  */

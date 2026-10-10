@@ -48,14 +48,15 @@ int lcc_remote_memory_read_single_transfer(struct lcc_remote_memory_context* ctx
         return LCC_ERROR_DATAGRAM_IN_PROGRESS;
     }
 
-    ctx->current_requesting_alias = alias;
-    memset(&datagram_ctx->datagram_buffer, 0, sizeof(datagram_ctx->datagram_buffer));
-
     if(read_count > 64 || read_count < 0){
         return LCC_ERROR_INVALID_ARG;
     }
 
+    ctx->current_requesting_alias = alias;
+    memset(&datagram_ctx->datagram_buffer, 0, sizeof(datagram_ctx->datagram_buffer));
+
     uint8_t tx_data[8];
+    int count_byte = 6;
     tx_data[0] = 0x20;
     tx_data[1] = (0x01 << 6); /* read operation */
     if(space == LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION){
@@ -65,15 +66,17 @@ int lcc_remote_memory_read_single_transfer(struct lcc_remote_memory_context* ctx
     }else if(space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE){
         tx_data[1] |= 0x01;
     }else{
+        /* Generic space: the space goes in byte 6, and the count after it */
         tx_data[6] = space;
+        count_byte = 7;
     }
     lcc_uint32_to_data(tx_data + 2, starting_address);
 
-    tx_data[6] = read_count & 0xFF;
+    tx_data[count_byte] = read_count & 0xFF;
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
-                               tx_data, 7);
+                               tx_data, count_byte + 1);
 }
 
 int lcc_remote_memory_get_address_space_information(struct lcc_remote_memory_context* ctx, int alias, uint8_t space){
@@ -111,6 +114,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
 
     if(data[1] == 0x50){
         address_space = data[6];
+        data_starting_byte = 7;
     }else if(data[1] == 0x51){
         address_space = LCC_MEMORY_SPACE_CONFIGURATION_SPACE;
     }else if(data[1] == 0x52){
@@ -158,7 +162,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
         uint32_t low_address = 0;
         int readonly = 0;
 
-        if(data[7] & (0x01 << 1) && data_len >= 11){
+        if(data[7] & (0x01 << 1) && data_len >= 12){
             // if bit 1 is set, low address is in next 4 bytes
             low_address = lcc_uint32_from_data(data + 8);
         }
