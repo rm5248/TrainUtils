@@ -46,7 +46,8 @@ public:
     struct lcc_node_info* lccNodeInfoForID(uint64_t node_id);
 
     /**
-     * Read a single memory block(up to 64 bytes in length).
+     * Read a single memory block(up to 64 bytes in length).  This adds the request to read to an internal
+     * queue, so this may be called multiple times.
      *
      * @param alias
      * @param space
@@ -64,6 +65,11 @@ public:
     AddressSpaceReply* queryAddressSpaceInformation(int alias, int space);
 
     std::shared_ptr<LCCNode> lccNodeForID(uint64_t node_id);
+
+    /**
+     * Get a human-readable description of an LCC error code(e.g. from a datagram rejection)
+     */
+    static QString errorCodeDescription(uint16_t error_code);
 
     void setCDI(QString cdi);
 
@@ -86,6 +92,13 @@ private:
     void remoteMemoryInformation(uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
     static void remote_memory_receivedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len);
     void remoteMemoryReceived(uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len);
+    static void remote_memory_request_failCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len);
+    void remoteMemoryRequestFailed(uint16_t alias, uint16_t error_code);
+    static void remote_memory_read_rejectCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+    void remoteMemoryReadRejected(uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+
+private Q_SLOTS:
+    void requestNextMemoryBlock();
 
 protected:
     struct lcc_context* m_lcc;
@@ -94,6 +107,7 @@ protected:
     QByteArray m_cdi;
     QVector<AddressSpaceReply*> m_inflight_replies;
     QVector<AddressSpaceReadReply*> m_inflight_read_replies;
+    bool m_requesting_memory = false;
 };
 
 #endif // LCCCONNECTION_H

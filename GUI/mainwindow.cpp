@@ -18,6 +18,9 @@
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
 #include "lcc/cdi/cdieditorwidget.h"
+#include "lcc/lccconnection.h"
+#include "lcc/lccnode.h"
+#include "lcc-common.h"
 #include "panels/imguipanelwidget.h"
 #include "panels/panelstorage.h"
 #include "systemconnection.h"
@@ -210,6 +213,11 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
         networkView->setLCCConnection(lccConn);
         DockWidget->setWidget(networkView);
         m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
+
+        connect(networkView, &LCCNetworkView::configureNodeRequested,
+                [lccConn, DockWidget, this](uint64_t node_id){
+            openNodeConfiguration(lccConn, node_id, DockWidget);
+        });
     });
 
     action = parentMenu->addAction("Memory Display");
@@ -579,6 +587,40 @@ void MainWindow::on_actionCdiEditor_triggered()
     CdiEditorWidget* editor = new CdiEditorWidget(this);
     dockWidget->setWidget(editor);
     m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
+}
+
+void MainWindow::openNodeConfiguration(std::shared_ptr<LCCConnection> lccConn, uint64_t node_id, ads::CDockWidget* networkDock){
+    char id_buffer[20];
+    lcc_node_id_to_dotted_format(node_id, id_buffer, sizeof(id_buffer));
+    QString title = QString("%1 - Configure %2").arg(lccConn->name(), id_buffer);
+
+    // Only have one configuration tab per node - if it already exists, bring it to the front
+    ads::CDockWidget* existing = m_dockManager->findDockWidget(title);
+    if(existing){
+        existing->toggleView(true);
+        existing->setAsCurrentTab();
+        return;
+    }
+
+    std::shared_ptr<LCCNode> node = lccConn->lccNodeForID(node_id);
+    if(!node->valid()){
+        LOG4CXX_ERROR_FMT(logger, "Can't configure node {}: node not found", id_buffer);
+        return;
+    }
+
+    ads::CDockWidget* dockWidget = new ads::CDockWidget(title);
+    dockWidget->setObjectName(title);
+    dockWidget->setFeature(ads::CDockWidget::DockWidgetDeleteOnClose, true);
+    CdiEditorWidget* editor = new CdiEditorWidget(this);
+    editor->setLCCNode(node);
+    dockWidget->setWidget(editor);
+
+    // Open as a new tab next to the network view that requested it, if possible
+    if(networkDock && networkDock->dockAreaWidget() && !networkDock->isClosed()){
+        m_dockManager->addDockWidgetTabToArea(dockWidget, networkDock->dockAreaWidget());
+    }else{
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, dockWidget);
+    }
 }
 
 void MainWindow::onOpenPanelTriggered()

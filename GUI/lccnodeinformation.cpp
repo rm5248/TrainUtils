@@ -250,3 +250,12 @@ void LCCNodeInformation::cdiDownloadProgress(uint64_t bytes_rx, uint64_t bytes_t
     double percent = (double)bytes_rx / (double)bytes_total;
     ui->cdiProgress->setValue(percent * 100.0);
 }
+
+void LCCNodeInformation::on_configureButton_clicked()
+{
+    if(!m_connection || !m_connection->lccNodeForID(m_nodeId)->valid()){
+        return;
+    }
+
+    Q_EMIT configureNodeRequested(m_nodeId);
+}

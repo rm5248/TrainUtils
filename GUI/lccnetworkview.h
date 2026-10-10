@@ -24,6 +24,12 @@ public:
 
     void setLCCConnection(std::shared_ptr<LCCConnection> lcc);
 
+Q_SIGNALS:
+    /**
+     * Emitted when the user wants to configure the given node.
+     */
+    void configureNodeRequested(uint64_t node_id);
+
 private Q_SLOTS:
     void newNodeFound(uint64_t node_id);
     void on_queryNetwork_clicked();

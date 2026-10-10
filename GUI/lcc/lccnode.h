@@ -42,6 +42,13 @@ public:
     CDI cdi() const;
 
     /**
+     * Check to see if the CDI has been read and parsed for this node.
+     *
+     * @return
+     */
+    bool hasCDI() const;
+
+    /**
      * Check to see if we have all memory read from this node.
      *
      * @return
@@ -70,6 +77,7 @@ private:
     LCCConnection* m_conn;
     lcc_node_info* m_nodeInfo;
     CDI m_cdi;
+    bool m_hasCDI = false;
 
     // Memory information
     QVector<SegmentMemory*> m_memories;

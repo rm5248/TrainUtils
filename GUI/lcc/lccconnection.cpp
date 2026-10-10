@@ -7,6 +7,8 @@
 #include "lcc-remote-memory.h"
 #include "lccnode.h"
 
+#include <QTimer>
+
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
 
@@ -70,8 +72,13 @@ static void remote_memory_request_ok(struct lcc_remote_memory_context* ctx, uint
     LOG4CXX_DEBUG_FMT(logger, "Remote memory request OK");
 }
 
-static void remote_memory_request_fail(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len){
-    LOG4CXX_DEBUG_FMT(logger, "Remote memory request Fail");
+void LCCConnection::remote_memory_request_failCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory request to alias {:X} failed: error code 0x{:04X}", alias, error_code);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryRequestFailed(alias, error_code);
 }
 
 void LCCConnection::remote_memory_receivedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
@@ -83,8 +90,14 @@ void LCCConnection::remote_memory_receivedCB(struct lcc_remote_memory_context* c
     conn->remoteMemoryReceived(alias, address_space, starting_address, memory_data, len);
 }
 
-static void remote_memory_read_reject(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
-    LOG4CXX_DEBUG_FMT(logger, "Remote memory read reject");
+void LCCConnection::remote_memory_read_rejectCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory read of space {:X} address {} from alias {:X} rejected: error code 0x{:04X}",
+                      address_space, starting_address, alias, error_code);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryReadRejected(alias, address_space, starting_address, error_code, message);
 }
 
 void LCCConnection::remote_memory_informationCB(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
@@ -119,9 +132,9 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 
     lcc_remote_memory_set_functions(remote_ctx,
                                     remote_memory_request_ok,
-                                    remote_memory_request_fail,
+                                    remote_memory_request_failCB,
                                     remote_memory_receivedCB,
-                                    remote_memory_read_reject,
+                                    remote_memory_read_rejectCB,
                                     remote_memory_informationCB);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
@@ -197,13 +210,13 @@ AddressSpaceReadReply* LCCConnection::readSingleMemoryBlock(int alias, int space
         return nullptr;
     }
 
-    AddressSpaceReadReply* rep = new AddressSpaceReadReply(alias, space, starting_address, this);
+    AddressSpaceReadReply* rep = new AddressSpaceReadReply(alias, space, starting_address, len, this);
 
     m_inflight_read_replies.push_back(rep);
 
-    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
-
-    lcc_remote_memory_read_single_transfer(ctx, alias, space, starting_address, len);
+    if(!m_requesting_memory){
+        requestNextMemoryBlock();
+    }
 
     return rep;
 }
@@ -247,10 +260,9 @@ AddressSpaceReply* LCCConnection::queryAddressSpaceInformation(int alias, int sp
 
     m_inflight_replies.push_back(rep);
 
-    // TODO properly queue up the requests so we only have one at a time
-    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
-
-    lcc_remote_memory_get_address_space_information(ctx, alias, space);
+    if(!m_requesting_memory){
+        requestNextMemoryBlock();
+    }
 
     return rep;
 }
@@ -271,9 +283,13 @@ void LCCConnection::remoteMemoryInformation(uint16_t alias, int exists, int read
     }
 
     if(finished){
+        LOG4CXX_DEBUG_FMT(logger, "Got remote memory information for alias {:X}", alias);
         Q_EMIT addressSpaceRequestFinished(finished);
         m_inflight_replies.removeOne(finished);
     }
+
+    m_requesting_memory = false;
+    QTimer::singleShot(20, this, &LCCConnection::requestNextMemoryBlock);
 }
 
 void LCCConnection::remoteMemoryReceived(uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
@@ -294,5 +310,150 @@ void LCCConnection::remoteMemoryReceived(uint16_t alias, uint8_t address_space, 
     if(finished){
         Q_EMIT addressSpaceReadRequestFinished(finished);
         m_inflight_read_replies.removeOne(finished);
+    }
+
+    m_requesting_memory = false;
+    QTimer::singleShot(20, this, &LCCConnection::requestNextMemoryBlock);
+}
+
+void LCCConnection::remoteMemoryRequestFailed(uint16_t alias, uint16_t error_code){
+    // The datagram rejection doesn't tell us which request failed, but only one
+    // memory request can be outstanding to a node at a time, so fail everything for this alias.
+    QByteArray message = QString("Request rejected by node: %1")
+            .arg(errorCodeDescription(error_code))
+            .toUtf8();
+
+    QVector<AddressSpaceReply*> failedInfo;
+    for(AddressSpaceReply* rep : m_inflight_replies){
+        if(!rep->isFinished() && rep->alias() == alias){
+            failedInfo.push_back(rep);
+        }
+    }
+    QVector<AddressSpaceReadReply*> failedReads;
+    for(AddressSpaceReadReply* rep : m_inflight_read_replies){
+        if(!rep->isFinished() && rep->alias() == alias){
+            failedReads.push_back(rep);
+        }
+    }
+
+    // Remove from the inflight lists before notifying, as the receivers may make new requests
+    for(AddressSpaceReply* rep : failedInfo){
+        m_inflight_replies.removeOne(rep);
+    }
+    for(AddressSpaceReadReply* rep : failedReads){
+        m_inflight_read_replies.removeOne(rep);
+    }
+
+    for(AddressSpaceReply* rep : failedInfo){
+        rep->setInvalidResponse(0, error_code, message.constData());
+        Q_EMIT addressSpaceRequestFinished(rep);
+    }
+    for(AddressSpaceReadReply* rep : failedReads){
+        rep->setInvalidResponse(error_code, message.constData());
+        Q_EMIT addressSpaceReadRequestFinished(rep);
+    }
+
+    m_requesting_memory = false;
+    QTimer::singleShot(20, this, &LCCConnection::requestNextMemoryBlock);
+}
+
+void LCCConnection::remoteMemoryReadRejected(uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
+    AddressSpaceReadReply* failed = nullptr;
+
+    for(AddressSpaceReadReply* rep : m_inflight_read_replies){
+        if(rep->isFinished()){
+            continue;
+        }
+
+        if(rep->alias() == alias && rep->space() == address_space){
+            failed = rep;
+            break;
+        }
+    }
+
+    if(!failed){
+        return;
+    }
+
+    QString fullMessage = QString("Read of address %1 rejected by node: %2")
+            .arg(starting_address)
+            .arg(errorCodeDescription(error_code));
+    if(message && message[0] != 0){
+        fullMessage += QString(" (%1)").arg(QString::fromUtf8(message));
+    }
+    QByteArray fullMessageUtf8 = fullMessage.toUtf8();
+
+    m_inflight_read_replies.removeOne(failed);
+    failed->setInvalidResponse(error_code, fullMessageUtf8.constData());
+    Q_EMIT addressSpaceReadRequestFinished(failed);
+
+    m_requesting_memory = false;
+    QTimer::singleShot(20, this, &LCCConnection::requestNextMemoryBlock);
+}
+
+QString LCCConnection::errorCodeDescription(uint16_t error_code){
+    QString description;
+
+    switch(error_code){
+    case LCC_ERRCODE_PERMANENT: description = "Permanent error"; break;
+    case LCC_ERRCODE_SOURCE_NOT_PERMITTED: description = "Source not permitted"; break;
+    case LCC_ERRCODE_NOT_IMPLEMENTED: description = "Not implemented"; break;
+    case LCC_ERRCODE_NOT_IMPLEMENTED_SUBCOMMAND: description = "Not implemented: subcommand unknown"; break;
+    case LCC_ERRCODE_NOT_IMPLEMENTED_DATAGRAM_STREAM: description = "Not implemented: datagram/stream type unknown"; break;
+    case LCC_ERRCODE_NOT_IMPLEMENTED_UNKNOWN_MTI: description = "Not implemented: unknown MTI or transport protocol"; break;
+    case LCC_ERRCODE_INVALID_ARG: description = "Invalid arguments"; break;
+    case LCC_ERRCODE_TEMPORARY: description = "Temporary error"; break;
+    case LCC_ERRCODE_TIMEOUT: description = "Timeout"; break;
+    case LCC_ERRCODE_TIMEOUT_END_OF_FRAME: description = "Timeout waiting for end frame"; break;
+    case LCC_ERRCODE_BUFFER_UNAVAILABLE: description = "Buffer unavailable"; break;
+    case LCC_ERRCODE_NOT_EXPECTED: description = "Not expected: out of order"; break;
+    case LCC_ERRCODE_OUT_OF_ORDER_MIDDLE_END: description = "Out of order: middle or end frame without start"; break;
+    case LCC_ERRCODE_OUT_OF_ORDER_START_BEFORE_FINISH: description = "Out of order: start frame before previous finished"; break;
+    case LCC_ERRCODE_TRANSFER_ERROR: description = "Transfer error"; break;
+    default:
+        if(error_code & 0x1000){
+            description = "Permanent error";
+        }else if(error_code & 0x2000){
+            description = "Temporary error";
+        }else{
+            description = "Unknown error";
+        }
+        break;
+    }
+
+    return QString("%1 (0x%2)").arg(description).arg(error_code, 4, 16, QLatin1Char('0'));
+}
+
+void LCCConnection::requestNextMemoryBlock(){
+    if(m_requesting_memory){
+        LOG4CXX_ERROR_FMT(logger, "Can't requets next memory block: operation still in progress");
+        return;
+    }
+
+    if(m_inflight_read_replies.empty() && m_inflight_replies.empty()){
+        m_requesting_memory = false;
+        return;
+    }
+
+    m_requesting_memory = true;
+
+    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+
+    if(!m_inflight_read_replies.empty()){
+        AddressSpaceReadReply* rep = m_inflight_read_replies.front();
+        int ret = lcc_remote_memory_read_single_transfer(ctx, rep->alias(), rep->space(), rep->startingAddress(), rep->requestedLen());
+        if(ret != LCC_OK){
+            LOG4CXX_ERROR_FMT(logger, "Unable to send memory read request to alias {:X}: error {}", rep->alias(), ret);
+            m_inflight_read_replies.removeOne(rep);
+            rep->setInvalidResponse(ret, "Internal LCC error");
+        }
+    }else if(!m_inflight_replies.empty()){
+        AddressSpaceReply* rep = m_inflight_replies.front();
+        int ret = lcc_remote_memory_get_address_space_information(ctx, rep->alias(), rep->space());
+        if(ret != LCC_OK){
+            LOG4CXX_ERROR_FMT(logger, "Unable to send address space information request to alias {:X}: error {}", rep->alias(), ret);
+            m_inflight_replies.removeOne(rep);
+            rep->setInvalidResponse(0, ret, "Internal LCC error");
+        }
     }
 }

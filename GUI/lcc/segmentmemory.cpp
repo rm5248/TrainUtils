@@ -42,6 +42,7 @@ bool SegmentMemory::hasMemory(){
 
 void SegmentMemory::readAllMemory(){
     if(m_invalid){
+        Q_EMIT memoryReadFailed(0, QString("Memory space 0x%1 is invalid").arg(m_segment_id, 2, 16, QLatin1Char('0')));
         return;
     }
 
@@ -52,9 +53,13 @@ void SegmentMemory::readAllMemory(){
     }
     m_currentReadState = MemoryReadState::Read_Space_Info;
     m_currentOffset = 0;
+    m_data.clear();
+    m_hasData = false;
 
-    m_reply = m_conn->queryAddressSpaceInformation(m_alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    m_reply = m_conn->queryAddressSpaceInformation(m_alias, m_segment_id);
     if(!m_reply){
+        m_currentReadState = MemoryReadState::Not_Read_Yet;
+        Q_EMIT memoryReadFailed(0, "Unable to send address space information request");
         return;
     }
 
@@ -66,6 +71,17 @@ void SegmentMemory::readAllMemory(){
 
 void SegmentMemory::addressSpaceFinished(){
     m_reply->deleteLater();
+
+    if(m_reply->isError()){
+        LOG4CXX_ERROR_FMT(logger, "Unable to get address space information for space {:X}: {}",
+                          m_segment_id, m_reply->errorMessage().toStdString());
+        m_currentReadState = MemoryReadState::Not_Read_Yet;
+        uint16_t errorCode = m_reply->errorCode();
+        QString message = m_reply->errorMessage();
+        m_reply = nullptr;
+        Q_EMIT memoryReadFailed(errorCode, message);
+        return;
+    }
 
     LOG4CXX_DEBUG_FMT(logger, "Address space information: Space {:X} exists? {} low address {} high address {}",
                       m_reply->space(),
@@ -81,26 +97,27 @@ void SegmentMemory::addressSpaceFinished(){
     if(m_reply->highAddress()< m_reply->lowAddress()){
         LOG4CXX_ERROR(logger, "Ending address less than starting address: invalid");
         m_invalid = true;
+        m_currentReadState = MemoryReadState::Not_Read_Yet;
+        m_reply = nullptr;
+        Q_EMIT memoryReadFailed(0, "Invalid address space: ending address less than starting address");
         return;
     }
 
     if(m_currentReadState == MemoryReadState::Read_Space_Info && m_reply->space() == m_segment_id){
         m_starting_address = m_reply->lowAddress();
         m_ending_address = m_reply->highAddress();
+        if(!m_reply->exists() && m_reply->highAddress() == 0){
+            // Nothing to read
+            m_length = 0;
+        }else{
+            // The highest address is the address of the last byte in the space
+            m_length = m_ending_address - m_starting_address + 1;
+        }
         m_currentOffset = 0;
         m_currentReadState = MemoryReadState::Reading_Memory;
 
-        uint32_t lenToRead = (m_ending_address - m_starting_address) - m_currentOffset;
-        if(lenToRead > 64){
-            lenToRead = 64;
-        }
-
         // Now let's trigger a read of the entire segment
-        m_readReply = m_conn->readSingleMemoryBlock(m_alias, m_segment_id, m_currentOffset, lenToRead);
-        if(m_readReply){
-            connect(m_readReply, &AddressSpaceReadReply::finished,
-                    this, &SegmentMemory::addressSpaceRead);
-        }
+        readNextBlock();
     }
 
     m_reply = nullptr;
@@ -111,29 +128,54 @@ void SegmentMemory::addressSpaceRead(){
 
     m_readReply->deleteLater();
 
+    if(m_readReply->isError()){
+        if(m_currentReadState != MemoryReadState::Reading_Memory){
+            return;
+        }
+        LOG4CXX_ERROR_FMT(logger, "Unable to read memory space {:X}: {}",
+                          m_segment_id, m_readReply->errorMessage().toStdString());
+        m_currentReadState = MemoryReadState::Not_Read_Yet;
+        Q_EMIT memoryReadFailed(m_readReply->errorCode(), m_readReply->errorMessage());
+        return;
+    }
+
     if(m_currentReadState == MemoryReadState::Reading_Memory && m_readReply->space() == m_segment_id){
-        m_currentOffset += m_readReply->data().length();
-        m_data.append(m_readReply->data());
+        const QVector<uint8_t> blockData = m_readReply->data();
+        m_currentOffset += blockData.length();
+        m_data.append(blockData);
 
-        Q_EMIT downloadProgress(m_data.size(), m_ending_address - m_starting_address);
+        Q_EMIT downloadProgress(m_data.size(), m_length);
 
-        uint32_t lenToRead = (m_ending_address - m_starting_address) - m_currentOffset;
-        if(lenToRead > 64){
-            lenToRead = 64;
+        if(blockData.isEmpty()){
+            // The node gave us nothing - don't keep asking for the same block forever
+            LOG4CXX_WARN_FMT(logger, "Empty read reply for space {:X} at offset {}: stopping read", m_segment_id, m_currentOffset);
+            m_length = m_currentOffset;
         }
 
-        if(lenToRead > 0){
-            // Read the next block of the memory segment
-            m_readReply = m_conn->readSingleMemoryBlock(m_alias, m_segment_id, m_currentOffset, lenToRead);
-            if(m_readReply){
-                connect(m_readReply, &AddressSpaceReadReply::finished,
-                        this, &SegmentMemory::addressSpaceRead);
-            }
-        }else{
-            m_currentReadState = MemoryReadState::Memory_Complete;
-            m_hasData = true;
-            Q_EMIT downloadProgress(m_data.size(), m_data.size());
-            Q_EMIT memoryReady();
-        }
+        readNextBlock();
+    }
+}
+
+void SegmentMemory::readNextBlock(){
+    if(m_currentOffset >= m_length){
+        m_currentReadState = MemoryReadState::Memory_Complete;
+        m_hasData = true;
+        Q_EMIT downloadProgress(m_data.size(), m_data.size());
+        Q_EMIT memoryReady();
+        return;
+    }
+
+    uint32_t lenToRead = m_length - m_currentOffset;
+    if(lenToRead > 64){
+        lenToRead = 64;
+    }
+
+    m_readReply = m_conn->readSingleMemoryBlock(m_alias, m_segment_id, m_starting_address + m_currentOffset, lenToRead);
+    if(m_readReply){
+        connect(m_readReply, &AddressSpaceReadReply::finished,
+                this, &SegmentMemory::addressSpaceRead);
+    }else{
+        m_currentReadState = MemoryReadState::Not_Read_Yet;
+        Q_EMIT memoryReadFailed(0, "Unable to send memory read request");
     }
 }

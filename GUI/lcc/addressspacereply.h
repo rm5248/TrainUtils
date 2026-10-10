@@ -18,6 +18,8 @@ public:
     bool isError();
     uint32_t lowAddress();
     uint32_t highAddress();
+    uint16_t errorCode();
+    QString errorMessage();
 
 Q_SIGNALS:
     void errorOccured(uint16_t error_code, QString message);
@@ -37,6 +39,7 @@ private:
     uint32_t m_lowest_address = 0;
     uint32_t m_highest_address = 0;
     QString m_message;
+    uint16_t m_errorCode = 0;
 
     friend class LCCConnection;
 };

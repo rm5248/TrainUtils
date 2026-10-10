@@ -36,6 +36,8 @@ SegmentMemory* LCCNode::readCDI(){
 
         connect(cdi_mem, &SegmentMemory::memoryReady,
                 this, &LCCNode::cdiReady);
+        connect(cdi_mem, &SegmentMemory::memoryReadFailed,
+                this, &LCCNode::cdiReadFailure);
     }
     cdi_mem->readAllMemory();
 
@@ -44,6 +46,10 @@ SegmentMemory* LCCNode::readCDI(){
 
 CDI LCCNode::cdi() const{
     return m_cdi;
+}
+
+bool LCCNode::hasCDI() const{
+    return m_hasCDI;
 }
 
 SegmentMemory* LCCNode::segmentMemory(uint8_t segment){
@@ -59,8 +65,14 @@ SegmentMemory* LCCNode::segmentMemory(uint8_t segment){
 void LCCNode::cdiReady(){
     SegmentMemory* cdi_segment = segmentMemory(255);
     const QVector<uint8_t> data = cdi_segment->data();
-    QXmlStreamReader rdr(QByteArray::fromRawData((const char*)data.data(), data.length()));
+    // The CDI ends with a terminating NULL - don't give that(or anything after it) to the XML parser
+    qsizetype cdiLength = data.indexOf(0);
+    if(cdiLength < 0){
+        cdiLength = data.length();
+    }
+    QXmlStreamReader rdr(QByteArray::fromRawData((const char*)data.data(), cdiLength));
     m_cdi = CDI::createFromXML(&rdr);
+    m_hasCDI = true;
     LOG4CXX_DEBUG_FMT(logger, "Read entire CDI!");
 
     // Create segments for each segment found in the CDI, if it does not already exist

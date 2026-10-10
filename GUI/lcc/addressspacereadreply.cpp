@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include "addressspacereadreply.h"
 
-AddressSpaceReadReply::AddressSpaceReadReply(uint16_t alias, uint8_t space, uint32_t starting_address, QObject *parent)
+AddressSpaceReadReply::AddressSpaceReadReply(uint16_t alias, uint8_t space, uint32_t starting_address, uint8_t requested_len, QObject *parent)
     : QObject{parent},
     m_alias(alias),
     m_space(space),
-    m_startingAddress(starting_address)
+    m_startingAddress(starting_address),
+    m_requestedLen(requested_len)
 {
     m_data.reserve(64);
 }
@@ -34,9 +35,18 @@ QVector<uint8_t> AddressSpaceReadReply::data(){
     return m_data;
 }
 
+uint16_t AddressSpaceReadReply::errorCode(){
+    return m_errorCode;
+}
+
+QString AddressSpaceReadReply::errorMessage(){
+    return m_errorMessage;
+}
+
 void AddressSpaceReadReply::setInvalidResponse(uint16_t error_code, const char* message){
     m_error = true;
     m_done = true;
+    m_errorCode = error_code;
     m_errorMessage = QString::fromUtf8(message);
     Q_EMIT errorOccured(error_code, m_errorMessage);
     Q_EMIT finished();
@@ -52,4 +62,8 @@ void AddressSpaceReadReply::setValidResponse(uint32_t starting_address, void* da
     }
 
     Q_EMIT finished();
+}
+
+int AddressSpaceReadReply::requestedLen(){
+    return m_requestedLen;
 }

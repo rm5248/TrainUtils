@@ -23,6 +23,8 @@ LCCNetworkView::LCCNetworkView(QWidget *parent) :
 
     connect( ui->lccNetwork->selectionModel(), &QItemSelectionModel::currentChanged,
              this, &LCCNetworkView::selectedNodeUpdated);
+    connect(ui->selectedNode, &LCCNodeInformation::configureNodeRequested,
+            this, &LCCNetworkView::configureNodeRequested);
 }
 
 LCCNetworkView::~LCCNetworkView()

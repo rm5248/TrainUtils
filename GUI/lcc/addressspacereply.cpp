@@ -35,9 +35,18 @@ uint32_t AddressSpaceReply::highAddress(){
     return m_highest_address;
 }
 
+uint16_t AddressSpaceReply::errorCode(){
+    return m_errorCode;
+}
+
+QString AddressSpaceReply::errorMessage(){
+    return m_message;
+}
+
 void AddressSpaceReply::setInvalidResponse(uint32_t starting_address, uint16_t error_code, const char* message){
     m_done = true;
     m_error = true;
+    m_errorCode = error_code;
     m_message = QString::fromUtf8(message);
 
     Q_EMIT errorOccured(error_code, m_message);

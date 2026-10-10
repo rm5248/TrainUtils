@@ -24,6 +24,12 @@ public:
     void clearInformation();
     void setNodeID(uint64_t node_id);
 
+Q_SIGNALS:
+    /**
+     * Emitted when the user wants to configure the given node.
+     */
+    void configureNodeRequested(uint64_t node_id);
+
 private Q_SLOTS:
     void newNodeFound(uint64_t node_id);
     void nodeUpdated(uint64_t node_id);
@@ -36,13 +42,15 @@ private Q_SLOTS:
 
     void cdiDownloadProgress(uint64_t bytes_rx, uint64_t bytes_total);
 
+    void on_configureButton_clicked();
+
 private:
     void clearAllData();
     void updateAllValuesForNode();
 
 private:
     Ui::LCCNodeInformation *ui;
-    uint64_t m_nodeId;
+    uint64_t m_nodeId = 0;
     std::shared_ptr<LCCConnection> m_connection;
 };
 

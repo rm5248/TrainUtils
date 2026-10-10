@@ -13,6 +13,7 @@ namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
 struct TrainUtilsState;
+class LCCConnection;
 class ImguiPanelWidget;
 
 class MainWindow : public QMainWindow
@@ -62,6 +63,7 @@ private:
     void addSubmenusSpeedoConnection(QMenu* parentMenu, QString connectionName);
     void newConnectionMade(std::shared_ptr<SystemConnection> conn);
     void newPanelAdded(ImguiPanelWidget* panel, ads::CDockWidget* dockWidget);
+    void openNodeConfiguration(std::shared_ptr<LCCConnection> lccConn, uint64_t node_id, ads::CDockWidget* networkDock);
 
 private:
     Ui::MainWindow *ui;

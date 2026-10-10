@@ -8,7 +8,7 @@ class AddressSpaceReadReply : public QObject
 {
     Q_OBJECT
 public:
-    explicit AddressSpaceReadReply(uint16_t alias, uint8_t space, uint32_t starting_address, QObject *parent = nullptr);
+    explicit AddressSpaceReadReply(uint16_t alias, uint8_t space, uint32_t starting_address, uint8_t requested_len, QObject *parent = nullptr);
 
     bool isFinished();
     bool isError();
@@ -16,6 +16,9 @@ public:
     uint8_t space();
     uint32_t startingAddress();
     QVector<uint8_t> data();
+    uint16_t errorCode();
+    QString errorMessage();
+    int requestedLen();
 
 Q_SIGNALS:
     void errorOccured(uint16_t error_code, QString message);
@@ -33,6 +36,8 @@ private:
     uint32_t m_startingAddress;
     QVector<uint8_t> m_data;
     QString m_errorMessage;
+    uint16_t m_errorCode = 0;
+    uint8_t m_requestedLen;
 
     friend class LCCConnection;
 };
