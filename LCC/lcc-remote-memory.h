@@ -38,6 +38,25 @@ struct lcc_remote_memory_context* lcc_remote_memory_new(struct lcc_context* ctx)
 int lcc_remote_memory_read_single_transfer(struct lcc_remote_memory_context* ctx, int alias, uint8_t space, uint32_t starting_address, int read_count);
 
 /**
+ * Write memory to the specified location.  Note that this will write a single block of
+ * memory to the LCC device(max 64 bytes of data).  If you want to write more data than
+ * that, this method must be called multiple times.
+ *
+ * When the write finishes, either the write_ok or write_rejected function(see
+ * lcc_remote_memory_set_write_functions) is called.  If the node rejects the datagram,
+ * the remote_fail function is called instead.
+ *
+ * @param ctx
+ * @param alias
+ * @param space
+ * @param starting_address
+ * @param data The data to write.  It is copied, so it does not need to stay valid after this call.
+ * @param data_len The number of bytes to write, 1-64
+ * @return
+ */
+int lcc_remote_memory_write_single_transfer(struct lcc_remote_memory_context* ctx, int alias, uint8_t space, uint32_t starting_address, const void* data, int data_len);
+
+/**
  * Send a request to the specified node alias for memory space information.
  *
  * @param ctx
@@ -63,6 +82,18 @@ int lcc_remote_memory_set_functions(struct lcc_remote_memory_context* ctx,
                                     lcc_remote_memory_received received_memory,
                                     lcc_remote_memory_read_rejected read_rejected,
                                     lcc_remote_memory_information remote_info_response);
+
+/**
+ * Set callback functions that are called when writing memory to a remote device.
+ *
+ * @param ctx
+ * @param write_ok Called when the node has written the data
+ * @param write_rejected Called when the node rejects the write
+ * @return
+ */
+int lcc_remote_memory_set_write_functions(struct lcc_remote_memory_context* ctx,
+                                          lcc_remote_memory_write_ok write_ok,
+                                          lcc_remote_memory_write_rejected write_rejected);
 
 /**
  * Get the alias of the node we are currently requesting memory from.  If we are not

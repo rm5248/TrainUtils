@@ -107,7 +107,13 @@ struct lcc_remote_memory_context{
     lcc_remote_memory_received remote_memory_received;
     lcc_remote_memory_read_rejected read_rejected;
     lcc_remote_memory_information remote_memory_info;
+    lcc_remote_memory_write_ok write_ok;
+    lcc_remote_memory_write_rejected write_rejected;
     int16_t current_requesting_alias;
+    // Information about the current write, if the current request is a write
+    uint8_t current_request_is_write;
+    uint8_t current_write_space;
+    uint32_t current_write_address;
 };
 
 struct lcc_event_context{

@@ -171,6 +171,19 @@ typedef void (*lcc_remote_memory_read_rejected)(struct lcc_remote_memory_context
  */
 typedef void (*lcc_remote_memory_information)(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message);
 
+/**
+ * A function that will be called when a write to a remote node has completed successfully.
+ */
+typedef void (*lcc_remote_memory_write_ok)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address);
+
+/**
+ * A function that will be called when the remote node rejects a write.  Note that if the
+ * datagram itself is rejected, the lcc_remote_memory_request_fail function is called instead.
+ *
+ * @param message An optional message from the node about the failure.  May be NULL.
+ */
+typedef void (*lcc_remote_memory_write_rejected)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
+
 typedef void (*lcc_firmware_upgrade_start)(struct lcc_firmware_upgrade_context* ctx);
 
 /**

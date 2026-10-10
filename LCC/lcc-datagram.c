@@ -211,27 +211,41 @@ int lcc_handle_datagram(struct lcc_context* ctx, struct lcc_can_frame* frame){
 
     LOG_DEBUG("lcc.datagram", "Check MTI 0x%04X", mti );
 
+    if(mti != LCC_MTI_DATAGRAM_RECEIVED_OK && mti != LCC_MTI_DATAGRAM_REJECTED){
+        return LCC_OK;
+    }
+
+    // These are addressed messages: the destination alias is in the first two bytes(the upper
+    // 4 bits are frame flags), so make sure they are meant for us.
+    uint16_t dest_alias = ((frame->data[0] & 0x0F) << 8) | frame->data[1];
+    if(frame->can_len < 2 || dest_alias != ctx->node_alias){
+        return LCC_OK;
+    }
+
     if(mti == LCC_MTI_DATAGRAM_RECEIVED_OK){
         int handled = 0;
+        // The flags are optional
+        uint8_t flags = frame->can_len > 2 ? frame->data[2] : 0;
         datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
-            handled = lcc_remote_memory_handle_datagram_rx_ok(ctx->remote_memory_context, source_alias, frame->data[0]);
+            handled = lcc_remote_memory_handle_datagram_rx_ok(ctx->remote_memory_context, source_alias, flags);
         }
 
-        if(!handled && datagram_ctx->datagram_received_fn){
-            datagram_ctx->datagram_ok_fn(datagram_ctx, source_alias, frame->data[0]);
+        if(!handled && datagram_ctx->datagram_ok_fn){
+            datagram_ctx->datagram_ok_fn(datagram_ctx, source_alias, flags);
         }
     }else if(mti == LCC_MTI_DATAGRAM_REJECTED){
         int handled = 0;
+        uint16_t error_code = frame->can_len >= 4 ? (frame->data[2] << 8 | frame->data[3]) : 0;
         datagram_ctx->currently_handling_incoming_datagram = 0;
 
         if(ctx->remote_memory_context){
-            handled = lcc_remote_memory_handle_datagram_rejected(ctx->remote_memory_context, source_alias, frame->data[2] << 8 | frame->data[3], NULL, 0);
+            handled = lcc_remote_memory_handle_datagram_rejected(ctx->remote_memory_context, source_alias, error_code, NULL, 0);
         }
 
         if(!handled && datagram_ctx->datagram_rejected_fn){
-            datagram_ctx->datagram_rejected_fn(datagram_ctx, source_alias, frame->data[2] << 8 | frame->data[3], NULL, 0);
+            datagram_ctx->datagram_rejected_fn(datagram_ctx, source_alias, error_code, NULL, 0);
         }
     }
 

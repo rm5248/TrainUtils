@@ -74,11 +74,29 @@ struct remote_results{
 
     int fail_count;
     uint16_t fail_errcode;
+
+    int write_ok_count;
+    uint8_t write_ok_space;
+    uint32_t write_ok_address;
+
+    int write_reject_count;
+    uint8_t write_reject_space;
+    uint32_t write_reject_address;
+    uint16_t write_reject_errcode;
+    int write_reject_has_message;
+
+    // From the memory map on node 0
+    int map_written_count;
+    uint8_t map_written_space;
+    uint32_t map_written_offset;
+    uint32_t map_written_len;
 };
 
 static struct remote_results results;
 static struct lcc_remote_memory_context* remote_ctx;
 static uint16_t memory_node_alias;
+// A node that accepts all datagrams without replying with a 'reply pending'
+static uint16_t ack_only_node_alias;
 
 static void remote_request_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
 }
@@ -114,8 +132,34 @@ static void remote_memory_info(struct lcc_remote_memory_context* ctx, uint16_t a
     results.info_high = highest_address;
 }
 
+static void remote_write_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address){
+    results.write_ok_count++;
+    results.write_ok_space = address_space;
+    results.write_ok_address = starting_address;
+}
+
+static void remote_write_rejected(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
+    results.write_reject_count++;
+    results.write_reject_space = address_space;
+    results.write_reject_address = starting_address;
+    results.write_reject_errcode = error_code;
+    results.write_reject_has_message = message != NULL && message[0] != 0;
+}
+
+static void map_written(struct lcc_memory_map* map, uint8_t space, uint32_t offset, uint32_t len){
+    results.map_written_count++;
+    results.map_written_space = space;
+    results.map_written_offset = offset;
+    results.map_written_len = len;
+}
+
+static void ack_only_datagram(struct lcc_datagram_context* ctx, uint16_t alias, void* datagram_data, int len){
+    // Accept the datagram, with no reply pending.  For a write, this means that the write is complete.
+    lcc_datagram_respond_rxok(ctx, alias, 0);
+}
+
 static void setup(void){
-    struct lcc_context** ctx = lcctest_create_contexts(2);
+    struct lcc_context** ctx = lcctest_create_contexts(3);
 
     for(int x = 0; x < (int)sizeof(config_memory); x++){
         config_memory[x] = x;
@@ -134,7 +178,8 @@ static void setup(void){
     lcc_datagram_context_new(ctx[0]);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(ctx[0]);
     lcc_memory_set_cdi(memory_ctx, (void*)cdi_data, strlen(cdi_data), 0);
-    lcc_memory_map_new(memory_ctx, segments);
+    struct lcc_memory_map* map = lcc_memory_map_new(memory_ctx, segments);
+    lcc_memory_map_set_written_callback(map, map_written);
     memory_node_alias = lcc_context_alias(ctx[0]);
 
     // Node 1: reads memory from node 0
@@ -146,6 +191,14 @@ static void setup(void){
                                     remote_memory_received,
                                     remote_read_rejected,
                                     remote_memory_info);
+    lcc_remote_memory_set_write_functions(remote_ctx,
+                                          remote_write_ok,
+                                          remote_write_rejected);
+
+    // Node 2: accepts any datagram, but doesn't do anything with it
+    struct lcc_datagram_context* ack_only_ctx = lcc_datagram_context_new(ctx[2]);
+    lcc_datagram_context_set_datagram_functions(ack_only_ctx, ack_only_datagram, NULL, NULL);
+    ack_only_node_alias = lcc_context_alias(ctx[2]);
 
     lcctest_pump_frames();
     memset(&results, 0, sizeof(results));
@@ -171,6 +224,48 @@ static int read_space(uint8_t space, uint32_t address, int count){
     }
     lcctest_pump_frames();
     return LCC_OK;
+}
+
+static int write_space_to(uint16_t alias, uint8_t space, uint32_t address, const void* data, int count){
+    memset(&results, 0, sizeof(results));
+    int stat = lcc_remote_memory_write_single_transfer(remote_ctx, alias, space, address, data, count);
+    if(stat != LCC_OK){
+        return stat;
+    }
+    lcctest_pump_frames();
+    return LCC_OK;
+}
+
+static int write_space(uint8_t space, uint32_t address, const void* data, int count){
+    return write_space_to(memory_node_alias, space, address, data, count);
+}
+
+/*
+ * Check that the last write was successful
+ */
+static int check_write_ok(uint8_t space, uint32_t address){
+    CHECK(results.fail_count == 0);
+    CHECK(results.write_reject_count == 0);
+    CHECK(results.write_ok_count == 1);
+    CHECK(results.write_ok_space == space);
+    CHECK(results.write_ok_address == address);
+    return 0;
+}
+
+/*
+ * Check that the last write was rejected by the node with the given error
+ */
+static int check_write_rejected(uint8_t space, uint32_t address, uint16_t errcode){
+    CHECK(results.fail_count == 0);
+    CHECK(results.write_ok_count == 0);
+    CHECK(results.write_reject_count == 1);
+    CHECK(results.write_reject_space == space);
+    CHECK(results.write_reject_address == address);
+    CHECK(results.write_reject_errcode == errcode);
+    // The node did not send a message along with the error
+    CHECK(!results.write_reject_has_message);
+    CHECK(results.map_written_count == 0);
+    return 0;
 }
 
 /*
@@ -409,6 +504,161 @@ static int test_read_entire_cdi(void){
     return read_entire_space(LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, (const uint8_t*)cdi_data, strlen(cdi_data) + 1);
 }
 
+static int test_write_config_space(void){
+    const uint8_t data[] = { 0xDE, 0xAD, 0xBE, 0xEF };
+
+    setup();
+
+    CHECK(write_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 10, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 10) == 0);
+    CHECK(memcmp(config_memory + 10, data, sizeof(data)) == 0);
+    // Surrounding memory is untouched
+    CHECK(config_memory[9] == 9);
+    CHECK(config_memory[14] == 14);
+
+    CHECK(results.map_written_count == 1);
+    CHECK(results.map_written_space == LCC_MEMORY_SPACE_CONFIGURATION_SPACE);
+    CHECK(results.map_written_offset == 10);
+    CHECK(results.map_written_len == sizeof(data));
+
+    return 0;
+}
+
+/*
+ * Write to a space that needs the space number in the datagram(i.e. not 0xFD-0xFF)
+ */
+static int test_write_generic_space(void){
+    const uint8_t data[] = { 'T', 'e', 's', 't', 0 };
+
+    setup();
+
+    CHECK(write_space(SPACE_ACDI_USER, 1, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(SPACE_ACDI_USER, 1) == 0);
+    CHECK(memcmp(acdi_user_memory + 1, data, sizeof(data)) == 0);
+    CHECK(acdi_user_memory[0] == 0x80);
+
+    return 0;
+}
+
+static int test_write_generic_low_address(void){
+    const uint8_t data[] = { 0x01, 0x02 };
+
+    setup();
+
+    CHECK(write_space(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 8, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 8) == 0);
+    CHECK(memcmp(generic_memory + 8, data, sizeof(data)) == 0);
+
+    return 0;
+}
+
+/*
+ * 64 bytes is the most that can be written at once
+ */
+static int test_write_max_size(void){
+    uint8_t data[64];
+    for(int x = 0; x < (int)sizeof(data); x++){
+        data[x] = 0xA0 ^ x;
+    }
+
+    setup();
+
+    CHECK(write_space(SPACE_ACDI_USER, 64, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(SPACE_ACDI_USER, 64) == 0);
+    CHECK(memcmp(acdi_user_memory + 64, data, sizeof(data)) == 0);
+
+    return 0;
+}
+
+static int test_write_then_read(void){
+    const uint8_t data[] = { 0x11, 0x22, 0x33 };
+
+    setup();
+
+    CHECK(write_space(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 20, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 20) == 0);
+
+    CHECK(read_space(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 20, sizeof(data)) == LCC_OK);
+    CHECK(check_read(SPACE_GENERIC, SPACE_GENERIC_LOW_ADDRESS + 20, data, sizeof(data)) == 0);
+
+    return 0;
+}
+
+static int test_write_readonly(void){
+    const uint8_t data[] = { 0x00 };
+
+    setup();
+
+    CHECK(write_space(SPACE_ACDI_MANUFACTURER, 0, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_rejected(SPACE_ACDI_MANUFACTURER, 0, LCC_ERRCODE_INVALID_ARG) == 0);
+    CHECK(acdi_manufacturer_memory[0] == 0x40);
+
+    return 0;
+}
+
+static int test_write_missing_space(void){
+    const uint8_t data[] = { 0x00 };
+
+    setup();
+
+    CHECK(write_space(SPACE_MISSING, 0, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_rejected(SPACE_MISSING, 0, LCC_ERRCODE_NOT_IMPLEMENTED) == 0);
+
+    // A rejected write must not prevent further requests
+    CHECK(write_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0) == 0);
+
+    return 0;
+}
+
+static int test_write_out_of_range(void){
+    const uint8_t data[] = { 0x00, 0x00, 0x00, 0x00 };
+
+    setup();
+
+    // Starts inside of the space, but goes past the end
+    CHECK(write_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, sizeof(config_memory) - 2, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_rejected(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, sizeof(config_memory) - 2, LCC_ERRCODE_INVALID_ARG) == 0);
+    CHECK(config_memory[sizeof(config_memory) - 1] == sizeof(config_memory) - 1);
+
+    return 0;
+}
+
+static int test_write_invalid_length(void){
+    uint8_t data[65] = { 0 };
+
+    setup();
+
+    CHECK(lcc_remote_memory_write_single_transfer(remote_ctx, memory_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, data, 0) == LCC_ERROR_INVALID_ARG);
+    CHECK(lcc_remote_memory_write_single_transfer(remote_ctx, memory_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, data, 65) == LCC_ERROR_INVALID_ARG);
+    CHECK(lcc_remote_memory_write_single_transfer(remote_ctx, memory_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, NULL, 1) == LCC_ERROR_INVALID_ARG);
+
+    // An invalid request must not prevent further requests
+    CHECK(read_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_OK);
+    CHECK(check_read(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, config_memory, 4) == 0);
+
+    return 0;
+}
+
+/*
+ * A node may accept a write with 'datagram received OK' without the reply pending
+ * bit set, in which case the write is complete and no write reply follows.
+ */
+static int test_write_no_reply_pending(void){
+    const uint8_t data[] = { 0x55 };
+
+    setup();
+
+    CHECK(write_space_to(ack_only_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 3, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 3) == 0);
+
+    // The write is finished, so we can do something else
+    CHECK(read_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_OK);
+    CHECK(check_read(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, config_memory, 4) == 0);
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -440,6 +690,26 @@ int main(int argc, char** argv){
         return test_read_out_of_range();
     }else if(strcmp(argv[1], "read-entire-space") == 0){
         return test_read_entire_space();
+    }else if(strcmp(argv[1], "write-config-space") == 0){
+        return test_write_config_space();
+    }else if(strcmp(argv[1], "write-generic-space") == 0){
+        return test_write_generic_space();
+    }else if(strcmp(argv[1], "write-generic-low-address") == 0){
+        return test_write_generic_low_address();
+    }else if(strcmp(argv[1], "write-max-size") == 0){
+        return test_write_max_size();
+    }else if(strcmp(argv[1], "write-then-read") == 0){
+        return test_write_then_read();
+    }else if(strcmp(argv[1], "write-readonly") == 0){
+        return test_write_readonly();
+    }else if(strcmp(argv[1], "write-missing-space") == 0){
+        return test_write_missing_space();
+    }else if(strcmp(argv[1], "write-out-of-range") == 0){
+        return test_write_out_of_range();
+    }else if(strcmp(argv[1], "write-invalid-length") == 0){
+        return test_write_invalid_length();
+    }else if(strcmp(argv[1], "write-no-reply-pending") == 0){
+        return test_write_no_reply_pending();
     }
 
     return 1;
