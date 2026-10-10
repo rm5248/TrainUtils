@@ -51,14 +51,14 @@ static int decode_2048_3(){
 
 
 static int decode_2048_4(){
-    uint64_t event_id = 0x0101020000ff0024; // turnout 15
+    uint64_t event_id = 0x0101020000ff0024; // turnout 15(Reverse/off)
     struct lcc_accessory_address addr;
 
     if(lcc_event_id_to_accessory_decoder_2040(event_id, &addr) != LCC_OK){
         return 1;
     }
 
-    if(addr.dcc_accessory_address == 15 && addr.active == 1){
+    if(addr.dcc_accessory_address == 15 && addr.active == 0){
         return 0;
     }
     return 1;
