@@ -9,6 +9,7 @@
 #include "lcc-datagram.h"
 #include "lcc-cdi-control.h"
 #include "lcc-common.h"
+#include "lcc-remote-memory.h"
 
 // Include our internal header for the tests
 #define LIBLCC_BUILD
@@ -247,6 +248,32 @@ static int control2(void){
     return WEXITSTATUS(val);
 }
 
+/*
+ * Data received when reading a CDI from a remote node
+ */
+struct remote_cdi_read{
+    int info_count;
+    uint32_t high_address;
+    int read_count;
+    int read_len;
+    uint8_t read_data[64];
+};
+
+static struct remote_cdi_read remote_read;
+
+static void remote_cdi_info(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
+    remote_read.info_count++;
+    remote_read.high_address = highest_address;
+}
+
+static void remote_cdi_received(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, void* memory_data, int len){
+    remote_read.read_count++;
+    remote_read.read_len = len;
+    if(len > 0 && len <= (int)sizeof(remote_read.read_data)){
+        memcpy(remote_read.read_data, memory_data, len);
+    }
+}
+
 static int control_set_cdi_context(){
     const char* xml = "<cdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/schema/cdi/1/1/cdi.xsd'> \
     <identification> \
@@ -267,12 +294,59 @@ static int control_set_cdi_context(){
                                             "SW-4.5.6");
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(both_ctx[0]);
     struct lcc_memory_context* mem_ctx = lcc_memory_new(both_ctx[0]);
+    // The CDI does not have its own simple node information, so it should use the
+    // information from the node
     lcc_memory_set_cdi(mem_ctx, &cdi_control, 0, LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT);
 
-    struct test_file_info expected = create_tmp_file_and_write(xml);
-    struct test_file_info actual = create_tmp_file_and_write(NULL);
+    // Read the CDI from the other node, the same way that a configuration tool would
+    lcc_datagram_context_new(both_ctx[1]);
+    struct lcc_remote_memory_context* remote_ctx = lcc_remote_memory_new(both_ctx[1]);
+    lcc_remote_memory_set_functions(remote_ctx,
+                                    NULL,
+                                    NULL,
+                                    remote_cdi_received,
+                                    NULL,
+                                    remote_cdi_info);
+    uint16_t cdi_node_alias = lcc_context_alias(both_ctx[0]);
 
-    // TODO need to finish up here by writing
+    memset(&remote_read, 0, sizeof(remote_read));
+    lcc_remote_memory_get_address_space_information(remote_ctx, cdi_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION);
+    lcctest_pump_frames();
+    if(remote_read.info_count != 1){
+        fprintf(stderr, "no address space information for the CDI\n");
+        return 1;
+    }
+
+    // The highest address is the address of the terminating NULL
+    uint32_t cdi_space_len = remote_read.high_address + 1;
+    char* cdi = calloc(cdi_space_len, 1);
+    uint32_t total_read = 0;
+    while(total_read < cdi_space_len){
+        int count = cdi_space_len - total_read;
+        if(count > 64){
+            count = 64;
+        }
+        remote_read.read_count = 0;
+        lcc_remote_memory_read_single_transfer(remote_ctx, cdi_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_DEFINITION, total_read, count);
+        lcctest_pump_frames();
+        if(remote_read.read_count != 1 || remote_read.read_len != count){
+            fprintf(stderr, "unable to read CDI at address %u\n", total_read);
+            free(cdi);
+            return 1;
+        }
+        memcpy(cdi + total_read, remote_read.read_data, count);
+        total_read += count;
+    }
+
+    if(cdi[cdi_space_len - 1] != 0){
+        fprintf(stderr, "CDI is not NULL terminated\n");
+        free(cdi);
+        return 1;
+    }
+
+    struct test_file_info expected = create_tmp_file_and_write(xml);
+    struct test_file_info actual = create_tmp_file_and_write(cdi);
+    free(cdi);
 
     char to_exec[512];
     snprintf(to_exec, sizeof(to_exec), "xml-logical-difftool/logic-xml-diff.sh %s %s", expected.file_name, actual.file_name);

@@ -62,6 +62,11 @@ int lcc_memory_set_cdi(struct lcc_memory_context* ctx, void* cdi_data, int cdi_l
     ctx->cdi_data = cdi_data;
     ctx->cdi_flags = flags;
     if(flags & LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT){
+        struct lcc_cdi_control* cdi_control = cdi_data;
+        if(cdi_control && cdi_control->simple_info == NULL){
+            // Use the information from our node for the identification
+            cdi_control->simple_info = &ctx->parent->simple_info;
+        }
         ctx->cdi_length = lcc_cdi_control_xml_length(cdi_data);
     }else{
         ctx->cdi_length = cdi_len;
@@ -301,6 +306,11 @@ int lcc_memory_respond_read_reply_fail(struct lcc_memory_context* ctx,
 static int lcc_memory_handle_datagram_cdi_memory_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
     lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, LCC_DATAGRAM_REPLY_PENDING);
 
+    if(ctx->cdi_flags & LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT){
+        // The CDI is generated from data that may have changed since it was set(e.g. the simple node info)
+        ctx->cdi_length = lcc_cdi_control_xml_length(ctx->cdi_data);
+    }
+
     int resp = lcc_memory_respond_information_query(ctx,
                                                     alias,
                                                     1,
@@ -316,12 +326,9 @@ static int lcc_memory_handle_datagram_cdi_memory_space(struct lcc_memory_context
     return 0;
 }
 
-static void cdi_data_callback(const char* str, int len, void* cb_data){
-    memcpy(cb_data, str, len);
-}
-
 static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* ctx, uint16_t alias, uint8_t* data, int data_len){
-    if(data_len < 6 || data_len > 7){
+    // 0x43 reads are 7 bytes, 0x40 reads have the space as well and are 8 bytes
+    if(data_len < 7 || data_len > 8){
         return 0;
     }
 
@@ -350,18 +357,23 @@ static int lcc_memory_handle_datagram_read_cdi_space(struct lcc_memory_context* 
 
     int stat;
     if(ctx->cdi_flags & LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT){
-        // Generate the CDI on-demand and send it
-        char cdi_buffer[64];
-        int cdi_offset = 0;
-        stat = 0;
+        // Generate the CDI on-demand and send it.  The CDI can only be generated in 64-byte
+        // chunks starting on a 64-byte boundary, so a read may need two chunks.
+        // Anything past the end of the CDI is 0, which includes the terminating NULL.
+        char cdi_buffer[128];
+        uint32_t chunk_start = starting_address - (starting_address % 64);
+        uint32_t offset_in_chunk = starting_address - chunk_start;
 
-        stat = lcc_cdi_control_to_xml(ctx->cdi_data, cdi_data_callback, cdi_buffer);
-        while(cdi_offset < starting_address){
-            cdi_offset += 64;
-            stat = lcc_cdi_control_to_xml(ctx->cdi_data, cdi_data_callback, cdi_buffer);
+        if(num_bytes_to_read > 64){
+            num_bytes_to_read = 64;
         }
 
-        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, cdi_buffer + (starting_address % 64), num_bytes_to_read);
+        lcc_cdi_control_to_xml_at_offset(ctx->cdi_data, chunk_start, cdi_buffer);
+        if(offset_in_chunk + num_bytes_to_read > 64){
+            lcc_cdi_control_to_xml_at_offset(ctx->cdi_data, chunk_start + 64, cdi_buffer + 64);
+        }
+
+        stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, cdi_buffer + offset_in_chunk, num_bytes_to_read);
     }else{
         stat = lcc_memory_respond_read_reply_ok(ctx, alias, space, starting_address, (uint8_t*)ctx->cdi_data + starting_address, num_bytes_to_read);
     }

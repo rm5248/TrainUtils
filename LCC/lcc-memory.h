@@ -45,7 +45,9 @@ struct lcc_memory_context* lcc_memory_new(struct lcc_context* ctx);
  * If you need special handling for your CDI, do not set this data.
  *
  * Note: cdi_data is assumed to be a string, unless the LCC_MEMORY_CDI_FLAG_CONTROL_STRUCT is set,
- * in which case it is assumed to be of type struct lcc_cdi_control
+ * in which case it is assumed to be of type struct lcc_cdi_control.  If the simple_info of the
+ * lcc_cdi_control is NULL, it is set to the simple node information of this node's context(see
+ * lcc_context_set_simple_node_information), so the CDI identification matches the node.
  *
  * @param ctx
  * @param cdi_data the raw CDI data
