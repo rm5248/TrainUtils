@@ -49,6 +49,18 @@ public:
     struct lcc_node_info* lccNodeInfoForID(uint64_t node_id);
 
     /**
+     * The IDs of all of the nodes that we know about on the network
+     */
+    QVector<uint64_t> nodeIds();
+
+    /**
+     * Find the node that has the given alias
+     *
+     * @return The node ID, or 0 if no node has the alias
+     */
+    uint64_t nodeIdForAlias(uint16_t alias);
+
+    /**
      * Read a single memory block(up to 64 bytes in length).  This adds the request to read to an internal
      * queue, so this may be called multiple times.
      *

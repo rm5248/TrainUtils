@@ -71,9 +71,13 @@ void LCCNode::cdiReady(){
         cdiLength = data.length();
     }
     QXmlStreamReader rdr(QByteArray::fromRawData((const char*)data.data(), cdiLength));
-    m_cdi = CDI::createFromXML(&rdr);
-    m_hasCDI = true;
     LOG4CXX_DEBUG_FMT(logger, "Read entire CDI!");
+    setCDI(CDI::createFromXML(&rdr));
+}
+
+void LCCNode::setCDI(const CDI& cdi){
+    m_cdi = cdi;
+    m_hasCDI = true;
 
     // Create segments for each segment found in the CDI, if it does not already exist
     for(const Segment& seg : m_cdi.segments()){

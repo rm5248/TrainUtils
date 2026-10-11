@@ -11,6 +11,7 @@
 #include "lcc/cdi/cdilayout.h"
 #include "lcc/cdi/cdivariant.h"
 #include "lcc/eventgraph/eventgraphmodel.h"
+#include "lcc/eventgraph/eventgraphstorage.h"
 
 #define CHECK(cond) do{ \
     if(!(cond)){ \
@@ -403,6 +404,25 @@ static int direction_learned(){
     return 0;
 }
 
+static int storage_round_trip(){
+    EventGraphLayout layout;
+    layout.positions[NODE_A] = QPointF(10.5, -20);
+    layout.positions[NODE_B] = QPointF(300, 400);
+    layout.learnedDirections["TrainUtils\nBoard"]["Port I/O/Line 1/Event when on"] = PinDirection::Producer;
+    layout.learnedDirections["TrainUtils\nBoard"]["Port I/O/Line 1/Event when off"] = PinDirection::Consumer;
+
+    EventGraphLayout loaded = EventGraphStorage::fromJson(EventGraphStorage::toJson(layout));
+    CHECK(loaded.positions.size() == 2);
+    CHECK(loaded.positions[NODE_A] == QPointF(10.5, -20));
+    CHECK(loaded.positions[NODE_B] == QPointF(300, 400));
+    CHECK(loaded.learnedDirections == layout.learnedDirections);
+
+    // Garbage in, empty layout out
+    CHECK(EventGraphStorage::fromJson("not json").positions.isEmpty());
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -424,6 +444,7 @@ int main(int argc, char** argv){
         {"direction-identified", direction_identified},
         {"direction-observed-overrides", direction_observed_overrides},
         {"direction-learned", direction_learned},
+        {"storage-round-trip", storage_round_trip},
     };
 
     for(const auto& test : tests){

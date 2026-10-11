@@ -50,6 +50,12 @@ Q_SIGNALS:
     void memoryReadFailed(uint16_t error_code, QString message);
     void downloadProgress(uint64_t bytes_received, uint64_t bytes_total);
 
+    /**
+     * Our copy of the memory has changed, because it was read from or written to the node.
+     * This is emitted no matter who did the read/write.
+     */
+    void dataChanged(uint32_t address, int length);
+
     void rangeRead(uint32_t address, int length);
     void rangeReadFailed(uint32_t address, int length, uint16_t error_code, QString message);
     void rangeWritten(uint32_t address, int length);

@@ -15,6 +15,7 @@ add_executable(train-gui-test-eventgraph
     ../lcc/cdi/segment.cpp
     ../lcc/cdi/stringtype.cpp
     ../lcc/eventgraph/eventgraphmodel.cpp
+    ../lcc/eventgraph/eventgraphstorage.cpp
 )
 target_link_libraries(train-gui-test-eventgraph PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_include_directories(train-gui-test-eventgraph PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -33,6 +34,7 @@ foreach(test_name
         disconnect
         direction-identified
         direction-observed-overrides
-        direction-learned)
+        direction-learned
+        storage-round-trip)
     add_test(NAME eventgraph-${test_name} COMMAND train-gui-test-eventgraph ${test_name})
 endforeach()

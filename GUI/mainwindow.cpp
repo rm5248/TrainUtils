@@ -18,6 +18,7 @@
 #include "loconet/loconetthrottle.h"
 #include "lccmemorydisplay.h"
 #include "lcc/cdi/cdieditorwidget.h"
+#include "lcc/eventgraph/eventgraphwidget.h"
 #include "lcc/lccconnection.h"
 #include "lcc/lccnode.h"
 #include "lcc-common.h"
@@ -218,6 +219,28 @@ void MainWindow::addSubmenusLCCConnection(QMenu *parentMenu, QString connectionN
                 [lccConn, DockWidget, this](uint64_t node_id){
             openNodeConfiguration(lccConn, node_id, DockWidget);
         });
+    });
+
+    action = parentMenu->addAction("Event Graph");
+    connect(action, &QAction::triggered,
+            [connectionName,this](){
+        std::shared_ptr<LCCConnection> lccConn = m_state->lccManager->getConnectionByName(connectionName);
+        QString title = QString("%1 - Event Graph").arg(lccConn->name());
+
+        // Only one graph per connection
+        ads::CDockWidget* existing = m_dockManager->findDockWidget(title);
+        if(existing){
+            existing->toggleView(true);
+            existing->setAsCurrentTab();
+            return;
+        }
+
+        ads::CDockWidget* DockWidget = new ads::CDockWidget(title);
+        DockWidget->setObjectName(title);
+        DockWidget->setFeature(ads::CDockWidget::DockWidgetDeleteOnClose, true);
+        EventGraphWidget* graph = new EventGraphWidget(lccConn, this);
+        DockWidget->setWidget(graph);
+        m_dockManager->addDockWidget(ads::TopDockWidgetArea, DockWidget);
     });
 
     action = parentMenu->addAction("Memory Display");

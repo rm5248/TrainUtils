@@ -49,6 +49,12 @@ public:
     bool hasCDI() const;
 
     /**
+     * Use a CDI that we already have(e.g. from another node of the same model)
+     * instead of reading it from the node.  Emits cdiRead.
+     */
+    void setCDI(const CDI& cdi);
+
+    /**
      * Check to see if we have all memory read from this node.
      *
      * @return

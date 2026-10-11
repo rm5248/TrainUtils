@@ -260,6 +260,31 @@ struct lcc_node_info* LCCConnection::lccNodeInfoForID(uint64_t node_id){
     return nullptr;
 }
 
+QVector<uint64_t> LCCConnection::nodeIds(){
+    struct lcc_node_info* node_info_list[120];
+    QVector<uint64_t> ids;
+
+    int num_nodes = lcc_network_get_node_list(m_lccNetwork, node_info_list, 120);
+    for(int x = 0; x < num_nodes; x++){
+        ids.push_back(lcc_node_info_get_id(node_info_list[x]));
+    }
+
+    return ids;
+}
+
+uint64_t LCCConnection::nodeIdForAlias(uint16_t alias){
+    struct lcc_node_info* node_info_list[120];
+
+    int num_nodes = lcc_network_get_node_list(m_lccNetwork, node_info_list, 120);
+    for(int x = 0; x < num_nodes; x++){
+        if(lcc_node_info_get_alias(node_info_list[x]) == alias){
+            return lcc_node_info_get_id(node_info_list[x]);
+        }
+    }
+
+    return 0;
+}
+
 AddressSpaceReadReply* LCCConnection::readSingleMemoryBlock(int alias, int space, uint32_t starting_address, int len){
     if(alias < 0 || space < 0 || space > 255 || len > 64){
         LOG4CXX_ERROR_FMT(logger, "Alias or space invalid.  alias: {} space: {}", alias, space);

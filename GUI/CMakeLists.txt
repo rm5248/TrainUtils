@@ -139,6 +139,12 @@ set(PROJECT_SOURCES
         lcc/cdi/cdilayout.cpp
         lcc/eventgraph/eventgraphmodel.h
         lcc/eventgraph/eventgraphmodel.cpp
+        lcc/eventgraph/eventgraphcontroller.h
+        lcc/eventgraph/eventgraphcontroller.cpp
+        lcc/eventgraph/eventgraphstorage.h
+        lcc/eventgraph/eventgraphstorage.cpp
+        lcc/eventgraph/eventgraphwidget.h
+        lcc/eventgraph/eventgraphwidget.cpp
         lcc/cdi/cdieditorwidget.cpp
         lcc/cdi/cdieditorwidget.h
         lcc/cdi/cdieditorwidget.ui

@@ -2,6 +2,7 @@
 #ifndef EVENTGRAPHMODEL_H
 #define EVENTGRAPHMODEL_H
 
+#include <QHash>
 #include <QMap>
 #include <QString>
 #include <QStringList>
@@ -47,6 +48,10 @@ struct PinRef {
     bool operator!=(const PinRef& other) const;
     bool operator<(const PinRef& other) const;
 };
+
+inline size_t qHash(const PinRef& ref, size_t seed = 0){
+    return qHashMulti(seed, ref.nodeId, ref.space, ref.address);
+}
 
 /**
  * An event ID field in a node's configuration.

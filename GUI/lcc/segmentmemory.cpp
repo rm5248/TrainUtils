@@ -162,6 +162,7 @@ void SegmentMemory::readNextBlock(){
         m_currentReadState = MemoryReadState::Memory_Complete;
         m_hasData = true;
         Q_EMIT downloadProgress(m_data.size(), m_data.size());
+        Q_EMIT dataChanged(m_starting_address, m_data.size());
         Q_EMIT memoryReady();
         return;
     }
@@ -199,6 +200,10 @@ void SegmentMemory::updateData(uint32_t address, const QVector<uint8_t>& data){
     qsizetype index = address - m_starting_address;
     for(qsizetype x = 0; x < data.size() && index + x < m_data.size(); x++){
         m_data[index + x] = data[x];
+    }
+
+    if(!data.isEmpty() && index < m_data.size()){
+        Q_EMIT dataChanged(address, data.size());
     }
 }
 
