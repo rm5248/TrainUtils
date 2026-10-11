@@ -97,6 +97,8 @@ static struct lcc_remote_memory_context* remote_ctx;
 static uint16_t memory_node_alias;
 // A node that accepts all datagrams without replying with a 'reply pending'
 static uint16_t ack_only_node_alias;
+// A node that does not handle datagrams at all, so it never responds to anything
+static uint16_t silent_node_alias;
 
 static void remote_request_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
 }
@@ -159,7 +161,7 @@ static void ack_only_datagram(struct lcc_datagram_context* ctx, uint16_t alias, 
 }
 
 static void setup(void){
-    struct lcc_context** ctx = lcctest_create_contexts(3);
+    struct lcc_context** ctx = lcctest_create_contexts(4);
 
     for(int x = 0; x < (int)sizeof(config_memory); x++){
         config_memory[x] = x;
@@ -199,6 +201,9 @@ static void setup(void){
     struct lcc_datagram_context* ack_only_ctx = lcc_datagram_context_new(ctx[2]);
     lcc_datagram_context_set_datagram_functions(ack_only_ctx, ack_only_datagram, NULL, NULL);
     ack_only_node_alias = lcc_context_alias(ctx[2]);
+
+    // Node 3: no datagram handling, so it ignores memory requests
+    silent_node_alias = lcc_context_alias(ctx[3]);
 
     lcctest_pump_frames();
     memset(&results, 0, sizeof(results));
@@ -659,6 +664,53 @@ static int test_write_no_reply_pending(void){
     return 0;
 }
 
+/*
+ * If a node never responds, the request can be cancelled so that other requests can be made
+ */
+static int request_cancel(void){
+    setup();
+
+    memset(&results, 0, sizeof(results));
+    CHECK(lcc_remote_memory_read_single_transfer(remote_ctx, silent_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_OK);
+    lcctest_pump_frames();
+    CHECK(results.read_count == 0);
+    CHECK(results.reject_count == 0);
+    CHECK(results.fail_count == 0);
+    CHECK(lcc_remote_memory_current_alias_request(remote_ctx) == silent_node_alias);
+
+    // Still waiting for the silent node
+    CHECK(lcc_remote_memory_read_single_transfer(remote_ctx, memory_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_ERROR_MEMORY_TX_IN_PROGRESS);
+
+    CHECK(lcc_remote_memory_cancel_request(remote_ctx) == LCC_OK);
+    CHECK(lcc_remote_memory_current_alias_request(remote_ctx) == 0);
+
+    CHECK(read_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_OK);
+    CHECK(check_read(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, config_memory, 4) == 0);
+
+    return 0;
+}
+
+/*
+ * Cancelling a write means that a late 'datagram received OK' does not complete it
+ */
+static int request_cancel_write(void){
+    const uint8_t data[] = { 0x01 };
+
+    setup();
+
+    memset(&results, 0, sizeof(results));
+    CHECK(lcc_remote_memory_write_single_transfer(remote_ctx, silent_node_alias, LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, data, sizeof(data)) == LCC_OK);
+    lcctest_pump_frames();
+    CHECK(results.write_ok_count == 0);
+    CHECK(lcc_remote_memory_cancel_request(remote_ctx) == LCC_OK);
+
+    // Another write works, and only it is reported
+    CHECK(write_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 5, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 5) == 0);
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -710,6 +762,10 @@ int main(int argc, char** argv){
         return test_write_invalid_length();
     }else if(strcmp(argv[1], "write-no-reply-pending") == 0){
         return test_write_no_reply_pending();
+    }else if(strcmp(argv[1], "request-cancel") == 0){
+        return request_cancel();
+    }else if(strcmp(argv[1], "request-cancel-write") == 0){
+        return request_cancel_write();
     }
 
     return 1;

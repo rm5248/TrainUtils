@@ -74,8 +74,21 @@ static void memory_space_write(struct lcc_memory_context* ctx, uint16_t alias, u
     lcc_memory_respond_write_reply_fail(ctx, alias, address_space, starting_address, 0, nullptr);
 }
 
-static void remote_memory_request_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
-    LOG4CXX_DEBUG_FMT(logger, "Remote memory request OK");
+// How long to wait for a node to respond to a memory request
+static constexpr int MEMORY_REQUEST_TIMEOUT_MS = 5000;
+// Longest time that we will wait when a node says that its reply will take a while
+static constexpr int MEMORY_REQUEST_MAX_TIMEOUT_MS = 64000;
+// How many times to send a request again if the node doesn't respond, or is busy
+static constexpr int MEMORY_REQUEST_MAX_RETRIES = 2;
+static constexpr int MEMORY_REQUEST_RETRY_DELAY_MS = 250;
+
+void LCCConnection::remote_memory_request_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
+    LOG4CXX_DEBUG_FMT(logger, "Remote memory request OK, flags 0x{:02X}", flags);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryRequestAcknowledged(alias, flags);
 }
 
 void LCCConnection::remote_memory_request_failCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint16_t error_code, void* optional_data, int optional_len){
@@ -144,6 +157,10 @@ void LCCConnection::remote_memory_informationCB(struct lcc_remote_memory_context
 
 LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
 {
+    m_requestTimer = new QTimer(this);
+    m_requestTimer->setSingleShot(true);
+    connect(m_requestTimer, &QTimer::timeout, this, &LCCConnection::memoryRequestTimedOut);
+
     m_lcc = lcc_context_new();
     m_lccNetwork = lcc_network_new(m_lcc);
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
@@ -167,7 +184,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
                                     memory_space_write);
 
     lcc_remote_memory_set_functions(remote_ctx,
-                                    remote_memory_request_ok,
+                                    remote_memory_request_okCB,
                                     remote_memory_request_failCB,
                                     remote_memory_receivedCB,
                                     remote_memory_read_rejectCB,
@@ -374,55 +391,19 @@ void LCCConnection::remoteMemoryReceived(uint16_t alias, uint8_t address_space, 
 }
 
 void LCCConnection::remoteMemoryRequestFailed(uint16_t alias, uint16_t error_code){
-    // The datagram rejection doesn't tell us which request failed, but only one
-    // memory request can be outstanding to a node at a time, so fail everything for this alias.
-    QByteArray message = QString("Request rejected by node: %1")
-            .arg(errorCodeDescription(error_code))
-            .toUtf8();
-
-    QVector<AddressSpaceReply*> failedInfo;
-    for(AddressSpaceReply* rep : m_inflight_replies){
-        if(!rep->isFinished() && rep->alias() == alias){
-            failedInfo.push_back(rep);
-        }
-    }
-    QVector<AddressSpaceReadReply*> failedReads;
-    for(AddressSpaceReadReply* rep : m_inflight_read_replies){
-        if(!rep->isFinished() && rep->alias() == alias){
-            failedReads.push_back(rep);
-        }
-    }
-    QVector<AddressSpaceWriteReply*> failedWrites;
-    for(AddressSpaceWriteReply* rep : m_inflight_write_replies){
-        if(!rep->isFinished() && rep->alias() == alias){
-            failedWrites.push_back(rep);
-        }
+    // Only one request is outstanding at a time, so the rejection is for the current one
+    if(!m_requesting_memory || m_request_order.isEmpty() || requestAlias(m_request_order.front()) != alias){
+        return;
     }
 
-    // Remove from the inflight lists before notifying, as the receivers may make new requests
-    for(AddressSpaceReply* rep : failedInfo){
-        m_inflight_replies.removeOne(rep);
-    }
-    for(AddressSpaceReadReply* rep : failedReads){
-        m_inflight_read_replies.removeOne(rep);
-    }
-    for(AddressSpaceWriteReply* rep : failedWrites){
-        m_inflight_write_replies.removeOne(rep);
+    if((error_code & LCC_ERRCODE_TEMPORARY) && m_requestRetries < MEMORY_REQUEST_MAX_RETRIES){
+        // The node is busy and says to try again
+        LOG4CXX_DEBUG_FMT(logger, "Node {:X} temporarily rejected request(0x{:04X}), retrying", alias, error_code);
+        retryCurrentRequest();
+        return;
     }
 
-    for(AddressSpaceReply* rep : failedInfo){
-        rep->setInvalidResponse(0, error_code, message.constData());
-        Q_EMIT addressSpaceRequestFinished(rep);
-    }
-    for(AddressSpaceReadReply* rep : failedReads){
-        rep->setInvalidResponse(error_code, message.constData());
-        Q_EMIT addressSpaceReadRequestFinished(rep);
-    }
-    for(AddressSpaceWriteReply* rep : failedWrites){
-        rep->setInvalidResponse(error_code, QString::fromUtf8(message));
-    }
-
-    memoryRequestDone();
+    failCurrentRequest(error_code, QString("Request rejected by node: %1").arg(errorCodeDescription(error_code)));
 }
 
 void LCCConnection::remoteMemoryReadRejected(uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message){
@@ -518,8 +499,104 @@ void LCCConnection::remoteMemoryWriteFinished(uint16_t alias, uint8_t address_sp
 }
 
 void LCCConnection::memoryRequestDone(){
+    m_requestTimer->stop();
+    m_requestRetries = 0;
     m_requesting_memory = false;
     QTimer::singleShot(20, this, &LCCConnection::requestNextMemoryBlock);
+}
+
+void LCCConnection::remoteMemoryRequestAcknowledged(uint16_t alias, uint8_t flags){
+    if(!m_requesting_memory){
+        return;
+    }
+
+    // The node has our request.  If a reply is coming, the node may tell us how long
+    // it could take(2^N seconds), otherwise use our normal timeout from now.
+    int timeoutMs = MEMORY_REQUEST_TIMEOUT_MS;
+    int exponent = flags & 0x0F;
+    if((flags & LCC_DATAGRAM_REPLY_PENDING) && exponent > 0){
+        timeoutMs = std::min((1 << exponent) * 1000, MEMORY_REQUEST_MAX_TIMEOUT_MS);
+        timeoutMs = std::max(timeoutMs, MEMORY_REQUEST_TIMEOUT_MS);
+    }
+    m_requestTimer->start(timeoutMs);
+}
+
+void LCCConnection::memoryRequestTimedOut(){
+    if(!m_requesting_memory || m_request_order.isEmpty()){
+        return;
+    }
+
+    // Let the library send something else
+    lcc_remote_memory_context* ctx = lcc_context_get_remote_memory_context(m_lcc);
+    lcc_remote_memory_cancel_request(ctx);
+
+    QObject* current = m_request_order.front();
+    if(m_requestRetries < MEMORY_REQUEST_MAX_RETRIES){
+        // A frame may have been lost, so try again before giving up
+        LOG4CXX_WARN_FMT(logger, "No response from node {:X}, retrying", requestAlias(current));
+        retryCurrentRequest();
+        return;
+    }
+
+    QString message;
+    if(auto rep = qobject_cast<AddressSpaceReadReply*>(current)){
+        message = QString("Node 0x%1 did not respond to a read of space 0x%2 address %3")
+                .arg(rep->alias(), 3, 16, QLatin1Char('0'))
+                .arg(rep->space(), 2, 16, QLatin1Char('0'))
+                .arg(rep->startingAddress());
+    }else if(auto rep = qobject_cast<AddressSpaceReply*>(current)){
+        message = QString("Node 0x%1 did not respond to a request for information about space 0x%2")
+                .arg(rep->alias(), 3, 16, QLatin1Char('0'))
+                .arg(rep->space(), 2, 16, QLatin1Char('0'));
+    }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(current)){
+        message = QString("Node 0x%1 did not respond to a write of space 0x%2 address %3")
+                .arg(rep->alias(), 3, 16, QLatin1Char('0'))
+                .arg(rep->space(), 2, 16, QLatin1Char('0'))
+                .arg(rep->startingAddress());
+    }
+    LOG4CXX_ERROR_FMT(logger, "{}", message.toStdString());
+
+    failCurrentRequest(0, message);
+}
+
+uint16_t LCCConnection::requestAlias(QObject* request){
+    if(auto rep = qobject_cast<AddressSpaceReadReply*>(request)){
+        return rep->alias();
+    }else if(auto rep = qobject_cast<AddressSpaceReply*>(request)){
+        return rep->alias();
+    }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(request)){
+        return rep->alias();
+    }
+    return 0;
+}
+
+void LCCConnection::retryCurrentRequest(){
+    m_requestRetries++;
+    m_requestTimer->stop();
+    m_requesting_memory = false;
+    // The current request is still at the front of the queue, so it is sent again
+    QTimer::singleShot(MEMORY_REQUEST_RETRY_DELAY_MS, this, &LCCConnection::requestNextMemoryBlock);
+}
+
+void LCCConnection::failCurrentRequest(uint16_t error_code, const QString& message){
+    QObject* current = m_request_order.front();
+    m_request_order.pop_front();
+    QByteArray messageUtf8 = message.toUtf8();
+
+    if(auto rep = qobject_cast<AddressSpaceReadReply*>(current)){
+        m_inflight_read_replies.removeOne(rep);
+        rep->setInvalidResponse(error_code, messageUtf8.constData());
+        Q_EMIT addressSpaceReadRequestFinished(rep);
+    }else if(auto rep = qobject_cast<AddressSpaceReply*>(current)){
+        m_inflight_replies.removeOne(rep);
+        rep->setInvalidResponse(0, error_code, messageUtf8.constData());
+        Q_EMIT addressSpaceRequestFinished(rep);
+    }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(current)){
+        m_inflight_write_replies.removeOne(rep);
+        rep->setInvalidResponse(error_code, message);
+    }
+
+    memoryRequestDone();
 }
 
 void LCCConnection::requestNextMemoryBlock(){
@@ -562,14 +639,14 @@ void LCCConnection::requestNextMemoryBlock(){
         if(ret != LCC_OK){
             LOG4CXX_ERROR_FMT(logger, "Unable to send memory read request to alias {:X}: error {}", rep->alias(), ret);
             m_inflight_read_replies.removeOne(rep);
-            rep->setInvalidResponse(0, "Internal LCC error");
+            rep->setInvalidResponse(0, QString("Unable to send read request(LCC error %1)").arg(ret).toUtf8().constData());
         }
     }else if(auto rep = qobject_cast<AddressSpaceReply*>(next)){
         ret = lcc_remote_memory_get_address_space_information(ctx, rep->alias(), rep->space());
         if(ret != LCC_OK){
             LOG4CXX_ERROR_FMT(logger, "Unable to send address space information request to alias {:X}: error {}", rep->alias(), ret);
             m_inflight_replies.removeOne(rep);
-            rep->setInvalidResponse(0, 0, "Internal LCC error");
+            rep->setInvalidResponse(0, 0, QString("Unable to send address space request(LCC error %1)").arg(ret).toUtf8().constData());
         }
     }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(next)){
         QVector<uint8_t> data = rep->data();
@@ -577,11 +654,13 @@ void LCCConnection::requestNextMemoryBlock(){
         if(ret != LCC_OK){
             LOG4CXX_ERROR_FMT(logger, "Unable to send memory write request to alias {:X}: error {}", rep->alias(), ret);
             m_inflight_write_replies.removeOne(rep);
-            rep->setInvalidResponse(0, "Internal LCC error");
+            rep->setInvalidResponse(0, QString("Unable to send write request(LCC error %1)").arg(ret));
         }
     }
 
-    if(ret != LCC_OK){
+    if(ret == LCC_OK){
+        m_requestTimer->start(MEMORY_REQUEST_TIMEOUT_MS);
+    }else{
         // Nothing was sent, so nothing will come back - move on to the next request
         m_request_order.pop_front();
         memoryRequestDone();

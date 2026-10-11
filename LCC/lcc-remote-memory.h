@@ -96,6 +96,16 @@ int lcc_remote_memory_set_write_functions(struct lcc_remote_memory_context* ctx,
                                           lcc_remote_memory_write_rejected write_rejected);
 
 /**
+ * Give up on the request that is currently outstanding(e.g. because the node never
+ * responded), so that another request can be made.  Nothing is called for the
+ * cancelled request, and a late response to it is ignored.
+ *
+ * @param ctx
+ * @return
+ */
+int lcc_remote_memory_cancel_request(struct lcc_remote_memory_context* ctx);
+
+/**
  * Get the alias of the node we are currently requesting memory from.  If we are not
  * currently querying anything from any node, returns 0.
  *

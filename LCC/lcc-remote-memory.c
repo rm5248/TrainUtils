@@ -349,6 +349,17 @@ int lcc_remote_memory_handle_datagram_rejected(struct lcc_remote_memory_context*
     return 1;
 }
 
+int lcc_remote_memory_cancel_request(struct lcc_remote_memory_context* ctx){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->current_requesting_alias = 0;
+    ctx->current_request_is_write = 0;
+
+    return LCC_OK;
+}
+
 uint16_t lcc_remote_memory_current_alias_request(struct lcc_remote_memory_context* ctx){
     if(ctx == NULL){
         return 0;

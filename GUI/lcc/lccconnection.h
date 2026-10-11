@@ -15,6 +15,7 @@
 #include "addressspacewritereply.h"
 
 class LCCNode;
+class QTimer;
 
 /**
  * Represents a connection to the LCC bus.
@@ -120,9 +121,16 @@ private:
     static void remote_memory_write_rejectedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
     void remoteMemoryWriteFinished(uint16_t alias, uint8_t address_space, bool ok, uint16_t error_code, const QString& message);
     void memoryRequestDone();
+    static void remote_memory_request_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags);
+    void remoteMemoryRequestAcknowledged(uint16_t alias, uint8_t flags);
+    static uint16_t requestAlias(QObject* request);
+    void retryCurrentRequest();
+    /** Fail the request that is outstanding, and move on to the next one */
+    void failCurrentRequest(uint16_t error_code, const QString& message);
 
 private Q_SLOTS:
     void requestNextMemoryBlock();
+    void memoryRequestTimedOut();
 
 protected:
     struct lcc_context* m_lcc;
@@ -135,6 +143,10 @@ protected:
     // All of the requests, in the order that they were made
     QVector<QPointer<QObject>> m_request_order;
     bool m_requesting_memory = false;
+    /** Fails the outstanding memory request if the node never responds */
+    QTimer* m_requestTimer;
+    /** How many times the outstanding request has been sent again */
+    int m_requestRetries = 0;
 };
 
 #endif // LCCCONNECTION_H
