@@ -67,8 +67,12 @@ typedef int(*lcc_write_buffer_available)(struct lcc_context*);
 
 /**
  * A function that will be called when an event that we are interested in comes in.
+ *
+ * @param ctx
+ * @param source_alias The alias of the node that sent the event
+ * @param event_id The event
  */
-typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint64_t event_id);
+typedef void(*lcc_incoming_event_fn)(struct lcc_context* ctx, uint16_t source_alias, uint64_t event_id);
 
 /**
  * A function that will be called when producers are being queried.  For the given event,

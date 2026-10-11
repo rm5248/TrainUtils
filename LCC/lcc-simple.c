@@ -105,12 +105,12 @@ static int lcc_handle_producer_consumer(struct lcc_context* ctx, struct lcc_can_
     }
 
     uint64_t event_id = lcc_get_eventid_from_data(frame);
+    uint16_t source_alias = frame->can_id & LCC_NID_ALIAS_MASK;
 
-    if(ctx->listen_all_events){
-        ctx->event_context->incoming_event(ctx, event_id);
-    }
-    if(event_list_has_event(&ctx->event_context->events_consumed, event_id)){
-        ctx->event_context->incoming_event(ctx, event_id);
+    // Only deliver the event once, even if we are listening to all events and also consume it
+    if(ctx->listen_all_events ||
+            event_list_has_event(&ctx->event_context->events_consumed, event_id)){
+        ctx->event_context->incoming_event(ctx, source_alias, event_id);
     }
 
     return LCC_OK;

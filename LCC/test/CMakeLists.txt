@@ -51,7 +51,7 @@ add_test( NAME memory-write-out-of-range COMMAND lcc-test-memory-map write-out-o
 add_test( NAME memory-write-invalid-length COMMAND lcc-test-memory-map write-invalid-length )
 add_test( NAME memory-write-no-reply-pending COMMAND lcc-test-memory-map write-no-reply-pending )
 
-add_executable(lcc-test-events test-events.c)
+add_executable(lcc-test-events test-events.c test-common.c test-common.h)
 target_link_libraries(lcc-test-events lcc)
 target_include_directories(lcc-test-events PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
@@ -62,6 +62,10 @@ add_test( NAME decode_2048_4 COMMAND lcc-test-events decode_2048_4 )
 add_test( NAME report_time COMMAND lcc-test-events report_time )
 add_test( NAME encode_2048_1 COMMAND lcc-test-events encode_2048_1 )
 add_test( NAME encode_2048_2 COMMAND lcc-test-events encode_2048_2 )
+add_test( NAME event-source-alias COMMAND lcc-test-events event-source-alias )
+add_test( NAME event-listen-all COMMAND lcc-test-events event-listen-all )
+add_test( NAME event-listen-all-consumed-once COMMAND lcc-test-events event-listen-all-consumed-once )
+add_test( NAME event-not-consumed COMMAND lcc-test-events event-not-consumed )
 
 #
 # Use the olcbchecker application to run these tests

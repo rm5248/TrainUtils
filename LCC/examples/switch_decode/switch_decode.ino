@@ -59,7 +59,7 @@ struct id_page{
   char hw_version[12];
 };
 
-static void incoming_lcc_event(struct lcc_context* ctx, uint64_t event_id){
+static void incoming_lcc_event(struct lcc_context* ctx, uint16_t source_alias, uint64_t event_id){
   if(event_id == 0x0101020000FF001Bll){
     // activate switch 10
     digitalWrite(5, 1);
