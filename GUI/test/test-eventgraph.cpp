@@ -404,6 +404,93 @@ static int direction_learned(){
     return 0;
 }
 
+/*
+ * Pins are arranged into the groups that they are in, in the order of the CDI
+ */
+static int pin_tree(){
+    QVector<EventPin> pins = eventPinsFromLayout(cdiLayout(parseTestCdi()));
+    QVector<PinTreeGroup> tree = buildPinTree(pins);
+
+    // Only the segment with events in it
+    CHECK(tree.size() == 1);
+    const PinTreeGroup& io = tree[0];
+    CHECK(io.label == "Port I/O");
+    CHECK(io.path == QStringList{"Port I/O"});
+    CHECK(io.totalPins == 5);
+    CHECK(io.pins.isEmpty());
+    CHECK(io.children.size() == 3);
+
+    CHECK(io.children[0].label == "Line 1");
+    CHECK(io.children[0].path == (QStringList{"Port I/O", "Line 1"}));
+    CHECK(io.children[0].pins == (QVector<int>{0, 1}));
+    CHECK(io.children[0].totalPins == 2);
+    CHECK(io.children[1].label == "Line 2");
+    CHECK(io.children[1].pins == (QVector<int>{2, 3}));
+    CHECK(io.children[2].label == "Single");
+    CHECK(io.children[2].pins == (QVector<int>{4}));
+
+    // Pins directly in a segment, and nested groups
+    QVector<EventPin> flat(3);
+    flat[0].groupPath = QStringList{"Seg"};
+    flat[1].groupPath = QStringList{"Seg", "A", "B"};
+    flat[2].groupPath = QStringList{"Seg", "A"};
+    tree = buildPinTree(flat);
+    CHECK(tree.size() == 1);
+    CHECK(tree[0].pins == QVector<int>{0});
+    CHECK(tree[0].totalPins == 3);
+    CHECK(tree[0].children.size() == 1);
+    CHECK(tree[0].children[0].pins == QVector<int>{2});
+    CHECK(tree[0].children[0].totalPins == 2);
+    CHECK(tree[0].children[0].children[0].pins == QVector<int>{1});
+
+    return 0;
+}
+
+static int search_name(){
+    EventPin pin;
+    pin.label = "Event when on";
+    pin.groupPath = QStringList{"Port I/O", "Line 3"};
+    pin.eventId = EVENT_1;
+
+    CHECK(EventSearch("when on").matches(pin));
+    CHECK(EventSearch("WHEN ON").matches(pin));
+    // The group path is searched as well
+    CHECK(EventSearch("line 3").matches(pin));
+    CHECK(!EventSearch("line 4").matches(pin));
+    // Nothing to search for
+    CHECK(EventSearch("  ").isEmpty());
+    CHECK(!EventSearch("").matches(pin));
+
+    return 0;
+}
+
+static int search_event_id(){
+    EventPin pin;
+    pin.label = "Event";
+    pin.eventId = EVENT_1; // 05.01.01.01.22.00.00.01
+
+    CHECK(EventSearch("05.01.01.01.22.00.00.01").matches(pin));
+    CHECK(EventSearch("0501010122000001").matches(pin));
+    // Part of an event ID, in any case and with spaces
+    CHECK(EventSearch("22.00.00").matches(pin));
+    CHECK(EventSearch("22 00 00 01").matches(pin));
+    CHECK(EventSearch("05.01.01.01.22").matches(pin));
+    CHECK(!EventSearch("05.01.01.01.23").matches(pin));
+
+    // An event ID that hasn't been read can't match
+    EventPin unread;
+    unread.label = "Event";
+    CHECK(!EventSearch("0501").matches(unread));
+
+    // Hex that is also a word still matches by name
+    EventPin named;
+    named.label = "Feed";
+    named.eventId = EVENT_2;
+    CHECK(EventSearch("feed").matches(named));
+
+    return 0;
+}
+
 static int storage_round_trip(){
     EventGraphLayout layout;
     layout.positions[NODE_A] = QPointF(10.5, -20);
@@ -445,6 +532,9 @@ int main(int argc, char** argv){
         {"direction-observed-overrides", direction_observed_overrides},
         {"direction-learned", direction_learned},
         {"storage-round-trip", storage_round_trip},
+        {"pin-tree", pin_tree},
+        {"search-name", search_name},
+        {"search-event-id", search_event_id},
     };
 
     for(const auto& test : tests){

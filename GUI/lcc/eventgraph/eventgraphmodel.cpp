@@ -344,3 +344,82 @@ std::optional<uint64_t> eventIdFromBytes(const QVector<uint8_t>& bytes){
     }
     return value;
 }
+
+QVector<PinTreeGroup> buildPinTree(const QVector<EventPin>& pins){
+    PinTreeGroup root;
+
+    for(int pinIndex = 0; pinIndex < pins.size(); pinIndex++){
+        const EventPin& pin = pins[pinIndex];
+        PinTreeGroup* group = &root;
+        group->totalPins++;
+
+        for(int depth = 0; depth < pin.groupPath.size(); depth++){
+            const QString& label = pin.groupPath[depth];
+
+            // Pins are normally in the same group as the previous pin, so check the last one first
+            PinTreeGroup* child = nullptr;
+            for(int x = group->children.size() - 1; x >= 0; x--){
+                if(group->children[x].label == label){
+                    child = &group->children[x];
+                    break;
+                }
+            }
+            if(!child){
+                PinTreeGroup newGroup;
+                newGroup.label = label;
+                newGroup.path = pin.groupPath.mid(0, depth + 1);
+                group->children.push_back(newGroup);
+                child = &group->children.last();
+            }
+
+            group = child;
+            group->totalPins++;
+        }
+
+        group->pins.push_back(pinIndex);
+    }
+
+    return root.children;
+}
+
+EventSearch::EventSearch(const QString& text) :
+    m_text(text.trimmed())
+{
+    m_lowerText = m_text.toLower();
+
+    QString hex = m_text;
+    hex.remove('.').remove(' ').remove(':');
+    bool allHex = !hex.isEmpty();
+    for(QChar c : hex){
+        if(!c.isDigit() && !(c.toLower() >= 'a' && c.toLower() <= 'f')){
+            allHex = false;
+            break;
+        }
+    }
+    if(allHex){
+        m_hex = hex.toUpper();
+    }
+}
+
+bool EventSearch::isEmpty() const{
+    return m_text.isEmpty();
+}
+
+QString EventSearch::text() const{
+    return m_text;
+}
+
+bool EventSearch::matches(const EventPin& pin) const{
+    if(isEmpty()){
+        return false;
+    }
+
+    if(!m_hex.isEmpty() && pin.eventId.has_value()){
+        QString eventHex = QString("%1").arg(pin.eventId.value(), 16, 16, QLatin1Char('0')).toUpper();
+        if(eventHex.contains(m_hex)){
+            return true;
+        }
+    }
+
+    return pin.path().toLower().contains(m_lowerText);
+}

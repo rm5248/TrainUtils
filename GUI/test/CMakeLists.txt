@@ -35,6 +35,9 @@ foreach(test_name
         direction-identified
         direction-observed-overrides
         direction-learned
-        storage-round-trip)
+        storage-round-trip
+        pin-tree
+        search-name
+        search-event-id)
     add_test(NAME eventgraph-${test_name} COMMAND train-gui-test-eventgraph ${test_name})
 endforeach()

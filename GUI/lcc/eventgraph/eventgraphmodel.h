@@ -209,6 +209,50 @@ private:
 };
 
 /**
+ * The pins of a node, arranged into the groups that they are in(the same tree as the CDI).
+ * Only groups that have pins in them are included.
+ */
+struct PinTreeGroup {
+    QString label;
+    /** The labels of this group and the groups that it is in, starting with the segment */
+    QStringList path;
+    /** Indexes(into EventGraphNode::pins) of the pins directly in this group */
+    QVector<int> pins;
+    QVector<PinTreeGroup> children;
+    /** Number of pins in this group and all of its children */
+    int totalPins = 0;
+};
+
+/**
+ * Arrange pins by their group paths.  Groups and pins are kept in the order that
+ * they first appear in.
+ *
+ * @return The top level groups(segments)
+ */
+QVector<PinTreeGroup> buildPinTree(const QVector<EventPin>& pins);
+
+/**
+ * What the user is searching for: either part of a pin's name/group path(case
+ * insensitive), or part of its event ID.  Event IDs can be given with or without
+ * the dots between bytes, e.g. "05.01.01.01.22" or "0501010122".
+ */
+class EventSearch {
+public:
+    EventSearch() = default;
+    explicit EventSearch(const QString& text);
+
+    bool isEmpty() const;
+    QString text() const;
+    bool matches(const EventPin& pin) const;
+
+private:
+    QString m_text;
+    QString m_lowerText;
+    /** The text as hex digits, if it can be part of an event ID */
+    QString m_hex;
+};
+
+/**
  * Create a pin for every event ID field in a CDI.  The event IDs are not set.
  */
 QVector<EventPin> eventPinsFromLayout(const QVector<CdiLayoutGroup>& layout);

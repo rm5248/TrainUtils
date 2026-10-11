@@ -28,15 +28,22 @@ static constexpr float AUTO_PLACE_COLUMN_WIDTH = 420.0f;
 static constexpr float AUTO_PLACE_ROW_HEIGHT = 360.0f;
 static constexpr int AUTO_PLACE_COLUMNS = 4;
 
+// How far each level of the tree is indented
+static constexpr float TREE_INDENT = 14.0f;
+
 // Node editor IDs must be unique and non-zero across nodes, pins and links
 static constexpr uint64_t PIN_ID_BASE = 0x100000000ull;
 static constexpr uint64_t LINK_ID_BASE = 0x200000000ull;
+static constexpr uint64_t GROUP_PIN_ID_BASE = 0x300000000ull;
 
 static const ImU32 COLOR_PRODUCER = IM_COL32(110, 200, 120, 255);
 static const ImU32 COLOR_CONSUMER = IM_COL32(110, 160, 230, 255);
 static const ImU32 COLOR_UNKNOWN = IM_COL32(170, 170, 170, 255);
 static const ImVec4 COLOR_DIM(0.6f, 0.6f, 0.6f, 1.0f);
 static const ImVec4 COLOR_ERROR(1.0f, 0.45f, 0.4f, 1.0f);
+// Things that match the search
+static const ImVec4 COLOR_MATCH(1.0f, 0.8f, 0.25f, 1.0f);
+static const ImU32 COLOR_MATCH_BACKGROUND = IM_COL32(255, 200, 60, 70);
 
 /**
  * A color for an event, so that the lines for different events can be told apart.
@@ -85,6 +92,8 @@ EventGraphWidget::EventGraphWidget(std::shared_ptr<LCCConnection> conn, QWidget*
     connect(&m_saveTimer, &QTimer::timeout, this, &EventGraphWidget::saveLayout);
     connect(m_controller.get(), &EventGraphController::modelChanged,
             &m_saveTimer, QOverload<>::of(&QTimer::start));
+    connect(m_controller.get(), &EventGraphController::modelChanged,
+            this, [this](){ m_modelVersion++; });
 
     m_controller->start();
 }
@@ -227,12 +236,8 @@ void EventGraphWidget::drawFrame()
     }
 
     EventGraphModel& model = m_controller->model();
-    const QVector<EventLink> links = model.links();
-    QSet<PinRef> linkedPins;
-    for(const EventLink& link : links){
-        linkedPins.insert(link.from);
-        linkedPins.insert(link.to);
-    }
+    updateCaches();
+    m_anchors.clear();
 
     ed::SetCurrentEditor(m_editor);
 
@@ -242,10 +247,17 @@ void EventGraphWidget::drawFrame()
     ed::Begin("EventGraph", ImVec2(0.0f, 0.0f));
 
     for(uint64_t nodeId : model.nodeIds()){
-        drawNode(*model.node(nodeId), linkedPins);
+        drawNode(*model.node(nodeId));
     }
-    drawLinks(links);
+    drawLinks();
     drawContextMenus();
+
+    if(m_navigateToNode != 0){
+        ed::ClearSelection();
+        ed::SelectNode(ed::NodeId(editorNodeId(m_navigateToNode)));
+        ed::NavigateToSelection(false, 0.3f);
+        m_navigateToNode = 0;
+    }
 
     // The view is fit to the content on the first frame, before anything has a size
     if(m_frame == 3){
@@ -311,7 +323,171 @@ void EventGraphWidget::drawPinMarker(bool filled, ImU32 color)
     }
 }
 
-void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& linkedPins)
+void EventGraphWidget::updateCaches()
+{
+    if(m_cacheVersion == m_modelVersion && m_cachedSearch == m_search.text()){
+        return;
+    }
+    m_cacheVersion = m_modelVersion;
+    m_cachedSearch = m_search.text();
+
+    const EventGraphModel& model = m_controller->model();
+
+    m_links = model.links();
+    m_linkedPins.clear();
+    for(const EventLink& link : m_links){
+        m_linkedPins.insert(link.from);
+        m_linkedPins.insert(link.to);
+    }
+
+    m_pinTrees.clear();
+    m_groupInfo.clear();
+    m_matches.clear();
+    m_matchingNodes.clear();
+
+    for(uint64_t nodeId : model.nodeIds()){
+        const EventGraphNode& node = *model.node(nodeId);
+
+        if(!m_search.isEmpty()){
+            for(const EventPin& pin : node.pins){
+                if(m_search.matches(pin)){
+                    m_matches.insert(PinRef{nodeId, pin.space, pin.address});
+                }
+            }
+        }
+
+        QVector<PinTreeGroup>& tree = m_pinTrees[nodeId];
+        tree = buildPinTree(node.pins);
+        int nodeMatches = 0;
+        for(const PinTreeGroup& group : tree){
+            fillGroupInfo(nodeId, node, group);
+            nodeMatches += m_groupInfo.value(groupKey(nodeId, group.path)).matches;
+        }
+        if(nodeMatches > 0){
+            m_matchingNodes.push_back(nodeId);
+        }
+    }
+}
+
+void EventGraphWidget::fillGroupInfo(uint64_t nodeId, const EventGraphNode& node, const PinTreeGroup& group)
+{
+    GroupInfo info;
+    for(int pinIndex : group.pins){
+        const EventPin& pin = node.pins[pinIndex];
+        const PinRef ref{nodeId, pin.space, pin.address};
+        if(m_linkedPins.contains(ref)){
+            info.linkedPins.push_back(ref);
+        }
+        if(m_matches.contains(ref)){
+            info.matches++;
+        }
+    }
+
+    for(const PinTreeGroup& child : group.children){
+        fillGroupInfo(nodeId, node, child);
+        const GroupInfo& childInfo = m_groupInfo[groupKey(nodeId, child.path)];
+        info.linkedPins += childInfo.linkedPins;
+        info.matches += childInfo.matches;
+    }
+
+    m_groupInfo.insert(groupKey(nodeId, group.path), info);
+}
+
+QString EventGraphWidget::groupKey(uint64_t nodeId, const QStringList& path) const
+{
+    // A character that won't be in a CDI name separates the parts
+    return QString::number(nodeId, 16) + QChar(0x1f) + path.join(QChar(0x1f));
+}
+
+void EventGraphWidget::collectRows(const EventGraphNode& node, const PinTreeGroup& group, int depth, QVector<NodeRow>& rows)
+{
+    const QString key = groupKey(node.nodeId, group.path);
+    const GroupInfo info = m_groupInfo.value(key);
+    const bool searching = !m_search.isEmpty();
+
+    if(m_onlyConnected && info.linkedPins.isEmpty() && info.matches == 0){
+        // Nothing in here to show
+        return;
+    }
+
+    NodeRow header;
+    header.isGroup = true;
+    header.depth = depth;
+    header.group = &group;
+    header.groupKey = key;
+    // Groups with search matches are opened so that the matches can be seen
+    header.expanded = m_expandedGroups.contains(key) || (searching && info.matches > 0);
+    header.matched = info.matches > 0;
+    rows.push_back(header);
+
+    if(!header.expanded){
+        // Lines to anything in here go to the group instead
+        const Anchor anchor{editorGroupPinId(key, false), editorGroupPinId(key, true)};
+        for(const PinRef& ref : info.linkedPins){
+            m_anchors.insert(ref, anchor);
+        }
+        return;
+    }
+
+    for(int pinIndex : group.pins){
+        const EventPin& pin = node.pins[pinIndex];
+        const PinRef ref{node.nodeId, pin.space, pin.address};
+        const bool matched = m_matches.contains(ref);
+        if(m_onlyConnected && !m_linkedPins.contains(ref) && !matched){
+            continue;
+        }
+
+        NodeRow row;
+        row.depth = depth + 1;
+        row.pinIndex = pinIndex;
+        row.matched = matched;
+        rows.push_back(row);
+        m_anchors.insert(ref, Anchor{editorPinId(ref, false), editorPinId(ref, true)});
+    }
+
+    for(const PinTreeGroup& child : group.children){
+        collectRows(node, child, depth + 1, rows);
+    }
+}
+
+QString EventGraphWidget::groupRowLabel(const NodeRow& row) const
+{
+    const GroupInfo info = m_groupInfo.value(row.groupKey);
+    if(info.matches > 0){
+        return QString("%1 (%2, %3 matching)").arg(row.group->label).arg(row.group->totalPins).arg(info.matches);
+    }
+    return QString("%1 (%2)").arg(row.group->label).arg(row.group->totalPins);
+}
+
+void EventGraphWidget::drawGroupToggle(const NodeRow& row)
+{
+    ImGui::PushID(row.groupKey.toUtf8().constData());
+    if(ImGui::InvisibleButton("##toggle", ImVec2(PIN_SIZE, PIN_SIZE))){
+        if(m_expandedGroups.contains(row.groupKey)){
+            m_expandedGroups.remove(row.groupKey);
+        }else{
+            m_expandedGroups.insert(row.groupKey);
+        }
+    }
+    ImGui::PopID();
+
+    // A triangle: pointing right when collapsed, down when expanded
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const float pad = 2.0f;
+    const ImU32 color = ImGui::IsItemHovered() ? IM_COL32(255, 255, 255, 255) : IM_COL32(190, 190, 190, 255);
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    if(row.expanded){
+        drawList->AddTriangleFilled(ImVec2(min.x + pad, min.y + pad + 1),
+                                    ImVec2(min.x + PIN_SIZE - pad, min.y + pad + 1),
+                                    ImVec2(min.x + PIN_SIZE / 2, min.y + PIN_SIZE - pad), color);
+    }else{
+        drawList->AddTriangleFilled(ImVec2(min.x + pad + 1, min.y + pad),
+                                    ImVec2(min.x + PIN_SIZE - pad, min.y + PIN_SIZE / 2),
+                                    ImVec2(min.x + pad + 1, min.y + PIN_SIZE - pad), color);
+    }
+}
+
+void EventGraphWidget::drawNode(const EventGraphNode& node)
 {
     const ed::NodeId nodeId(editorNodeId(node.nodeId));
 
@@ -328,6 +504,12 @@ void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& 
             m_layout.positions[node.nodeId] = position;
         }
         ed::SetNodePosition(nodeId, ImVec2(position.x(), position.y()));
+    }
+
+    const bool nodeMatches = m_matchingNodes.contains(node.nodeId);
+    if(nodeMatches){
+        ed::PushStyleColor(ed::StyleColor_NodeBorder, COLOR_MATCH);
+        ed::PushStyleVar(ed::StyleVar_NodeBorderWidth, 3.0f);
     }
 
     ed::BeginNode(nodeId);
@@ -363,37 +545,89 @@ void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& 
         break;
     }
 
-    // Line up the right-hand pins by finding the widest row
-    float labelWidth = 0.0f;
-    for(const EventPin& pin : node.pins){
-        labelWidth = std::max(labelWidth, ImGui::CalcTextSize(pin.label.toUtf8().constData()).x);
+    // The tree of groups and pins that are visible
+    QVector<NodeRow> rows;
+    for(const PinTreeGroup& group : m_pinTrees.value(node.nodeId)){
+        collectRows(node, group, 0, rows);
     }
-    const float eventIdWidth = ImGui::CalcTextSize("00.00.00.00.00.00.00.00").x;
-    const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
-    QStringList currentGroup;
-    int hidden = 0;
-    for(const EventPin& pin : node.pins){
-        const PinRef ref{node.nodeId, pin.space, pin.address};
-        if(!m_showUnconnected && !linkedPins.contains(ref)){
-            hidden++;
+    // Columns are placed relative to the left edge of the node, in the same coordinates
+    // that the node is drawn in.  Don't use SameLine(offset)/GetCursorPosX(): those
+    // are relative to the ImGui window, which inside the node editor is not the same
+    // space as the node, so the columns drift away from the node as it moves.
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float left = ImGui::GetCursorScreenPos().x;
+    const float labelStart = left + PIN_SIZE + spacing;
+
+    float labelExtent = 0.0f;
+    for(const NodeRow& row : rows){
+        float width = row.depth * TREE_INDENT;
+        if(row.isGroup){
+            width += PIN_SIZE + 4.0f + ImGui::CalcTextSize(groupRowLabel(row).toUtf8().constData()).x;
+        }else{
+            width += ImGui::CalcTextSize(node.pins[row.pinIndex].label.toUtf8().constData()).x;
+        }
+        labelExtent = std::max(labelExtent, width);
+    }
+    const float eventIdColumn = labelStart + labelExtent + spacing * 2;
+    const float eventIdWidth = ImGui::CalcTextSize("00.00.00.00.00.00.00.00").x;
+    const float outputColumn = eventIdColumn + eventIdWidth + spacing;
+    const float rowHeight = std::max(PIN_SIZE, ImGui::GetTextLineHeight());
+
+    for(const NodeRow& row : rows){
+        const float rowY = ImGui::GetCursorScreenPos().y;
+        const float x = labelStart + row.depth * TREE_INDENT;
+
+        if(!row.isGroup && row.matched){
+            // Drawn first so that it is behind the row
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(left - 2.0f, rowY - 1.0f),
+                                                      ImVec2(outputColumn + PIN_SIZE + 2.0f, rowY + rowHeight + 1.0f),
+                                                      COLOR_MATCH_BACKGROUND, 3.0f);
+        }
+
+        if(row.isGroup){
+            // A collapsed group with connected pins in it gets the lines for them
+            const bool anchor = !row.expanded && !m_groupInfo.value(row.groupKey).linkedPins.isEmpty();
+
+            ImGui::SetCursorScreenPos(ImVec2(left, rowY));
+            if(anchor){
+                ed::BeginPin(ed::PinId(editorGroupPinId(row.groupKey, false)), ed::PinKind::Input);
+                ed::PinPivotAlignment(ImVec2(0.0f, 0.5f));
+                drawPinMarker(true, COLOR_UNKNOWN);
+                ed::EndPin();
+            }else{
+                ImGui::Dummy(ImVec2(PIN_SIZE, PIN_SIZE));
+            }
+
+            ImGui::SameLine();
+            ImGui::SetCursorScreenPos(ImVec2(x, ImGui::GetCursorScreenPos().y));
+            drawGroupToggle(row);
+
+            ImGui::SameLine();
+            ImGui::SetCursorScreenPos(ImVec2(x + PIN_SIZE + 4.0f, ImGui::GetCursorScreenPos().y));
+            const QByteArray label = groupRowLabel(row).toUtf8();
+            if(row.matched){
+                ImGui::TextColored(COLOR_MATCH, "%s", label.constData());
+            }else{
+                ImGui::TextUnformatted(label.constData());
+            }
+
+            if(anchor){
+                ImGui::SameLine();
+                ImGui::SetCursorScreenPos(ImVec2(outputColumn, ImGui::GetCursorScreenPos().y));
+                ed::BeginPin(ed::PinId(editorGroupPinId(row.groupKey, true)), ed::PinKind::Output);
+                ed::PinPivotAlignment(ImVec2(1.0f, 0.5f));
+                drawPinMarker(true, COLOR_UNKNOWN);
+                ed::EndPin();
+            }
             continue;
         }
 
-        if(pin.groupPath != currentGroup){
-            currentGroup = pin.groupPath;
-            ImGui::TextColored(COLOR_DIM, "%s", currentGroup.join(" > ").toUtf8().constData());
-        }
-
-        // Columns are placed relative to the start of the row, in the same coordinates
-        // that the node is drawn in.  Don't use SameLine(offset)/GetCursorPosX(): those
-        // are relative to the ImGui window, which inside the node editor is not the same
-        // space as the node, so the columns drift away from the node as it moves.
-        const ImVec2 rowStart = ImGui::GetCursorScreenPos();
-        const float eventIdColumn = PIN_SIZE + spacing + labelWidth + spacing * 2;
-        const float outputPinColumn = eventIdColumn + eventIdWidth + spacing;
+        const EventPin& pin = node.pins[row.pinIndex];
+        const PinRef ref{node.nodeId, pin.space, pin.address};
 
         // Left side: where the event comes in, if this is a consumer
+        ImGui::SetCursorScreenPos(ImVec2(left, rowY));
         ed::BeginPin(ed::PinId(editorPinId(ref, false)), ed::PinKind::Input);
         ed::PinPivotAlignment(ImVec2(0.0f, 0.5f));
         drawPinMarker(pin.direction == PinDirection::Consumer,
@@ -401,10 +635,11 @@ void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& 
         ed::EndPin();
 
         ImGui::SameLine();
+        ImGui::SetCursorScreenPos(ImVec2(x, ImGui::GetCursorScreenPos().y));
         ImGui::TextUnformatted(pin.label.toUtf8().constData());
 
         ImGui::SameLine();
-        ImGui::SetCursorScreenPos(ImVec2(rowStart.x + eventIdColumn, ImGui::GetCursorScreenPos().y));
+        ImGui::SetCursorScreenPos(ImVec2(eventIdColumn, ImGui::GetCursorScreenPos().y));
         if(pin.eventId.has_value()){
             ImGui::TextColored(COLOR_DIM, "%s", formatEventId(pin.eventId.value()).toUtf8().constData());
         }else{
@@ -413,7 +648,7 @@ void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& 
 
         // Right side: where the event goes out, if this is a producer
         ImGui::SameLine();
-        ImGui::SetCursorScreenPos(ImVec2(rowStart.x + outputPinColumn, ImGui::GetCursorScreenPos().y));
+        ImGui::SetCursorScreenPos(ImVec2(outputColumn, ImGui::GetCursorScreenPos().y));
         ed::BeginPin(ed::PinId(editorPinId(ref, true)), ed::PinKind::Output);
         ed::PinPivotAlignment(ImVec2(1.0f, 0.5f));
         drawPinMarker(pin.direction == PinDirection::Producer,
@@ -421,26 +656,37 @@ void EventGraphWidget::drawNode(const EventGraphNode& node, const QSet<PinRef>& 
         ed::EndPin();
     }
 
-    if(hidden > 0){
-        ImGui::TextColored(COLOR_DIM, "%d unconnected event(s) hidden", hidden);
-    }
-
     ImGui::PopID();
     ed::EndNode();
+
+    if(nodeMatches){
+        ed::PopStyleVar();
+        ed::PopStyleColor();
+    }
 }
 
-void EventGraphWidget::drawLinks(const QVector<EventLink>& links)
+void EventGraphWidget::drawLinks()
 {
     m_drawnLinks.clear();
 
-    for(const EventLink& link : links){
+    for(const EventLink& link : m_links){
+        auto from = m_anchors.constFind(link.from);
+        auto to = m_anchors.constFind(link.to);
+        if(from == m_anchors.constEnd() || to == m_anchors.constEnd()){
+            continue;
+        }
+        if(from->output == to->output){
+            // Both ends are in the same collapsed group
+            continue;
+        }
+
         const uint64_t linkId = editorLinkId(link);
         m_drawnLinks.insert(linkId, link);
 
         // Links where we don't know who sends the event are drawn fainter
         ed::Link(ed::LinkId(linkId),
-                 ed::PinId(editorPinId(link.from, true)),
-                 ed::PinId(editorPinId(link.to, false)),
+                 ed::PinId(from->output),
+                 ed::PinId(to->input),
                  colorForEvent(link.eventId, link.directed ? 1.0f : 0.55f),
                  link.directed ? 2.5f : 1.5f);
     }
@@ -536,7 +782,42 @@ void EventGraphWidget::drawToolbox(const ImGuiViewport* viewport)
             ed::NavigateToContent();
             ed::SetCurrentEditor(nullptr);
         }
-        ImGui::Checkbox("Show unconnected events", &m_showUnconnected);
+        ImGui::SameLine();
+        if(ImGui::Button("Collapse all")){
+            m_expandedGroups.clear();
+        }
+        ImGui::Checkbox("Only show connected events", &m_onlyConnected);
+
+        ImGui::Separator();
+        ImGui::SetNextItemWidth(260.0f);
+        if(ImGui::InputTextWithHint("##search", "Search: event name or ID", m_searchBuffer, sizeof(m_searchBuffer))){
+            m_search = EventSearch(QString::fromUtf8(m_searchBuffer));
+            m_matchCursor = -1;
+        }
+
+        if(!m_search.isEmpty()){
+            if(m_matches.isEmpty()){
+                ImGui::TextColored(COLOR_DIM, "No matching events");
+            }else{
+                ImGui::Text("%d matching events in %d nodes",
+                            static_cast<int>(m_matches.size()), static_cast<int>(m_matchingNodes.size()));
+
+                const int count = m_matchingNodes.size();
+                if(ImGui::Button("Previous")){
+                    m_matchCursor = m_matchCursor <= 0 ? count - 1 : m_matchCursor - 1;
+                    m_navigateToNode = m_matchingNodes[m_matchCursor];
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("Next")){
+                    m_matchCursor = (m_matchCursor + 1) % count;
+                    m_navigateToNode = m_matchingNodes[m_matchCursor];
+                }
+                if(m_matchCursor >= 0 && m_matchCursor < count){
+                    ImGui::SameLine();
+                    ImGui::Text("%d of %d", m_matchCursor + 1, count);
+                }
+            }
+        }
     }
     ImGui::End();
 }
@@ -582,6 +863,15 @@ uint64_t EventGraphWidget::editorPinId(const PinRef& pin, bool output)
         it = m_pinIndex.insert(pin, m_pinIndex.size());
     }
     return PIN_ID_BASE + static_cast<uint64_t>(it.value()) * 2 + (output ? 1 : 0);
+}
+
+uint64_t EventGraphWidget::editorGroupPinId(const QString& key, bool output)
+{
+    auto it = m_groupIndex.constFind(key);
+    if(it == m_groupIndex.constEnd()){
+        it = m_groupIndex.insert(key, m_groupIndex.size());
+    }
+    return GROUP_PIN_ID_BASE + static_cast<uint64_t>(it.value()) * 2 + (output ? 1 : 0);
 }
 
 uint64_t EventGraphWidget::editorLinkId(const EventLink& link)
