@@ -77,6 +77,9 @@ void ImGuiRenderer::initialize(WindowWrapper *window) {
     #ifndef QT_NO_CURSOR
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values (optional)
     io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;  // We can honor io.WantSetMousePos requests (optional, rarely used)
+    // We honor ImDrawCmd::VtxOffset, so a draw list can have more than 64k vertices
+    // with 16-bit indices(e.g. a node editor with a lot of nodes on it)
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     #endif
     io.BackendPlatformName = "qtimgui";
     
@@ -170,6 +173,11 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_ElementsHandle);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx), (const GLvoid*)cmd_list->IdxBuffer.Data, GL_STREAM_DRAW);
 
+        // Point the vertex attributes at the start of this list's vertex buffer.  Commands
+        // with a VtxOffset(lists with more than 64k vertices) move them along - see below.
+        unsigned int current_vtx_offset = 0;
+        setupVertexAttributes(0);
+
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
 
@@ -188,6 +196,15 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
 
                 // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
                 glScissor((int)(clip_min.x / sx), (int)(fb_height - clip_max.y / sy) , (int)((clip_max.x - clip_min.x) / sx) , (int)((clip_max.y - clip_min.y) / sy));
+
+                // The indices of this command are relative to VtxOffset.  Rather than
+                // needing glDrawElementsBaseVertex(GL 3.2/ES 3.2), move where the vertex
+                // attributes start in the buffer.
+                if (pcmd->VtxOffset != current_vtx_offset)
+                {
+                    setupVertexAttributes(pcmd->VtxOffset);
+                    current_vtx_offset = pcmd->VtxOffset;
+                }
 
                  // Bind texture, Draw
                 glBindTexture(GL_TEXTURE_2D, (GLuint)(size_t)pcmd->GetTexID());
@@ -242,6 +259,17 @@ bool ImGuiRenderer::createFontsTexture()
     glBindTexture(GL_TEXTURE_2D, last_texture);
 
     return true;
+}
+
+void ImGuiRenderer::setupVertexAttributes(unsigned int vtx_offset)
+{
+    // The VAO and the vertex buffer must be bound
+    const size_t base = (size_t)vtx_offset * sizeof(ImDrawVert);
+#define OFFSETOF(TYPE, ELEMENT) ((size_t)&(((TYPE *)0)->ELEMENT))
+    glVertexAttribPointer(g_AttribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)(base + OFFSETOF(ImDrawVert, pos)));
+    glVertexAttribPointer(g_AttribLocationUV, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)(base + OFFSETOF(ImDrawVert, uv)));
+    glVertexAttribPointer(g_AttribLocationColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)(base + OFFSETOF(ImDrawVert, col)));
+#undef OFFSETOF
 }
 
 bool ImGuiRenderer::createDeviceObjects()
@@ -309,11 +337,7 @@ bool ImGuiRenderer::createDeviceObjects()
     glEnableVertexAttribArray(g_AttribLocationUV);
     glEnableVertexAttribArray(g_AttribLocationColor);
 
-#define OFFSETOF(TYPE, ELEMENT) ((size_t)&(((TYPE *)0)->ELEMENT))
-    glVertexAttribPointer(g_AttribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)OFFSETOF(ImDrawVert, pos));
-    glVertexAttribPointer(g_AttribLocationUV, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)OFFSETOF(ImDrawVert, uv));
-    glVertexAttribPointer(g_AttribLocationColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)OFFSETOF(ImDrawVert, col));
-#undef OFFSETOF
+    setupVertexAttributes(0);
 
     createFontsTexture();
 

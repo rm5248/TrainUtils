@@ -51,6 +51,8 @@ private:
     void renderDrawList(ImDrawData *draw_data);
     bool createFontsTexture();
     bool createDeviceObjects();
+    /** Point the vertex attributes at vtx_offset vertices into the bound vertex buffer */
+    void setupVertexAttributes(unsigned int vtx_offset);
 
     std::unique_ptr<WindowWrapper> m_window;
     double       g_Time = 0.0f;
