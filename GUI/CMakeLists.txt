@@ -135,6 +135,10 @@ set(PROJECT_SOURCES
         lcc/cdi/eventidtype.h
         lcc/cdi/grouptype.cpp
         lcc/cdi/grouptype.h
+        lcc/cdi/cdilayout.h
+        lcc/cdi/cdilayout.cpp
+        lcc/eventgraph/eventgraphmodel.h
+        lcc/eventgraph/eventgraphmodel.cpp
         lcc/cdi/cdieditorwidget.cpp
         lcc/cdi/cdieditorwidget.h
         lcc/cdi/cdieditorwidget.ui
@@ -268,3 +272,6 @@ if(WIN32)
     )
 endif()
 
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()

@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "cdi.h"
+#include "cdilayout.h"
 #include "grouptype.h"
 #include "maptype.h"
 
@@ -84,7 +85,7 @@ private:
     };
 
     void rebuildTree();
-    void buildGroupChildren(QTreeWidgetItem* parentItem, const QVector<CDIVariant>& elements, int space, uint32_t address);
+    void buildGroupChildren(QTreeWidgetItem* parentItem, const CdiLayoutGroup& group);
     void clearFields();
     void addFieldForVariant(const CDIVariant& variant, int space, uint32_t address);
     QWidget* createFieldWidget(const CDIVariant& variant);
@@ -117,6 +118,8 @@ private:
 
     Ui::CdiEditorWidget *ui;
     CDI m_cdi;
+    // Where everything in m_cdi is stored.  The tree items point into this.
+    QVector<CdiLayoutGroup> m_layout;
     std::shared_ptr<LCCNode> m_node;
     QString m_nodeDescription;
     QVector<int> m_segmentsToRead;

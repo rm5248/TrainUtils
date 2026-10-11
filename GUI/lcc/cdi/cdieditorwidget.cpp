@@ -27,10 +27,8 @@
 
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger( "traingui.lcc.CdiEditorWidget" );
 
-// Data stored on each tree item, telling us where its elements live in memory
-static constexpr int ElementsRole = Qt::UserRole;
-static constexpr int SpaceRole = Qt::UserRole + 1;
-static constexpr int AddressRole = Qt::UserRole + 2;
+// Data stored on each tree item: the CdiLayoutGroup(in m_layout) that it shows
+static constexpr int GroupRole = Qt::UserRole;
 
 // Background of a field whose value has been changed, but not written to the node
 static const char* MODIFIED_FIELD_STYLE = "background-color: #ffb347; color: black;";
@@ -275,58 +273,25 @@ void CdiEditorWidget::rebuildTree(){
     m_pending.clear();
     updateButtons();
 
-    for(const Segment& segment : m_cdi.segments()){
+    m_layout = cdiLayout(m_cdi);
+    for(const CdiLayoutGroup& segment : std::as_const(m_layout)){
         QTreeWidgetItem* segmentItem = new QTreeWidgetItem(ui->cdiTree);
-        segmentItem->setText(0, segment.name().isEmpty() ?
-                                    tr("Space 0x%1").arg(segment.space(), 2, 16, QLatin1Char('0')) :
-                                    segment.name());
-        segmentItem->setData(0, ElementsRole,
-                              QVariant::fromValue(static_cast<void*>(
-                                  const_cast<QVector<CDIVariant>*>(&segment.elements()))));
-        segmentItem->setData(0, SpaceRole, segment.space());
-        segmentItem->setData(0, AddressRole, static_cast<uint>(segment.origin()));
-        buildGroupChildren(segmentItem, segment.elements(), segment.space(), segment.origin());
+        segmentItem->setText(0, segment.label);
+        segmentItem->setData(0, GroupRole, QVariant::fromValue(static_cast<const void*>(&segment)));
+        buildGroupChildren(segmentItem, segment);
     }
 
     ui->cdiTree->expandToDepth(0);
 }
 
-void CdiEditorWidget::buildGroupChildren(QTreeWidgetItem* parentItem, const QVector<CDIVariant>& elements, int space, uint32_t address){
-    for(const CDIVariant& variant : elements){
-        address += cdiVariantOffset(variant);
-        uint32_t elementAddress = address;
-        address += cdiVariantSize(variant);
-
-        if(!cdiVariantIsGroup(variant)){
-            // Leaf entries (int/string/eventid) are shown as fields on the
-            // right side when their containing node is selected, not as
-            // their own tree entries.
-            continue;
-        }
-
-        std::shared_ptr<GroupType> group = std::get<std::shared_ptr<GroupType>>(variant);
-        int repetitions = group->replication() > 1 ? group->replication() : 1;
-
-        if(repetitions == 1 && group->name().isEmpty() && group->elements().isEmpty()){
-            // A bare <group offset='n'/> used purely to pad/align storage -
-            // nothing to show.
-            continue;
-        }
-
-        QString label = group->repname().isEmpty() ? group->name() : group->repname();
-        int repetitionSize = cdiElementsSize(group->elements());
-
-        for(int rep = 1; rep <= repetitions; rep++){
-            uint32_t repetitionAddress = elementAddress + (rep - 1) * repetitionSize;
-            QTreeWidgetItem* item = new QTreeWidgetItem(parentItem);
-            item->setText(0, repetitions > 1 ? QStringLiteral("%1 %2").arg(label).arg(rep) : label);
-            item->setData(0, ElementsRole,
-                          QVariant::fromValue(static_cast<void*>(
-                              const_cast<QVector<CDIVariant>*>(&group->elements()))));
-            item->setData(0, SpaceRole, space);
-            item->setData(0, AddressRole, static_cast<uint>(repetitionAddress));
-            buildGroupChildren(item, group->elements(), space, repetitionAddress);
-        }
+void CdiEditorWidget::buildGroupChildren(QTreeWidgetItem* parentItem, const CdiLayoutGroup& group){
+    // Values(int/string/eventid) are shown as fields on the right side when
+    // their containing group is selected, not as their own tree entries.
+    for(const CdiLayoutGroup& child : group.children){
+        QTreeWidgetItem* item = new QTreeWidgetItem(parentItem);
+        item->setText(0, child.label);
+        item->setData(0, GroupRole, QVariant::fromValue(static_cast<const void*>(&child)));
+        buildGroupChildren(item, child);
     }
 }
 
@@ -338,26 +303,14 @@ void CdiEditorWidget::onTreeSelectionChanged(){
         return;
     }
 
-    QTreeWidgetItem* item = selected.first();
-    QVariant data = item->data(0, ElementsRole);
-    if(!data.isValid()){
+    const CdiLayoutGroup* group = static_cast<const CdiLayoutGroup*>(
+                selected.first()->data(0, GroupRole).value<const void*>());
+    if(!group){
         return;
     }
 
-    auto* elements = static_cast<QVector<CDIVariant>*>(data.value<void*>());
-    if(!elements){
-        return;
-    }
-
-    int space = item->data(0, SpaceRole).toInt();
-    uint32_t address = item->data(0, AddressRole).toUInt();
-
-    for(const CDIVariant& variant : *elements){
-        address += cdiVariantOffset(variant);
-        if(!cdiVariantIsGroup(variant)){
-            addFieldForVariant(variant, space, address);
-        }
-        address += cdiVariantSize(variant);
+    for(const CdiField& field : group->fields){
+        addFieldForVariant(field.variant, field.space, field.address);
     }
 }
 
