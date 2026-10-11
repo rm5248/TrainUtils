@@ -26,6 +26,12 @@ static void node_updated_cb(struct lcc_network_info* inf, struct lcc_node_info* 
     Q_EMIT conn->nodeInformationUpdated(lcc_node_info_get_id(new_node));
 }
 
+static void incoming_event_cb(struct lcc_context* ctx, uint16_t source_alias, uint64_t event_id){
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(ctx));
+
+    Q_EMIT conn->incomingEvent(source_alias, event_id);
+}
+
 static void incoming_datagram_cb(struct lcc_datagram_context* ctx, uint16_t source_alias, void* datagram_data, int len){
     QByteArray ba = QByteArray::fromRawData((const char*)datagram_data, len);
     lcc_context* pctx = lcc_datagram_context_parent(ctx);
@@ -143,7 +149,10 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
     struct lcc_datagram_context* datagram_ctx = lcc_datagram_context_new(m_lcc);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(m_lcc);
     struct lcc_remote_memory_context* remote_ctx = lcc_remote_memory_new(m_lcc);
-    lcc_event_new(m_lcc);
+    struct lcc_event_context* event_ctx = lcc_event_new(m_lcc);
+    // We want to know about every event on the network, not just ones that we consume
+    lcc_event_set_incoming_event_function(event_ctx, incoming_event_cb);
+    lcc_event_set_listen_all_events(event_ctx, 1);
 
     lcc_context_set_userdata(m_lcc, this);
     lcc_datagram_context_set_datagram_functions(datagram_ctx,

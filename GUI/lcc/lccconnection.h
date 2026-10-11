@@ -89,7 +89,13 @@ public:
 
 Q_SIGNALS:
     void incomingRawFrame(lcc_can_frame* frame);
-    void incomingEvent(uint64_t event_id);
+    /**
+     * Emitted for every event that is sent on the network by another node.
+     *
+     * @param source_alias The alias of the node that sent the event
+     * @param event_id
+     */
+    void incomingEvent(uint16_t source_alias, uint64_t event_id);
     void newNodeDiscovered(uint64_t node_id);
     void nodeInformationUpdated(uint64_t node_id);
     void incomingDatagram(uint16_t source_alias, QByteArray datagramData);
