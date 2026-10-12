@@ -86,6 +86,12 @@ struct remote_results{
     int write_reject_has_message;
 
     // From the memory map on node 0
+    int update_complete_count;
+    uint16_t update_complete_alias;
+    // Node 0 was told that the update is complete
+    int node_update_complete_count;
+    uint16_t node_update_complete_alias;
+
     int map_written_count;
     uint8_t map_written_space;
     uint32_t map_written_offset;
@@ -99,6 +105,10 @@ static uint16_t memory_node_alias;
 static uint16_t ack_only_node_alias;
 // A node that does not handle datagrams at all, so it never responds to anything
 static uint16_t silent_node_alias;
+// A node that handles datagrams, but none of the memory configuration commands
+static uint16_t rejecting_node_alias;
+// Node 1, which makes the requests
+static uint16_t remote_node_alias;
 
 static void remote_request_ok(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags){
 }
@@ -148,6 +158,16 @@ static void remote_write_rejected(struct lcc_remote_memory_context* ctx, uint16_
     results.write_reject_has_message = message != NULL && message[0] != 0;
 }
 
+static void remote_update_complete(struct lcc_remote_memory_context* ctx, uint16_t alias){
+    results.update_complete_count++;
+    results.update_complete_alias = alias;
+}
+
+static void node_update_complete(struct lcc_memory_context* ctx, uint16_t alias){
+    results.node_update_complete_count++;
+    results.node_update_complete_alias = alias;
+}
+
 static void map_written(struct lcc_memory_map* map, uint8_t space, uint32_t offset, uint32_t len){
     results.map_written_count++;
     results.map_written_space = space;
@@ -161,7 +181,7 @@ static void ack_only_datagram(struct lcc_datagram_context* ctx, uint16_t alias, 
 }
 
 static void setup(void){
-    struct lcc_context** ctx = lcctest_create_contexts(4);
+    struct lcc_context** ctx = lcctest_create_contexts(5);
 
     for(int x = 0; x < (int)sizeof(config_memory); x++){
         config_memory[x] = x;
@@ -179,6 +199,7 @@ static void setup(void){
     // Node 0: has memory
     lcc_datagram_context_new(ctx[0]);
     struct lcc_memory_context* memory_ctx = lcc_memory_new(ctx[0]);
+    lcc_memory_set_update_complete_function(memory_ctx, node_update_complete);
     lcc_memory_set_cdi(memory_ctx, (void*)cdi_data, strlen(cdi_data), 0);
     struct lcc_memory_map* map = lcc_memory_map_new(memory_ctx, segments);
     lcc_memory_map_set_written_callback(map, map_written);
@@ -187,6 +208,7 @@ static void setup(void){
     // Node 1: reads memory from node 0
     lcc_datagram_context_new(ctx[1]);
     remote_ctx = lcc_remote_memory_new(ctx[1]);
+    remote_node_alias = lcc_context_alias(ctx[1]);
     lcc_remote_memory_set_functions(remote_ctx,
                                     remote_request_ok,
                                     remote_request_fail,
@@ -196,6 +218,7 @@ static void setup(void){
     lcc_remote_memory_set_write_functions(remote_ctx,
                                           remote_write_ok,
                                           remote_write_rejected);
+    lcc_remote_memory_set_update_complete_function(remote_ctx, remote_update_complete);
 
     // Node 2: accepts any datagram, but doesn't do anything with it
     struct lcc_datagram_context* ack_only_ctx = lcc_datagram_context_new(ctx[2]);
@@ -204,6 +227,10 @@ static void setup(void){
 
     // Node 3: no datagram handling, so it ignores memory requests
     silent_node_alias = lcc_context_alias(ctx[3]);
+
+    // Node 4: handles datagrams, but not memory configuration, so it rejects them
+    lcc_datagram_context_new(ctx[4]);
+    rejecting_node_alias = lcc_context_alias(ctx[4]);
 
     lcctest_pump_frames();
     memset(&results, 0, sizeof(results));
@@ -711,6 +738,56 @@ static int request_cancel_write(void){
     return 0;
 }
 
+/*
+ * Tell a node that we are done writing to it, so it can use the new configuration
+ */
+static int update_complete(void){
+    const uint8_t data[] = { 0x42 };
+
+    setup();
+
+    CHECK(write_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 7, data, sizeof(data)) == LCC_OK);
+    CHECK(check_write_ok(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 7) == 0);
+
+    memset(&results, 0, sizeof(results));
+    CHECK(lcc_remote_memory_update_complete(remote_ctx, memory_node_alias) == LCC_OK);
+    lcctest_pump_frames();
+
+    CHECK(results.fail_count == 0);
+    CHECK(results.update_complete_count == 1);
+    CHECK(results.update_complete_alias == memory_node_alias);
+    // The node was told
+    CHECK(results.node_update_complete_count == 1);
+    CHECK(results.node_update_complete_alias == remote_node_alias);
+
+    // We can do something else afterwards
+    CHECK(read_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 7, 1) == LCC_OK);
+    CHECK(check_read(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 7, data, 1) == 0);
+
+    return 0;
+}
+
+/*
+ * A node that doesn't understand the update complete rejects it
+ */
+static int update_complete_rejected(void){
+    setup();
+
+    memset(&results, 0, sizeof(results));
+    CHECK(lcc_remote_memory_update_complete(remote_ctx, rejecting_node_alias) == LCC_OK);
+    lcctest_pump_frames();
+
+    CHECK(results.update_complete_count == 0);
+    CHECK(results.fail_count == 1);
+    CHECK(lcc_remote_memory_current_alias_request(remote_ctx) == 0);
+
+    // The rejection doesn't stop other requests
+    CHECK(read_space(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, 4) == LCC_OK);
+    CHECK(check_read(LCC_MEMORY_SPACE_CONFIGURATION_SPACE, 0, config_memory, 4) == 0);
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     if(argc < 2) return 1;
 
@@ -762,6 +839,10 @@ int main(int argc, char** argv){
         return test_write_invalid_length();
     }else if(strcmp(argv[1], "write-no-reply-pending") == 0){
         return test_write_no_reply_pending();
+    }else if(strcmp(argv[1], "update-complete") == 0){
+        return update_complete();
+    }else if(strcmp(argv[1], "update-complete-rejected") == 0){
+        return update_complete_rejected();
     }else if(strcmp(argv[1], "request-cancel") == 0){
         return request_cancel();
     }else if(strcmp(argv[1], "request-cancel-write") == 0){

@@ -78,6 +78,17 @@ int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot re
 int lcc_memory_set_factory_reset_function(struct lcc_memory_context* ctx, lcc_factory_reset reset_fn);
 
 /**
+ * Set a function that will be called when a configuration tool says that it is done
+ * changing our configuration(the 'Update Complete' command).  The command is
+ * accepted whether or not a function is set.
+ *
+ * @param ctx
+ * @param update_complete_fn
+ * @return
+ */
+int lcc_memory_set_update_complete_function(struct lcc_memory_context* ctx, lcc_update_complete update_complete_fn);
+
+/**
  * Set functions for reading/writing/querying memory on the device.
  *
  * @param ctx

@@ -54,6 +54,7 @@ int lcc_remote_memory_read_single_transfer(struct lcc_remote_memory_context* ctx
 
     ctx->current_requesting_alias = alias;
     ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 0;
     memset(&datagram_ctx->datagram_buffer, 0, sizeof(datagram_ctx->datagram_buffer));
 
     uint8_t tx_data[8];
@@ -118,12 +119,55 @@ int lcc_remote_memory_write_single_transfer(struct lcc_remote_memory_context* ct
 
     ctx->current_requesting_alias = alias;
     ctx->current_request_is_write = 1;
+    ctx->current_request_is_update_complete = 0;
     ctx->current_write_space = space;
     ctx->current_write_address = starting_address;
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
                                tx_data, data_offset + data_len);
+}
+
+int lcc_remote_memory_update_complete(struct lcc_remote_memory_context* ctx, int alias){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    if(ctx->parent->datagram_context == NULL){
+        return LCC_ERROR_NO_DATAGRAM_HANDLING;
+    }
+
+    if(ctx->current_requesting_alias != 0){
+        // Only one memory request can be outstanding at a time
+        return LCC_ERROR_MEMORY_TX_IN_PROGRESS;
+    }
+
+    if(lcc_datagram_transfer_in_progress(ctx->parent->datagram_context)){
+        return LCC_ERROR_DATAGRAM_IN_PROGRESS;
+    }
+
+    uint8_t tx_data[2];
+    tx_data[0] = 0x20;
+    tx_data[1] = 0xA8;
+
+    ctx->current_requesting_alias = alias;
+    ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 1;
+
+    return lcc_datagram_load_and_send(ctx->parent->datagram_context,
+                               alias,
+                               tx_data, 2);
+}
+
+int lcc_remote_memory_set_update_complete_function(struct lcc_remote_memory_context* ctx,
+                                                   lcc_remote_memory_update_complete_ok update_complete_ok){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->update_complete_ok = update_complete_ok;
+
+    return LCC_OK;
 }
 
 int lcc_remote_memory_get_address_space_information(struct lcc_remote_memory_context* ctx, int alias, uint8_t space){
@@ -137,6 +181,7 @@ int lcc_remote_memory_get_address_space_information(struct lcc_remote_memory_con
     tx_data[2] = space;
     ctx->current_requesting_alias = alias;
     ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 0;
 
     return lcc_datagram_load_and_send(ctx->parent->datagram_context,
                                alias,
@@ -221,6 +266,7 @@ int lcc_remote_memory_try_handle_datagram(struct lcc_remote_memory_context* ctx,
 
     ctx->current_requesting_alias = 0;
     ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 0;
 
     if(is_failure){
         uint16_t error_code = 0;
@@ -330,6 +376,13 @@ int lcc_remote_memory_handle_datagram_rx_ok(struct lcc_remote_memory_context* ct
         if(ctx->write_ok){
             ctx->write_ok(ctx, alias, space, address);
         }
+    }else if(ctx->current_request_is_update_complete){
+        // There's no reply to an update complete, so it's done once it's accepted
+        ctx->current_requesting_alias = 0;
+        ctx->current_request_is_update_complete = 0;
+        if(ctx->update_complete_ok){
+            ctx->update_complete_ok(ctx, alias);
+        }
     }
 
     return 1;
@@ -342,6 +395,7 @@ int lcc_remote_memory_handle_datagram_rejected(struct lcc_remote_memory_context*
 
     ctx->current_requesting_alias = 0;
     ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 0;
     if(ctx->remote_request_fail){
         ctx->remote_request_fail(ctx, alias, error_code, optional_data, optional_len);
     }
@@ -356,6 +410,7 @@ int lcc_remote_memory_cancel_request(struct lcc_remote_memory_context* ctx){
 
     ctx->current_requesting_alias = 0;
     ctx->current_request_is_write = 0;
+    ctx->current_request_is_update_complete = 0;
 
     return LCC_OK;
 }

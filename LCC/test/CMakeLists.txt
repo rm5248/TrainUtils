@@ -50,6 +50,8 @@ add_test( NAME memory-write-missing-space COMMAND lcc-test-memory-map write-miss
 add_test( NAME memory-write-out-of-range COMMAND lcc-test-memory-map write-out-of-range )
 add_test( NAME memory-write-invalid-length COMMAND lcc-test-memory-map write-invalid-length )
 add_test( NAME memory-write-no-reply-pending COMMAND lcc-test-memory-map write-no-reply-pending )
+add_test( NAME memory-update-complete COMMAND lcc-test-memory-map update-complete )
+add_test( NAME memory-update-complete-rejected COMMAND lcc-test-memory-map update-complete-rejected )
 add_test( NAME memory-request-cancel COMMAND lcc-test-memory-map request-cancel )
 add_test( NAME memory-request-cancel-write COMMAND lcc-test-memory-map request-cancel-write )
 

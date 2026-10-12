@@ -57,6 +57,26 @@ int lcc_remote_memory_read_single_transfer(struct lcc_remote_memory_context* ctx
 int lcc_remote_memory_write_single_transfer(struct lcc_remote_memory_context* ctx, int alias, uint8_t space, uint32_t starting_address, const void* data, int data_len);
 
 /**
+ * Tell the node that we are done writing to its configuration, so that it can start
+ * using the new configuration.  Send this after a set of writes.
+ *
+ * When the node accepts the command, the update_complete_ok function is called(see
+ * lcc_remote_memory_set_update_complete_function).  If the node rejects it, the
+ * remote_fail function is called.
+ *
+ * @param ctx
+ * @param alias
+ * @return
+ */
+int lcc_remote_memory_update_complete(struct lcc_remote_memory_context* ctx, int alias);
+
+/**
+ * Set the function that is called when a node accepts an 'Update Complete' command.
+ */
+int lcc_remote_memory_set_update_complete_function(struct lcc_remote_memory_context* ctx,
+                                                   lcc_remote_memory_update_complete_ok update_complete_ok);
+
+/**
  * Send a request to the specified node alias for memory space information.
  *
  * @param ctx

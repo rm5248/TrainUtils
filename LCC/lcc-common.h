@@ -139,6 +139,15 @@ typedef void (*lcc_reboot)(struct lcc_memory_context* ctx);
 typedef void (*lcc_factory_reset)(struct lcc_memory_context* ctx);
 
 /**
+ * A function that will be called when the node that has been configuring us
+ * says that it is done(the 'Update Complete' command), so the new configuration
+ * can be used.
+ *
+ * @param alias The node that sent the command
+ */
+typedef void (*lcc_update_complete)(struct lcc_memory_context* ctx, uint16_t alias);
+
+/**
  * A function that will be called after requesting remote memory information.
  * Corresponds to receiving a 'Datagram Received OK' message(Memory Configuration
  * Standard, section 4.4).
@@ -186,6 +195,11 @@ typedef void (*lcc_remote_memory_write_ok)(struct lcc_remote_memory_context* ctx
  *
  * @param message An optional message from the node about the failure.  May be NULL.
  */
+/**
+ * A function that will be called when the remote node has accepted an 'Update Complete' command.
+ */
+typedef void (*lcc_remote_memory_update_complete_ok)(struct lcc_remote_memory_context* ctx, uint16_t alias);
+
 typedef void (*lcc_remote_memory_write_rejected)(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
 
 typedef void (*lcc_firmware_upgrade_start)(struct lcc_firmware_upgrade_context* ctx);

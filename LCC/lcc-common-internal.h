@@ -97,6 +97,7 @@ struct lcc_memory_context{
     lcc_address_space_write write_fn;
     lcc_reboot reboot_fn;
     lcc_factory_reset factory_reset_fn;
+    lcc_update_complete update_complete_fn;
     void* user_data;
 };
 
@@ -109,7 +110,10 @@ struct lcc_remote_memory_context{
     lcc_remote_memory_information remote_memory_info;
     lcc_remote_memory_write_ok write_ok;
     lcc_remote_memory_write_rejected write_rejected;
+    lcc_remote_memory_update_complete_ok update_complete_ok;
     int16_t current_requesting_alias;
+    // The current request is an 'Update Complete' command
+    uint8_t current_request_is_update_complete;
     // Information about the current write, if the current request is a write
     uint8_t current_request_is_write;
     uint8_t current_write_space;

@@ -85,6 +85,16 @@ int lcc_memory_set_reboot_function(struct lcc_memory_context* ctx, lcc_reboot re
     return LCC_OK;
 }
 
+int lcc_memory_set_update_complete_function(struct lcc_memory_context* ctx, lcc_update_complete update_complete_fn){
+    if(ctx == NULL){
+        return LCC_ERROR_INVALID_ARG;
+    }
+
+    ctx->update_complete_fn = update_complete_fn;
+
+    return LCC_OK;
+}
+
 int lcc_memory_set_factory_reset_function(struct lcc_memory_context* ctx, lcc_factory_reset reset_fn){
     if(ctx == NULL){
         return LCC_ERROR_INVALID_ARG;
@@ -420,7 +430,15 @@ int lcc_memory_try_handle_datagram(struct lcc_memory_context* ctx, uint16_t alia
         return 0;
     }
 
-    if(data[1] == 0xA9){
+    if(data[1] == 0xA8){
+        // Update complete: the configuration tool is done writing to us.  There's no
+        // reply datagram, just the 'datagram received OK'.
+        lcc_datagram_respond_rxok(ctx->parent->datagram_context, alias, 0);
+        if(ctx->update_complete_fn){
+            ctx->update_complete_fn(ctx, alias);
+        }
+        return 1;
+    }else if(data[1] == 0xA9){
         // Reboot command
         return lcc_handle_reboot(ctx);
     }else if(data[1] == 0xAA){
