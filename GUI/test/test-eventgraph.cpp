@@ -491,6 +491,120 @@ static int search_event_id(){
     return 0;
 }
 
+/*
+ * A staged change shows up in the links, but the node's value is unchanged
+ */
+static int stage_connect(){
+    EventGraphModel model;
+    model.setNode(makeNode(NODE_A));
+    model.setNode(makeNode(NODE_B));
+    model.setPinEventId(ref(NODE_A, 0), EVENT_1);
+    model.setPinEventId(ref(NODE_B, 0), EVENT_2);
+    CHECK(model.links().isEmpty());
+
+    EventWrite write;
+    CHECK(model.connect(ref(NODE_A, 0), ref(NODE_B, 0), &write) == ConnectResult::Ok);
+    model.stageEventId(write.pin, write.eventId);
+
+    CHECK(model.isStaged(ref(NODE_B, 0)));
+    CHECK(model.eventId(ref(NODE_B, 0)) == EVENT_1);
+    CHECK(model.pin(ref(NODE_B, 0))->eventId == EVENT_2);
+    CHECK(model.stagedEventIds().size() == 1);
+
+    QVector<EventLink> links = model.links();
+    CHECK(links.size() == 1);
+    CHECK(links[0].pending);
+    CHECK(links[0].eventId == EVENT_1);
+
+    // Once the node has the new event ID, the change is done and the link is real
+    model.setPinEventId(ref(NODE_B, 0), EVENT_1);
+    CHECK(!model.isStaged(ref(NODE_B, 0)));
+    CHECK(model.links().size() == 1);
+    CHECK(!model.links()[0].pending);
+
+    return 0;
+}
+
+/*
+ * Links between pins that haven't been changed are not pending
+ */
+static int stage_existing_links(){
+    EventGraphModel model;
+    model.setNode(makeNode(NODE_A));
+    model.setNode(makeNode(NODE_B));
+    model.setNode(makeNode(NODE_C));
+    model.setPinEventId(ref(NODE_A, 0), EVENT_1);
+    model.setPinEventId(ref(NODE_B, 0), EVENT_1);
+    model.setPinEventId(ref(NODE_C, 0), EVENT_2);
+    model.eventObserved(NODE_A, EVENT_1);
+
+    // Connect C to A as well
+    model.stageEventId(ref(NODE_C, 0), EVENT_1);
+    QVector<EventLink> links = model.links();
+    CHECK(links.size() == 2);
+    CHECK(links[0].to == ref(NODE_B, 0));
+    CHECK(!links[0].pending);
+    CHECK(links[1].to == ref(NODE_C, 0));
+    CHECK(links[1].pending);
+
+    return 0;
+}
+
+static int stage_disconnect(){
+    EventGraphModel model;
+    model.setNode(makeNode(NODE_A));
+    model.setNode(makeNode(NODE_B));
+    model.setPinEventId(ref(NODE_A, 0), EVENT_1);
+    model.setPinEventId(ref(NODE_B, 0), EVENT_1);
+    CHECK(model.links().size() == 1);
+
+    EventWrite write = model.disconnect(ref(NODE_B, 0));
+    model.stageEventId(write.pin, write.eventId);
+    CHECK(model.links().isEmpty());
+    CHECK(model.eventId(ref(NODE_B, 0)) == EventGraphModel::NULL_EVENT_ID);
+
+    // Undo
+    model.unstage(ref(NODE_B, 0));
+    CHECK(model.links().size() == 1);
+
+    // Staging what the node already has is not a change
+    model.stageEventId(ref(NODE_B, 0), EVENT_1);
+    CHECK(!model.isStaged(ref(NODE_B, 0)));
+
+    model.stageEventId(ref(NODE_B, 0), EVENT_2);
+    model.stageEventId(ref(NODE_A, 0), EVENT_2);
+    model.clearStaged();
+    CHECK(model.stagedEventIds().isEmpty());
+
+    return 0;
+}
+
+/*
+ * Connecting works on what is shown, so changes can be made on top of other changes
+ */
+static int stage_chained(){
+    EventGraphModel model;
+    model.setNode(makeNode(NODE_A));
+    model.setNode(makeNode(NODE_B));
+    model.setNode(makeNode(NODE_C));
+    model.setPinEventId(ref(NODE_A, 0), EVENT_1);
+    model.setPinEventId(ref(NODE_B, 0), EventGraphModel::NULL_EVENT_ID);
+    model.setPinEventId(ref(NODE_C, 0), EVENT_2);
+
+    model.stageEventId(ref(NODE_B, 0), EVENT_1);
+
+    // B looks like it has EVENT_1 now, so connecting B to C copies EVENT_1
+    EventWrite write;
+    CHECK(model.connect(ref(NODE_B, 0), ref(NODE_C, 0), &write) == ConnectResult::Ok);
+    CHECK(write.pin == ref(NODE_C, 0));
+    CHECK(write.eventId == EVENT_1);
+
+    // ...and A and B look connected already
+    CHECK(model.connect(ref(NODE_A, 0), ref(NODE_B, 0), &write) == ConnectResult::AlreadyConnected);
+
+    return 0;
+}
+
 static int storage_round_trip(){
     EventGraphLayout layout;
     layout.positions[NODE_A] = QPointF(10.5, -20);
@@ -535,6 +649,10 @@ int main(int argc, char** argv){
         {"pin-tree", pin_tree},
         {"search-name", search_name},
         {"search-event-id", search_event_id},
+        {"stage-connect", stage_connect},
+        {"stage-existing-links", stage_existing_links},
+        {"stage-disconnect", stage_disconnect},
+        {"stage-chained", stage_chained},
     };
 
     for(const auto& test : tests){

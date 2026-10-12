@@ -62,6 +62,38 @@ public:
      */
     void reloadNode(uint64_t nodeId);
 
+    /**
+     * Change an event ID in the graph(to connect or disconnect pins), without
+     * writing it to the node.  See applyChanges().
+     */
+    void stageWrite(const EventWrite& write);
+    void unstage(const PinRef& pin);
+    void discardChanges();
+
+    /**
+     * Write all of the staged changes to the nodes.  A change is removed from the
+     * staged changes once the node has it, so failed changes are left to try again.
+     *
+     * @param errors Why changes could not be written
+     * @return How many changes are being written
+     */
+    int applyChanges(QStringList* errors = nullptr);
+
+    /**
+     * Write an event ID to a node.  The model is updated once the node has it.
+     *
+     * @param error Why the write could not be started
+     * @param sendUpdateComplete Tell the node that we are done after writing
+     * @return false if the write could not be started
+     */
+    bool writeEventId(const EventWrite& write, QString* error = nullptr, bool sendUpdateComplete = true);
+
+    /** An event ID is being written to the pin */
+    bool isWritePending(const PinRef& pin) const;
+
+    /** A description of a pin for the user, e.g. "Signal Board: Port I/O/Line 3/Event when on" */
+    QString pinDescription(const PinRef& pin) const;
+
 Q_SIGNALS:
     /** Something in the model changed */
     void modelChanged();
@@ -74,6 +106,9 @@ Q_SIGNALS:
      * @param sendingPins The pins of the sending node that have the event ID
      */
     void eventSeen(uint64_t nodeId, uint64_t eventId, QVector<PinRef> sendingPins);
+
+    /** Writing to a node failed */
+    void writeFailed(QString message);
 
 private Q_SLOTS:
     void nodeDiscovered(uint64_t nodeId);
@@ -90,6 +125,8 @@ private:
     void readEventIds(uint64_t nodeId);
     void spaceRead(uint64_t nodeId, int space, const QString& error);
     void updatePinsFromMemory(uint64_t nodeId, int space);
+    void writeFinished(uint64_t nodeId, int space, uint32_t address, const QString& error);
+    void sendUpdateComplete(uint64_t nodeId);
     void setStatus(uint64_t nodeId, NodeLoadState state, const QString& error = QString());
     QString cdiCacheKey(uint64_t nodeId);
 
@@ -103,6 +140,8 @@ private:
     QSet<uint64_t> m_forceMemoryRead;
     /** Spaces that we still need to read, per node */
     QMap<uint64_t, QSet<int>> m_spacesToRead;
+    /** Event IDs being written to pins */
+    QMap<PinRef, uint64_t> m_pendingWrites;
 };
 
 #endif // EVENTGRAPHCONTROLLER_H

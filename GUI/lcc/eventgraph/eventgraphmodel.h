@@ -96,6 +96,8 @@ struct EventLink {
     PinRef to;
     /** true if 'from' is known to be the producer of the event */
     bool directed = false;
+    /** true if the link comes from a change that has not been written to the nodes yet */
+    bool pending = false;
 };
 
 /**
@@ -123,6 +125,9 @@ enum class ConnectResult {
  * stored: two pins are linked if they have the same(non-null) event ID, so the
  * links always match what is actually in the nodes.
  *
+ * Changes can be staged: a staged event ID is used instead of the event ID in the
+ * node(for links and connecting pins) until it has been written to the node.
+ *
  * This class does not do any I/O: it says what needs to be written, and is told
  * what has been read.
  */
@@ -144,6 +149,7 @@ public:
 
     /**
      * Set the event ID of a pin, after it was read from or written to the node.
+     * A staged change to the same event ID is done, so it is removed.
      *
      * @return false if there is no such pin
      */
@@ -186,6 +192,23 @@ public:
     int linkCount(const PinRef& pin) const;
 
     /**
+     * Change the event ID of a pin in the graph, without writing it to the node.
+     * Staging the event ID that the node already has removes the change.
+     */
+    void stageEventId(const PinRef& pin, uint64_t eventId);
+    void unstage(const PinRef& pin);
+    void clearStaged();
+    /** The changes that have not been written to the nodes */
+    QMap<PinRef, uint64_t> stagedEventIds() const;
+    bool isStaged(const PinRef& pin) const;
+
+    /**
+     * The event ID of the pin as shown in the graph: the staged one if there is
+     * one, otherwise the one in the node.
+     */
+    std::optional<uint64_t> eventId(const PinRef& pin) const;
+
+    /**
      * Directions that have been learned, by model key and then field path.
      * Used to save and restore what has been learned.
      */
@@ -206,6 +229,7 @@ private:
     QMap<uint64_t, EventGraphNode> m_nodes;
     QMap<uint64_t, IdentifiedEvents> m_identified;
     QMap<QString, QMap<QString, PinDirection>> m_learned;
+    QMap<PinRef, uint64_t> m_staged;
 };
 
 /**

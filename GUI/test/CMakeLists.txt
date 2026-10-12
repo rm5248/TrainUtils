@@ -38,6 +38,10 @@ foreach(test_name
         storage-round-trip
         pin-tree
         search-name
-        search-event-id)
+        search-event-id
+        stage-connect
+        stage-existing-links
+        stage-disconnect
+        stage-chained)
     add_test(NAME eventgraph-${test_name} COMMAND train-gui-test-eventgraph ${test_name})
 endforeach()

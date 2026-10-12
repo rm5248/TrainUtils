@@ -91,6 +91,14 @@ private:
     void drawPinMarker(bool filled, ImU32 color);
     void drawGroupToggle(const NodeRow& row);
     void drawLinks();
+    /** Dragging from one pin to another connects them */
+    void handleCreateLink();
+    /** Deleting a link asks which end to disconnect */
+    void handleDeleteLink();
+    void drawLinkMenu();
+    /** The pin that a node editor pin ID is for, if it's a pin(not a group) */
+    bool pinForEditorPin(uint64_t editorPin, PinRef* pin) const;
+    void showError(const QString& error);
     void drawContextMenus();
     void drawToolbox(const struct ImGuiViewport* viewport);
     void drawHoveredLinkTooltip();
@@ -156,6 +164,13 @@ private:
     QHash<uint64_t, EventLink> m_drawnLinks;
     /** The node that was right-clicked */
     uint64_t m_contextNodeId = 0;
+    /** The pins of m_pinIndex, by index */
+    QVector<PinRef> m_pinsByIndex;
+    /** The link to show the disconnect menu for */
+    EventLink m_menuLink;
+    bool m_openLinkMenu = false;
+    /** Problems writing to nodes, newest last */
+    QStringList m_errors;
 };
 
 #endif // EVENTGRAPHWIDGET_H

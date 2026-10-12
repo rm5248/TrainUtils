@@ -30,6 +30,16 @@ QString EventGraphNode::modelKey() const{
 void EventGraphModel::setNode(const EventGraphNode& node){
     EventGraphNode& stored = m_nodes[node.nodeId];
     stored = node;
+
+    // Changes to pins that the node no longer has can't be applied
+    for(auto it = m_staged.begin(); it != m_staged.end(); ){
+        if(it.key().nodeId == node.nodeId && !pin(it.key())){
+            it = m_staged.erase(it);
+        }else{
+            ++it;
+        }
+    }
+
     applyLearned(stored);
     applyIdentified(stored);
 }
@@ -37,6 +47,13 @@ void EventGraphModel::setNode(const EventGraphNode& node){
 void EventGraphModel::removeNode(uint64_t nodeId){
     m_nodes.remove(nodeId);
     m_identified.remove(nodeId);
+    for(auto it = m_staged.begin(); it != m_staged.end(); ){
+        if(it.key().nodeId == nodeId){
+            it = m_staged.erase(it);
+        }else{
+            ++it;
+        }
+    }
 }
 
 QVector<uint64_t> EventGraphModel::nodeIds() const{
@@ -94,6 +111,10 @@ bool EventGraphModel::setPinEventId(const PinRef& ref, uint64_t eventId){
     }
 
     p->eventId = eventId;
+    if(m_staged.contains(ref) && m_staged.value(ref) == eventId){
+        // The change has been written
+        m_staged.remove(ref);
+    }
     applyIdentified(m_nodes[ref.nodeId]);
     return true;
 }
@@ -144,6 +165,7 @@ QVector<EventLink> EventGraphModel::links() const{
     struct GroupPin {
         PinRef ref;
         bool producer;
+        bool staged;
 
         bool operator<(const GroupPin& other) const{ return ref < other.ref; }
     };
@@ -152,10 +174,13 @@ QVector<EventLink> EventGraphModel::links() const{
     QMap<uint64_t, QVector<GroupPin>> groups;
     for(const EventGraphNode& n : m_nodes){
         for(const EventPin& p : n.pins){
-            if(p.eventId.has_value() && p.eventId.value() != NULL_EVENT_ID){
-                groups[p.eventId.value()].push_back(
-                            GroupPin{PinRef{n.nodeId, p.space, p.address},
-                                     p.direction == PinDirection::Producer});
+            const PinRef ref{n.nodeId, p.space, p.address};
+            auto staged = m_staged.constFind(ref);
+            const bool isStaged = staged != m_staged.constEnd();
+            std::optional<uint64_t> id = isStaged ? std::optional<uint64_t>(staged.value()) : p.eventId;
+            if(id.has_value() && id.value() != NULL_EVENT_ID){
+                groups[id.value()].push_back(
+                            GroupPin{ref, p.direction == PinDirection::Producer, isStaged});
             }
         }
     }
@@ -168,25 +193,27 @@ QVector<EventLink> EventGraphModel::links() const{
         }
         std::sort(pins.begin(), pins.end());
 
-        QVector<PinRef> producers;
-        QVector<PinRef> others;
+        QVector<GroupPin> producers;
+        QVector<GroupPin> others;
         for(const GroupPin& p : pins){
-            (p.producer ? producers : others).push_back(p.ref);
+            (p.producer ? producers : others).push_back(p);
         }
 
         if(!producers.isEmpty() && !others.isEmpty()){
             // Every producer sends to everything else
-            for(const PinRef& producer : producers){
-                for(const PinRef& other : others){
-                    result.push_back(EventLink{it.key(), producer, other, true});
+            for(const GroupPin& producer : producers){
+                for(const GroupPin& other : others){
+                    result.push_back(EventLink{it.key(), producer.ref, other.ref, true,
+                                               producer.staged || other.staged});
                 }
             }
         }else{
             // We don't know who sends the event(or everybody does), so connect
             // everything to one pin so that the group is still shown as connected
-            const PinRef& hub = pins.first().ref;
+            const GroupPin& hub = pins.first();
             for(int x = 1; x < pins.size(); x++){
-                result.push_back(EventLink{it.key(), hub, pins[x].ref, false});
+                result.push_back(EventLink{it.key(), hub.ref, pins[x].ref, false,
+                                           hub.staged || pins[x].staged});
             }
         }
     }
@@ -204,12 +231,15 @@ ConnectResult EventGraphModel::connect(const PinRef& from, const PinRef& to, Eve
     if(from == to){
         return ConnectResult::SamePin;
     }
-    if(!fromPin->eventId.has_value() || !toPin->eventId.has_value()){
+    // Use what is shown in the graph, so changes can be made on top of other changes
+    const std::optional<uint64_t> fromEventId = eventId(from);
+    const std::optional<uint64_t> toEventId = eventId(to);
+    if(!fromEventId.has_value() || !toEventId.has_value()){
         return ConnectResult::ValueUnknown;
     }
 
-    uint64_t fromId = fromPin->eventId.value();
-    uint64_t toId = toPin->eventId.value();
+    uint64_t fromId = fromEventId.value();
+    uint64_t toId = toEventId.value();
     if(fromId == NULL_EVENT_ID && toId == NULL_EVENT_ID){
         return ConnectResult::BothEmpty;
     }
@@ -247,6 +277,46 @@ int EventGraphModel::linkCount(const PinRef& ref) const{
         }
     }
     return count;
+}
+
+void EventGraphModel::stageEventId(const PinRef& ref, uint64_t eventId){
+    const EventPin* p = pin(ref);
+    if(!p){
+        return;
+    }
+
+    if(p->eventId == eventId){
+        // That's what the node has already
+        m_staged.remove(ref);
+    }else{
+        m_staged.insert(ref, eventId);
+    }
+}
+
+void EventGraphModel::unstage(const PinRef& ref){
+    m_staged.remove(ref);
+}
+
+void EventGraphModel::clearStaged(){
+    m_staged.clear();
+}
+
+QMap<PinRef, uint64_t> EventGraphModel::stagedEventIds() const{
+    return m_staged;
+}
+
+bool EventGraphModel::isStaged(const PinRef& ref) const{
+    return m_staged.contains(ref);
+}
+
+std::optional<uint64_t> EventGraphModel::eventId(const PinRef& ref) const{
+    auto staged = m_staged.constFind(ref);
+    if(staged != m_staged.constEnd()){
+        return staged.value();
+    }
+
+    const EventPin* p = pin(ref);
+    return p ? p->eventId : std::nullopt;
 }
 
 QMap<QString, QMap<QString, PinDirection>> EventGraphModel::learnedDirections() const{

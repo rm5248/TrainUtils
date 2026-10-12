@@ -44,18 +44,12 @@ static const ImVec4 COLOR_ERROR(1.0f, 0.45f, 0.4f, 1.0f);
 // Things that match the search
 static const ImVec4 COLOR_MATCH(1.0f, 0.8f, 0.25f, 1.0f);
 static const ImU32 COLOR_MATCH_BACKGROUND = IM_COL32(255, 200, 60, 70);
-
-/**
- * A color for an event, so that the lines for different events can be told apart.
- */
-static ImVec4 colorForEvent(uint64_t eventId, float alpha){
-    // Mix the bits so that sequential event IDs get very different colors
-    uint64_t h = eventId * 0x9E3779B97F4A7C15ull;
-    float hue = static_cast<float>((h >> 40) % 360) / 360.0f;
-    float r, g, b;
-    ImGui::ColorConvertHSVtoRGB(hue, 0.55f, 0.95f, r, g, b);
-    return ImVec4(r, g, b, alpha);
-}
+// Changes that have not been written to the nodes yet: the same as the CDI editor's changed fields
+static const ImVec4 COLOR_CHANGED(1.0f, 0.70f, 0.28f, 1.0f);
+static const ImU32 COLOR_CHANGED_BACKGROUND = IM_COL32(255, 179, 71, 255);
+// Lines for events that are really connected
+static const ImVec4 COLOR_LINK(0.62f, 0.62f, 0.62f, 1.0f);
+static const ImVec4 COLOR_LINK_UNDIRECTED(0.62f, 0.62f, 0.62f, 0.6f);
 
 static QString formatNodeId(uint64_t nodeId){
     char buffer[20];
@@ -94,6 +88,8 @@ EventGraphWidget::EventGraphWidget(std::shared_ptr<LCCConnection> conn, QWidget*
             &m_saveTimer, QOverload<>::of(&QTimer::start));
     connect(m_controller.get(), &EventGraphController::modelChanged,
             this, [this](){ m_modelVersion++; });
+    connect(m_controller.get(), &EventGraphController::writeFailed,
+            this, &EventGraphWidget::showError);
 
     m_controller->start();
 }
@@ -250,6 +246,8 @@ void EventGraphWidget::drawFrame()
         drawNode(*model.node(nodeId));
     }
     drawLinks();
+    handleCreateLink();
+    handleDeleteLink();
     drawContextMenus();
 
     if(m_navigateToNode != 0){
@@ -645,8 +643,20 @@ void EventGraphWidget::drawNode(const EventGraphNode& node)
 
         ImGui::SameLine();
         ImGui::SetCursorScreenPos(ImVec2(eventIdColumn, ImGui::GetCursorScreenPos().y));
-        if(pin.eventId.has_value()){
-            ImGui::TextColored(COLOR_DIM, "%s", formatEventId(pin.eventId.value()).toUtf8().constData());
+        const std::optional<uint64_t> shownEventId = m_controller->model().eventId(ref);
+        if(m_controller->isWritePending(ref)){
+            ImGui::TextColored(COLOR_CHANGED, "writing...");
+        }else if(m_controller->model().isStaged(ref)){
+            // Changed, but not written yet
+            const QByteArray text = formatEventId(shownEventId.value_or(0)).toUtf8();
+            const ImVec2 pos = ImGui::GetCursorScreenPos();
+            const ImVec2 size = ImGui::CalcTextSize(text.constData());
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(pos.x - 2.0f, pos.y - 1.0f),
+                                                      ImVec2(pos.x + size.x + 2.0f, pos.y + size.y + 1.0f),
+                                                      COLOR_CHANGED_BACKGROUND, 2.0f);
+            ImGui::TextColored(ImVec4(0.0f, 0.0f, 0.0f, 1.0f), "%s", text.constData());
+        }else if(shownEventId.has_value()){
+            ImGui::TextColored(COLOR_DIM, "%s", formatEventId(shownEventId.value()).toUtf8().constData());
         }else{
             ImGui::TextColored(COLOR_DIM, "...");
         }
@@ -688,12 +698,166 @@ void EventGraphWidget::drawLinks()
         const uint64_t linkId = editorLinkId(link);
         m_drawnLinks.insert(linkId, link);
 
-        // Links where we don't know who sends the event are drawn fainter
+        // Changes that haven't been written are the same color as the CDI editor's
+        // changed fields.  Links where we don't know who sends the event are thinner.
+        ImVec4 color = COLOR_CHANGED;
+        if(!link.pending){
+            color = link.directed ? COLOR_LINK : COLOR_LINK_UNDIRECTED;
+        }
         ed::Link(ed::LinkId(linkId),
                  ed::PinId(from->output),
                  ed::PinId(to->input),
-                 colorForEvent(link.eventId, link.directed ? 1.0f : 0.55f),
+                 color,
                  link.directed ? 2.5f : 1.5f);
+    }
+}
+
+bool EventGraphWidget::pinForEditorPin(uint64_t editorPin, PinRef* pin) const
+{
+    if(editorPin < PIN_ID_BASE || editorPin >= LINK_ID_BASE){
+        // Not a pin, or the header of a collapsed group
+        return false;
+    }
+
+    const qsizetype index = (editorPin - PIN_ID_BASE) / 2;
+    if(index >= m_pinsByIndex.size()){
+        return false;
+    }
+    *pin = m_pinsByIndex[index];
+    return true;
+}
+
+void EventGraphWidget::handleCreateLink()
+{
+    if(ed::BeginCreate(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), 2.0f)){
+        ed::PinId startId;
+        ed::PinId endId;
+        if(ed::QueryNewLink(&startId, &endId) && startId && endId){
+            // Tell the user what will happen if they let go here
+            auto label = [](const QString& text, const ImVec4& color){
+                ed::Suspend();
+                ImGui::BeginTooltip();
+                ImGui::TextColored(color, "%s", text.toUtf8().constData());
+                ImGui::EndTooltip();
+                ed::Resume();
+            };
+            const ImVec4 reject(1.0f, 0.4f, 0.4f, 1.0f);
+
+            PinRef from;
+            PinRef to;
+            if(!pinForEditorPin(startId.Get(), &from) || !pinForEditorPin(endId.Get(), &to)){
+                label("Expand the group to connect to a single event", reject);
+                ed::RejectNewItem(reject, 2.0f);
+            }else if(m_controller->isWritePending(from) || m_controller->isWritePending(to)){
+                label("Wait for the current change to finish", reject);
+                ed::RejectNewItem(reject, 2.0f);
+            }else{
+                EventWrite write;
+                switch(m_controller->model().connect(from, to, &write)){
+                case ConnectResult::Ok:
+                    label(QString("Change %1\nto %2")
+                          .arg(m_controller->pinDescription(write.pin), formatEventId(write.eventId)),
+                          COLOR_CHANGED);
+                    if(ed::AcceptNewItem(COLOR_CHANGED, 3.0f)){
+                        // Not written until the changes are applied
+                        m_controller->stageWrite(write);
+                    }
+                    break;
+                case ConnectResult::AlreadyConnected:
+                    label("These events are already connected", reject);
+                    ed::RejectNewItem(reject, 2.0f);
+                    break;
+                case ConnectResult::BothEmpty:
+                    label("Both events are empty, so there is nothing to connect them with", reject);
+                    ed::RejectNewItem(reject, 2.0f);
+                    break;
+                case ConnectResult::ValueUnknown:
+                    label("The event ID has not been read from the node yet", reject);
+                    ed::RejectNewItem(reject, 2.0f);
+                    break;
+                case ConnectResult::SamePin:
+                case ConnectResult::InvalidPin:
+                    ed::RejectNewItem(reject, 2.0f);
+                    break;
+                }
+            }
+        }
+    }
+    ed::EndCreate();
+}
+
+void EventGraphWidget::handleDeleteLink()
+{
+    if(ed::BeginDelete()){
+        // Nothing is deleted right away: we need to know which end to disconnect
+        ed::LinkId linkId;
+        while(ed::QueryDeletedLink(&linkId)){
+            auto it = m_drawnLinks.constFind(linkId.Get());
+            if(it != m_drawnLinks.constEnd()){
+                m_menuLink = it.value();
+                m_openLinkMenu = true;
+            }
+            ed::RejectDeletedItem();
+        }
+
+        // Nodes are the nodes on the network, they can't be deleted
+        ed::NodeId nodeId;
+        while(ed::QueryDeletedNode(&nodeId)){
+            ed::RejectDeletedItem();
+        }
+    }
+    ed::EndDelete();
+}
+
+void EventGraphWidget::drawLinkMenu()
+{
+    if(!ImGui::BeginPopup("Link context menu")){
+        return;
+    }
+
+    const EventGraphModel& model = m_controller->model();
+    ImGui::Text("Event %s", formatEventId(m_menuLink.eventId).toUtf8().constData());
+    ImGui::Separator();
+
+    if(m_menuLink.pending){
+        if(ImGui::MenuItem("Undo changes to both ends")){
+            m_controller->unstage(m_menuLink.from);
+            m_controller->unstage(m_menuLink.to);
+        }
+        ImGui::Separator();
+    }
+
+    ImGui::TextColored(COLOR_DIM, "Disconnect by setting one end to the null event:");
+
+    for(const PinRef& end : {m_menuLink.from, m_menuLink.to}){
+        if(!model.pin(end)){
+            continue;
+        }
+
+        QString text = QString("Clear %1").arg(m_controller->pinDescription(end));
+        const int otherLinks = model.linkCount(end) - 1;
+        if(otherLinks > 0){
+            text += QString(" (also disconnects %1 other line%2)").arg(otherLinks).arg(otherLinks == 1 ? "" : "s");
+        }
+
+        ImGui::BeginDisabled(m_controller->isWritePending(end));
+        if(ImGui::MenuItem(text.toUtf8().constData())){
+            // Not written until the changes are applied
+            m_controller->stageWrite(model.disconnect(end));
+        }
+        ImGui::EndDisabled();
+    }
+
+    ImGui::EndPopup();
+}
+
+void EventGraphWidget::showError(const QString& error)
+{
+    LOG4CXX_ERROR_FMT(logger, "{}", error.toStdString());
+    m_errors.push_back(error);
+    // Only keep the most recent ones
+    while(m_errors.size() > 5){
+        m_errors.pop_front();
     }
 }
 
@@ -711,6 +875,20 @@ void EventGraphWidget::drawContextMenus()
         }
         ImGui::OpenPopup("Node context menu");
     }
+
+    ed::LinkId contextLink;
+    if(ed::ShowLinkContextMenu(&contextLink)){
+        auto it = m_drawnLinks.constFind(contextLink.Get());
+        if(it != m_drawnLinks.constEnd()){
+            m_menuLink = it.value();
+            m_openLinkMenu = true;
+        }
+    }
+    if(m_openLinkMenu){
+        m_openLinkMenu = false;
+        ImGui::OpenPopup("Link context menu");
+    }
+    drawLinkMenu();
 
     if(ImGui::BeginPopup("Node context menu")){
         const EventGraphNode* node = m_controller->model().node(m_contextNodeId);
@@ -793,6 +971,37 @@ void EventGraphWidget::drawToolbox(const ImGuiViewport* viewport)
         }
         ImGui::Checkbox("Only show connected events", &m_onlyConnected);
 
+        const int changes = m_controller->model().stagedEventIds().size();
+        ImGui::Separator();
+        if(changes > 0){
+            ImGui::TextColored(COLOR_CHANGED, "%d change%s not applied", changes, changes == 1 ? "" : "s");
+        }else{
+            ImGui::TextColored(COLOR_DIM, "No changes");
+        }
+        ImGui::BeginDisabled(changes == 0);
+        if(ImGui::Button("Apply changes")){
+            QStringList errors;
+            m_controller->applyChanges(&errors);
+            for(const QString& error : errors){
+                showError(error);
+            }
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Discard changes")){
+            m_controller->discardChanges();
+        }
+        ImGui::EndDisabled();
+
+        if(!m_errors.isEmpty()){
+            ImGui::Separator();
+            for(const QString& error : m_errors){
+                ImGui::TextColored(COLOR_ERROR, "%s", error.toUtf8().constData());
+            }
+            if(ImGui::SmallButton("Clear errors")){
+                m_errors.clear();
+            }
+        }
+
         ImGui::Separator();
         ImGui::SetNextItemWidth(260.0f);
         if(ImGui::InputTextWithHint("##search", "Search: event name or ID", m_searchBuffer, sizeof(m_searchBuffer))){
@@ -866,6 +1075,7 @@ uint64_t EventGraphWidget::editorPinId(const PinRef& pin, bool output)
     auto it = m_pinIndex.constFind(pin);
     if(it == m_pinIndex.constEnd()){
         it = m_pinIndex.insert(pin, m_pinIndex.size());
+        m_pinsByIndex.push_back(pin);
     }
     return PIN_ID_BASE + static_cast<uint64_t>(it.value()) * 2 + (output ? 1 : 0);
 }

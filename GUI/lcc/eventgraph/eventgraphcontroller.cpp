@@ -6,6 +6,7 @@
 #include "lcc/lccconnection.h"
 #include "lcc/lccnode.h"
 #include "lcc/segmentmemory.h"
+#include "lcc/updatecompletereply.h"
 #include "lcc/cdi/cdilayout.h"
 #include "lcc-node-info.h"
 #include "lcc-simple-node-info.h"
@@ -296,6 +297,12 @@ void EventGraphController::readEventIds(uint64_t nodeId){
             connect(mem, &SegmentMemory::memoryReadFailed, this, [this, nodeId, space](uint16_t, QString message){
                 spaceRead(nodeId, space, message);
             });
+            connect(mem, &SegmentMemory::rangeWritten, this, [this, nodeId, space](uint32_t address, int){
+                writeFinished(nodeId, space, address, QString());
+            });
+            connect(mem, &SegmentMemory::rangeWriteFailed, this, [this, nodeId, space](uint32_t address, int, uint16_t, QString message){
+                writeFinished(nodeId, space, address, message);
+            });
         }
 
         if(mem->hasMemory() && !force){
@@ -356,6 +363,140 @@ void EventGraphController::updatePinsFromMemory(uint64_t nodeId, int space){
         std::optional<uint64_t> eventId = eventIdFromBytes(data.mid(index, 8));
         if(eventId.has_value()){
             m_model.setPinEventId(ref, eventId.value());
+        }
+    }
+
+    Q_EMIT modelChanged();
+}
+
+void EventGraphController::stageWrite(const EventWrite& write){
+    m_model.stageEventId(write.pin, write.eventId);
+    Q_EMIT modelChanged();
+}
+
+void EventGraphController::unstage(const PinRef& pin){
+    m_model.unstage(pin);
+    Q_EMIT modelChanged();
+}
+
+void EventGraphController::discardChanges(){
+    m_model.clearStaged();
+    Q_EMIT modelChanged();
+}
+
+int EventGraphController::applyChanges(QStringList* errors){
+    QSet<uint64_t> nodes;
+    int count = 0;
+
+    const QMap<PinRef, uint64_t> staged = m_model.stagedEventIds();
+    for(auto it = staged.constBegin(); it != staged.constEnd(); ++it){
+        if(m_pendingWrites.contains(it.key())){
+            // Already on its way
+            continue;
+        }
+
+        QString error;
+        if(writeEventId(EventWrite{it.key(), it.value()}, &error, false)){
+            nodes.insert(it.key().nodeId);
+            count++;
+        }else if(errors){
+            errors->push_back(tr("Unable to change %1: %2").arg(pinDescription(it.key()), error));
+        }
+    }
+
+    // Once per node, after all of its writes
+    for(uint64_t nodeId : nodes){
+        sendUpdateComplete(nodeId);
+    }
+
+    return count;
+}
+
+void EventGraphController::sendUpdateComplete(uint64_t nodeId){
+    std::shared_ptr<LCCNode> node = m_conn->lccNodeForID(nodeId);
+    UpdateCompleteReply* reply = node->valid() ? node->sendUpdateComplete() : nullptr;
+    if(reply){
+        connect(reply, &UpdateCompleteReply::finished, this, [reply](){
+            // Not every node implements this(including nodes with older versions of liblcc),
+            // and the event ID has been written anyway, so just log it
+            if(reply->isError()){
+                LOG4CXX_WARN_FMT(logger, "Node did not accept 'update complete': {}", reply->errorMessage().toStdString());
+            }
+        });
+    }
+}
+
+bool EventGraphController::writeEventId(const EventWrite& write, QString* error, bool updateComplete){
+    auto fail = [error](const QString& message){
+        if(error){
+            *error = message;
+        }
+        return false;
+    };
+
+    if(m_pendingWrites.contains(write.pin)){
+        return fail(tr("This event is already being changed"));
+    }
+
+    std::shared_ptr<LCCNode> node = m_conn->lccNodeForID(write.pin.nodeId);
+    SegmentMemory* mem = node->valid() ? node->segmentMemory(write.pin.space) : nullptr;
+    if(!mem || !mem->hasMemory()){
+        return fail(tr("The node's memory has not been read"));
+    }
+
+    // Event IDs are big-endian
+    QVector<uint8_t> bytes;
+    for(int x = 7; x >= 0; x--){
+        bytes.push_back((write.eventId >> (x * 8)) & 0xFF);
+    }
+
+    if(!mem->writeRange(write.pin.address, bytes)){
+        return fail(tr("Unable to write to the node"));
+    }
+    m_pendingWrites.insert(write.pin, write.eventId);
+
+    if(updateComplete){
+        // Sent once the write is done, so that the node starts using the new event ID
+        sendUpdateComplete(write.pin.nodeId);
+    }
+
+    Q_EMIT modelChanged();
+    return true;
+}
+
+bool EventGraphController::isWritePending(const PinRef& pin) const{
+    return m_pendingWrites.contains(pin);
+}
+
+QString EventGraphController::pinDescription(const PinRef& ref) const{
+    const EventGraphNode* node = m_model.node(ref.nodeId);
+    const EventPin* pin = m_model.pin(ref);
+    if(!node || !pin){
+        return QString();
+    }
+
+    QString nodeName = node->name.isEmpty() ? node->model : node->name;
+    if(nodeName.isEmpty()){
+        nodeName = QString::number(ref.nodeId, 16);
+    }
+    return QString("%1: %2").arg(nodeName, pin->path());
+}
+
+void EventGraphController::writeFinished(uint64_t nodeId, int space, uint32_t address, const QString& error){
+    const PinRef ref{nodeId, space, address};
+    if(!m_pendingWrites.remove(ref)){
+        // Written by something else, e.g. a CDI editor.  The pins are updated from dataChanged.
+        return;
+    }
+
+    if(!error.isEmpty()){
+        Q_EMIT writeFailed(tr("Unable to change %1: %2").arg(pinDescription(ref), error));
+    }else{
+        // What the node produces/consumes has changed
+        struct lcc_node_info* info = m_conn->lccNodeInfoForID(nodeId);
+        if(info){
+            lcc_node_refresh_events_produced(info);
+            lcc_node_refresh_events_consumed(info);
         }
     }
 
