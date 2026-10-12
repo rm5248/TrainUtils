@@ -545,10 +545,15 @@ void EventGraphWidget::drawNode(const EventGraphNode& node)
         break;
     }
 
-    // The tree of groups and pins that are visible
+    // The tree of groups and pins that are visible.  The rows point into m_pinTrees,
+    // so iterate the stored tree - not a copy(e.g. from value()), which would be
+    // gone by the time the rows are drawn.
     QVector<NodeRow> rows;
-    for(const PinTreeGroup& group : m_pinTrees.value(node.nodeId)){
-        collectRows(node, group, 0, rows);
+    auto tree = m_pinTrees.constFind(node.nodeId);
+    if(tree != m_pinTrees.constEnd()){
+        for(const PinTreeGroup& group : tree.value()){
+            collectRows(node, group, 0, rows);
+        }
     }
 
     // Columns are placed relative to the left edge of the node, in the same coordinates
@@ -742,14 +747,14 @@ void EventGraphWidget::drawHoveredLinkTooltip()
         return;
     }
 
-    ed::Suspend();
+    // This runs after ed::End(), so ImGui is already back in screen space.  Don't
+    // ed::Suspend() here: that is only for inside ed::Begin()/End(), and asserts outside.
     ImGui::BeginTooltip();
     ImGui::Text("Event %s", formatEventId(it->eventId).toUtf8().constData());
     ImGui::Text("%s: %s", nodeTitle(*fromNode).toUtf8().constData(), fromPin->path().toUtf8().constData());
     ImGui::Text("%s %s: %s", it->directed ? "->" : "--",
                 nodeTitle(*toNode).toUtf8().constData(), toPin->path().toUtf8().constData());
     ImGui::EndTooltip();
-    ed::Resume();
 }
 
 void EventGraphWidget::drawToolbox(const ImGuiViewport* viewport)
