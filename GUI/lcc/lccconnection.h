@@ -13,6 +13,7 @@
 #include "addressspacereply.h"
 #include "addressspacereadreply.h"
 #include "addressspacewritereply.h"
+#include "updatecompletereply.h"
 
 class LCCNode;
 class QTimer;
@@ -91,6 +92,13 @@ public:
      */
     AddressSpaceWriteReply* writeSingleMemoryBlock(int alias, int space, uint32_t starting_address, const QVector<uint8_t>& data);
 
+    /**
+     * Tell a node that we are done writing to its configuration, so that it can start
+     * using it.  This is queued like reads and writes, so it is sent after any writes
+     * that were made before it.
+     */
+    UpdateCompleteReply* sendUpdateComplete(int alias);
+
     std::shared_ptr<LCCNode> lccNodeForID(uint64_t node_id);
 
     /**
@@ -132,6 +140,8 @@ private:
     static void remote_memory_write_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address);
     static void remote_memory_write_rejectedCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t address_space, uint32_t starting_address, uint16_t error_code, const char* message);
     void remoteMemoryWriteFinished(uint16_t alias, uint8_t address_space, bool ok, uint16_t error_code, const QString& message);
+    static void remote_memory_update_complete_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias);
+    void remoteMemoryUpdateCompleteFinished(uint16_t alias);
     void memoryRequestDone();
     static void remote_memory_request_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias, uint8_t flags);
     void remoteMemoryRequestAcknowledged(uint16_t alias, uint8_t flags);
@@ -152,6 +162,7 @@ protected:
     QVector<AddressSpaceReply*> m_inflight_replies;
     QVector<AddressSpaceReadReply*> m_inflight_read_replies;
     QVector<AddressSpaceWriteReply*> m_inflight_write_replies;
+    QVector<UpdateCompleteReply*> m_inflight_update_replies;
     // All of the requests, in the order that they were made
     QVector<QPointer<QObject>> m_request_order;
     bool m_requesting_memory = false;

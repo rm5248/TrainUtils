@@ -146,6 +146,15 @@ void LCCConnection::remote_memory_write_rejectedCB(struct lcc_remote_memory_cont
     conn->remoteMemoryWriteFinished(alias, address_space, false, error_code, fullMessage);
 }
 
+void LCCConnection::remote_memory_update_complete_okCB(struct lcc_remote_memory_context* ctx, uint16_t alias){
+    LOG4CXX_DEBUG_FMT(logger, "Update complete accepted by alias {:X}", alias);
+
+    lcc_context* pctx = lcc_remote_memory_parent(ctx);
+    LCCConnection* conn = static_cast<LCCConnection*>(lcc_context_user_data(pctx));
+
+    conn->remoteMemoryUpdateCompleteFinished(alias);
+}
+
 void LCCConnection::remote_memory_informationCB(struct lcc_remote_memory_context* ctx, uint16_t alias, int exists, int readonly, uint8_t address_space, uint32_t lowest_address, uint32_t highest_address, const char* message){
     LOG4CXX_DEBUG_FMT(logger, "Remote memory information for space {} rx", address_space);
 
@@ -192,6 +201,7 @@ LCCConnection::LCCConnection(QObject *parent) : SystemConnection(parent)
     lcc_remote_memory_set_write_functions(remote_ctx,
                                           remote_memory_write_okCB,
                                           remote_memory_write_rejectedCB);
+    lcc_remote_memory_set_update_complete_function(remote_ctx, remote_memory_update_complete_okCB);
 
     // TODO make this configurable.  currently set to 'assigned by software at runtime'
     lcc_context_set_unique_identifer(m_lcc, 0x040032405001);
@@ -312,6 +322,23 @@ AddressSpaceWriteReply* LCCConnection::writeSingleMemoryBlock(int alias, int spa
     AddressSpaceWriteReply* rep = new AddressSpaceWriteReply(alias, space, starting_address, data, this);
 
     m_inflight_write_replies.push_back(rep);
+    m_request_order.push_back(rep);
+
+    if(!m_requesting_memory){
+        requestNextMemoryBlock();
+    }
+
+    return rep;
+}
+
+UpdateCompleteReply* LCCConnection::sendUpdateComplete(int alias){
+    if(alias <= 0){
+        return nullptr;
+    }
+
+    UpdateCompleteReply* rep = new UpdateCompleteReply(alias, this);
+
+    m_inflight_update_replies.push_back(rep);
     m_request_order.push_back(rep);
 
     if(!m_requesting_memory){
@@ -523,6 +550,23 @@ void LCCConnection::remoteMemoryWriteFinished(uint16_t alias, uint8_t address_sp
     memoryRequestDone();
 }
 
+void LCCConnection::remoteMemoryUpdateCompleteFinished(uint16_t alias){
+    UpdateCompleteReply* finished = nullptr;
+    for(UpdateCompleteReply* rep : m_inflight_update_replies){
+        if(!rep->isFinished() && rep->alias() == alias){
+            finished = rep;
+            break;
+        }
+    }
+
+    if(finished){
+        m_inflight_update_replies.removeOne(finished);
+        finished->setValidResponse();
+    }
+
+    memoryRequestDone();
+}
+
 void LCCConnection::memoryRequestDone(){
     m_requestTimer->stop();
     m_requestRetries = 0;
@@ -578,6 +622,9 @@ void LCCConnection::memoryRequestTimedOut(){
                 .arg(rep->alias(), 3, 16, QLatin1Char('0'))
                 .arg(rep->space(), 2, 16, QLatin1Char('0'))
                 .arg(rep->startingAddress());
+    }else if(auto rep = qobject_cast<UpdateCompleteReply*>(current)){
+        message = QString("Node 0x%1 did not respond to 'update complete'")
+                .arg(rep->alias(), 3, 16, QLatin1Char('0'));
     }
     LOG4CXX_ERROR_FMT(logger, "{}", message.toStdString());
 
@@ -590,6 +637,8 @@ uint16_t LCCConnection::requestAlias(QObject* request){
     }else if(auto rep = qobject_cast<AddressSpaceReply*>(request)){
         return rep->alias();
     }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(request)){
+        return rep->alias();
+    }else if(auto rep = qobject_cast<UpdateCompleteReply*>(request)){
         return rep->alias();
     }
     return 0;
@@ -619,6 +668,9 @@ void LCCConnection::failCurrentRequest(uint16_t error_code, const QString& messa
     }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(current)){
         m_inflight_write_replies.removeOne(rep);
         rep->setInvalidResponse(error_code, message);
+    }else if(auto rep = qobject_cast<UpdateCompleteReply*>(current)){
+        m_inflight_update_replies.removeOne(rep);
+        rep->setInvalidResponse(error_code, message);
     }
 
     memoryRequestDone();
@@ -640,6 +692,8 @@ void LCCConnection::requestNextMemoryBlock(){
         }else if(auto rep = qobject_cast<AddressSpaceReply*>(front)){
             done = rep->isFinished();
         }else if(auto rep = qobject_cast<AddressSpaceWriteReply*>(front)){
+            done = rep->isFinished();
+        }else if(auto rep = qobject_cast<UpdateCompleteReply*>(front)){
             done = rep->isFinished();
         }
 
@@ -680,6 +734,13 @@ void LCCConnection::requestNextMemoryBlock(){
             LOG4CXX_ERROR_FMT(logger, "Unable to send memory write request to alias {:X}: error {}", rep->alias(), ret);
             m_inflight_write_replies.removeOne(rep);
             rep->setInvalidResponse(0, QString("Unable to send write request(LCC error %1)").arg(ret));
+        }
+    }else if(auto rep = qobject_cast<UpdateCompleteReply*>(next)){
+        ret = lcc_remote_memory_update_complete(ctx, rep->alias());
+        if(ret != LCC_OK){
+            LOG4CXX_ERROR_FMT(logger, "Unable to send update complete to alias {:X}: error {}", rep->alias(), ret);
+            m_inflight_update_replies.removeOne(rep);
+            rep->setInvalidResponse(0, QString("Unable to send update complete(LCC error %1)").arg(ret));
         }
     }
 

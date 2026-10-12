@@ -3,6 +3,7 @@
 #define CDIEDITORWIDGET_H
 
 #include <QMap>
+#include <QSet>
 #include <QPair>
 #include <QStringList>
 #include <QWidget>
@@ -99,6 +100,7 @@ private:
     FieldBinding* bindingForWidget(QWidget* widget);
     void readField(const FieldBinding& binding);
     void writeChange(const FieldKey& key);
+    void sendUpdateComplete();
     void removeWrittenChanges();
     void updateButtons();
     bool isBusy();
@@ -132,6 +134,8 @@ private:
     QMap<FieldKey, PendingChange> m_pending;
     // Number of writes to the node that have not finished
     int m_writesOutstanding = 0;
+    /** Writes that we made, so we can tell them apart from writes made by something else */
+    QSet<FieldKey> m_writesInFlight;
 };
 
 #endif // CDIEDITORWIDGET_H

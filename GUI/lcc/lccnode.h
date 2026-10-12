@@ -14,6 +14,7 @@ class LCCConnection;
 class AddressSpaceReply;
 class AddressSpaceReadReply;
 class SegmentMemory;
+class UpdateCompleteReply;
 
 /**
  * Represents a single LCC node.
@@ -53,6 +54,13 @@ public:
      * instead of reading it from the node.  Emits cdiRead.
      */
     void setCDI(const CDI& cdi);
+
+    /**
+     * Tell the node that we are done changing its configuration.  Send this after writing.
+     *
+     * @return Can be used to find out if the node accepted it.  Deletes itself when finished.
+     */
+    UpdateCompleteReply* sendUpdateComplete();
 
     /**
      * Check to see if we have all memory read from this node.

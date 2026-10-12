@@ -21,6 +21,7 @@
 #include "stringtype.h"
 #include "lcc/lccnode.h"
 #include "lcc/segmentmemory.h"
+#include "lcc/updatecompletereply.h"
 
 #include <log4cxx/logger.h>
 #include <fmt/format.h>
@@ -594,7 +595,10 @@ void CdiEditorWidget::showFieldContextMenu(QWidget* widget, const QPoint& pos){
 
     QAction* writeAction = new QAction(tr("Write value"), menu);
     writeAction->setEnabled(!isBusy() && m_pending.contains(key));
-    connect(writeAction, &QAction::triggered, this, [this, key](){ writeChange(key); });
+    connect(writeAction, &QAction::triggered, this, [this, key](){
+        writeChange(key);
+        sendUpdateComplete();
+    });
 
     menu->insertAction(first, readAction);
     menu->insertAction(first, writeAction);
@@ -670,8 +674,29 @@ void CdiEditorWidget::writeChange(const FieldKey& key){
     }
 
     m_writesOutstanding++;
+    m_writesInFlight.insert(key);
     ui->filePathLabel->setText(tr("Writing %n value(s)...", "", m_writesOutstanding));
     updateButtons();
+}
+
+void CdiEditorWidget::sendUpdateComplete(){
+    if(!m_node){
+        return;
+    }
+
+    // This is sent after the writes that were just made, so the node uses the new values
+    UpdateCompleteReply* reply = m_node->sendUpdateComplete();
+    if(!reply){
+        return;
+    }
+
+    connect(reply, &UpdateCompleteReply::finished, this, [reply](){
+        // Not every node implements this(including nodes with older versions of liblcc),
+        // and the values have been written anyway, so this isn't worth bothering the user with
+        if(reply->isError()){
+            LOG4CXX_WARN_FMT(logger, "Node did not accept 'update complete': {}", reply->errorMessage().toStdString());
+        }
+    });
 }
 
 void CdiEditorWidget::on_writeButton_clicked(){
@@ -681,6 +706,9 @@ void CdiEditorWidget::on_writeButton_clicked(){
     const QList<FieldKey> keys = m_pending.keys();
     for(const FieldKey& key : keys){
         writeChange(key);
+    }
+    if(m_writesOutstanding > 0){
+        sendUpdateComplete();
     }
 }
 
@@ -699,9 +727,16 @@ void CdiEditorWidget::removeWrittenChanges(){
 }
 
 void CdiEditorWidget::rangeWritten(uint32_t address, int length){
-    m_writesOutstanding = std::max(0, m_writesOutstanding - 1);
+    SegmentMemory* mem = qobject_cast<SegmentMemory*>(sender());
     removeWrittenChanges();
     refreshFieldValues();
+
+    if(!mem || !m_writesInFlight.remove(FieldKey(mem->segmentId(), address))){
+        // Written by something else(e.g. the event graph) - all we need to do is show it
+        return;
+    }
+
+    m_writesOutstanding = std::max(0, m_writesOutstanding - 1);
 
     if(m_writesOutstanding == 0){
         ui->filePathLabel->setText(m_nodeDescription);
@@ -712,9 +747,14 @@ void CdiEditorWidget::rangeWritten(uint32_t address, int length){
 }
 
 void CdiEditorWidget::rangeWriteFailed(uint32_t address, int length, uint16_t error_code, QString message){
+    SegmentMemory* mem = qobject_cast<SegmentMemory*>(sender());
+    if(!mem || !m_writesInFlight.remove(FieldKey(mem->segmentId(), address))){
+        // Not one of our writes
+        return;
+    }
+
     m_writesOutstanding = std::max(0, m_writesOutstanding - 1);
 
-    SegmentMemory* mem = qobject_cast<SegmentMemory*>(sender());
     QString name = tr("address %1").arg(address);
     if(mem){
         auto pending = m_pending.constFind(FieldKey(mem->segmentId(), address));

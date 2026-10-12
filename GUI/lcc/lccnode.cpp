@@ -75,6 +75,18 @@ void LCCNode::cdiReady(){
     setCDI(CDI::createFromXML(&rdr));
 }
 
+UpdateCompleteReply* LCCNode::sendUpdateComplete(){
+    if(m_nodeInfo == nullptr){
+        return nullptr;
+    }
+
+    UpdateCompleteReply* reply = m_conn->sendUpdateComplete(lcc_node_info_get_alias(m_nodeInfo));
+    if(reply){
+        connect(reply, &UpdateCompleteReply::finished, reply, &QObject::deleteLater);
+    }
+    return reply;
+}
+
 void LCCNode::setCDI(const CDI& cdi){
     m_cdi = cdi;
     m_hasCDI = true;
