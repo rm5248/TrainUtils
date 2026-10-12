@@ -75,12 +75,11 @@ int lcc_canframe_to_gridconnect(struct lcc_can_frame* frame, char* output, int o
             frame->data[6],
             frame->data[7]);
     // Put the null at the correct spot in the string
-    int null_spot = 17;
+    int null_spot = 16;
     if(frame->can_len < 8){
         null_spot = (2 * frame->can_len);
+        data_bytes[null_spot] = 0;
     }
-
-    data_bytes[null_spot] = 0;
 
     snprintf(output, out_len, ":X%lXN%s;", frame->can_id, data_bytes);
 
